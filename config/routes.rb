@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'rswag/ui'
+require 'rswag/api'
+
 Lab::Engine.routes.draw do
   mount Rswag::Ui::Engine => '/api-docs/lab'
   mount Rswag::Api::Engine => '/api-docs/lab'
