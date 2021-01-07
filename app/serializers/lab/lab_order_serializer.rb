@@ -26,16 +26,19 @@ module Lab
             name: concept_name(reason_for_test&.value_coded)
           },
           specimens: specimens.map do |specimen|
-            result, result_date = if specimen.respond_to?(:result)
-                                    [specimen.result&.value_text, specimen.result&.obs_datetime]
-                                  end
+            result = if specimen.respond_to?(:result)
+                       {
+                         id: specimen.result&.obs_id,
+                         value: specimen.result&.value_text,
+                         date: specimen.result&.obs_datetime
+                       }
+                     end
 
             {
               id: specimen.obs_id,
               concept_id: specimen.value_coded,
               name: concept_name(specimen.value_coded),
-              result: result,
-              result_date: result_date
+              result: result
             }
           end
         }

@@ -37,8 +37,16 @@ def order_schema
             id: { type: :integer },
             concept_id: { type: :integer },
             name: { type: :string },
-            result: { type: :string, nullable: true },
-            result_date: { type: :string, format: :datetime, nullable: true }
+            result: {
+              type: :object,
+              nullable: true,
+              properties: {
+                id: { type: :integer },
+                value: { type: :string, nullable: true },
+                date: { type: :string, format: :datetime, nullable: true }
+              },
+              required: %i[id value date]
+            }
           },
           required: %i[id concept_id name]
         }
