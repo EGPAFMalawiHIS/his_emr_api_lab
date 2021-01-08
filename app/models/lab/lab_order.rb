@@ -18,9 +18,9 @@ module Lab
     TEST_TYPE_CONCEPT_NAME = 'Test type'
     LAB_TEST_RESULT_CONCEPT_NAME = 'Lab test result'
 
-    has_many :specimens,
-             make_obs_concept_filter(SPECIMEN_TYPE_CONCEPT_NAME),
-             class_name: '::Lab::LabOrderSpecimen',
+    has_many :tests,
+             make_obs_concept_filter(TEST_TYPE_CONCEPT_NAME),
+             class_name: '::Lab::LabOrderTest',
              foreign_key: :order_id
 
     has_many :results,
@@ -53,7 +53,7 @@ module Lab
       includes(:reason_for_test,
                :requesting_clinician,
                :target_lab,
-               specimens: [:result])
+               tests: [:result])
     end
   end
 end

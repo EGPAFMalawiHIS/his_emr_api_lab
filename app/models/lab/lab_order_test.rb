@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 module Lab
-  class LabOrderSpecimen < ::Observation
+  class LabOrderTest < ::Observation
     default_scope do
-      where(concept: ConceptName.where(LabOrder::SPECIMEN_TYPE_CONCEPT_NAME), voided: false)
+      where(concept: ConceptName.where(LabOrder::TEST_TYPE_CONCEPT_NAME), voided: false)
     end
 
     has_one :result,

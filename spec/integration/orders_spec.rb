@@ -11,7 +11,7 @@ def order_schema
       encounter_id: { type: :integer },
       order_date: { type: :string, format: :datetime },
       accession_number: { type: :string },
-      test_type: {
+      specimen: {
         type: :object,
         properties: {
           concept_id: { type: :integer },
@@ -29,7 +29,7 @@ def order_schema
         },
         required: %i[concept_id name]
       },
-      specimens: {
+      tests: {
         type: :array,
         items: {
           type: :object,
@@ -52,7 +52,7 @@ def order_schema
         }
       }
     },
-    required: %i[order_id test_type reason_for_test accession_number patient_id order_date]
+    required: %i[order_id specimen reason_for_test accession_number patient_id order_date]
   }
 end
 
@@ -60,7 +60,7 @@ describe 'orders' do
   before(:each) do
     @encounter_type = create(:encounter_type, name: Lab::LabEncounter::ENCOUNTER_TYPE_NAME)
     @order_type = create(:order_type, name: Lab::LabOrder::ORDER_TYPE_NAME)
-    @specimen_type = create(:concept_name, name: Lab::LabOrder::SPECIMEN_TYPE_CONCEPT_NAME).concept
+    @test_type = create(:concept_name, name: Lab::LabOrder::TEST_TYPE_CONCEPT_NAME).concept
     @reason_for_test = create(:concept_name, name: Lab::LabOrder::REASON_FOR_TEST_CONCEPT_NAME).concept
     @requesting_clinician = create(:concept_name, name: Lab::LabOrder::REQUESTING_CLINICIAN_CONCEPT_NAME).concept
     @target_lab = create(:concept_name, name: Lab::LabOrder::TARGET_LAB_CONCEPT_NAME).concept
@@ -89,18 +89,23 @@ describe 'orders' do
             items: {
               properties: {
                 encounter_id: { type: :integer },
-                test_type_id: {
-                  type: :integer,
-                  description: 'Test type concept ID (see GET /lab/test_types)'
+                specimen: {
+                  type: :object,
+                  properties: {
+                    concept_id: {
+                      type: :integer,
+                      description: 'Specimen type concept ID (see GET /lab/test_types)'
+                    }
+                  }
                 },
-                specimens: {
+                tests: {
                   type: :array,
                   items: {
                     type: :object,
                     properties: {
                       concept_id: {
                         type: :integer,
-                        description: 'Specimen type concept ID (see GET /lab/test_types)'
+                        description: 'Test type concept ID (see GET /lab/test_types)'
                       }
                     }
                   }
@@ -129,8 +134,8 @@ describe 'orders' do
           orders: [
             {
               encounter_id: create(:encounter, type: @encounter_type).encounter_id,
-              test_type_id: create(:concept_name, name: 'Viral load').concept_id,
-              specimens: [{ concept_id: create(:concept_name, name: 'FBC').concept_id }],
+              specimen: { concept_id: create(:concept_name, name: 'Viral load').concept_id },
+              tests: [{ concept_id: create(:concept_name, name: 'FBC').concept_id }],
               requesting_clinician: 'Barry Allen',
               target_lab: 'Starlabs',
               reason_for_test_id: create(:concept_name, name: 'Routine').concept_id
@@ -146,12 +151,12 @@ describe 'orders' do
           response = JSON.parse(response.body)
           order = orders[:orders].first
 
-          expect(response[0]['test_type']['concept_id']).to eq(order[:test_type_id])
+          expect(response[0]['specimen']['concept_id']).to eq(order[:specimen][:concept_id])
           expect(response[0]['requesting_clinician']).to eq(order[:requesting_clinician])
           expect(response[0]['target_lab']).to eq(order[:target_lab])
           expect(response[0]['reason_for_test']['concept_id']).to eq(order[:reason_for_test_id])
-          expect(Set.new(response[0]['specimens'].map { |specimen| specimen['concept_id'] }))
-            .to eq(Set.new(order[:specimens].map { |specimen| specimen[:concept_id] }))
+          expect(Set.new(response[0]['tests'].map { |test| test['concept_id'] }))
+            .to eq(Set.new(order[:tests].map { |test| test[:concept_id] }))
         end
       end
     end
@@ -176,12 +181,6 @@ describe 'orders' do
                 type: :integer,
                 description: 'Filter orders using sample accession number'
 
-      parameter name: :pending_results,
-                in: :query,
-                required: false,
-                type: :boolean,
-                description: 'Select orders pending results [default: false]'
-
       parameter name: :date,
                 in: :query,
                 required: false,
@@ -200,7 +199,7 @@ describe 'orders' do
         return if no_specimen
 
         observations = [
-          [@specimen_type, value_coded: create(:concept_name).concept_id],
+          [@test_type, value_coded: create(:concept_name).concept_id],
           [@target_lab, value_text: 'Ze Lab'],
           [@reason_for_test, value_coded: create(:concept_name).concept_id],
           [@requesting_clinician, value_text: Faker::Name.name]
@@ -226,7 +225,6 @@ describe 'orders' do
       let(:patient_id) { @orders.first.patient_id }
       let(:accession_number) { @orders.first.accession_number }
       let(:date) { @orders.first.start_date }
-      let(:pending_results) { 'true' }
 
       response 200, 'Success' do
         schema type: :array, items: order_schema

@@ -11,7 +11,7 @@ module Lab
       @encounter_type = create(:encounter_type, name: LabEncounter::ENCOUNTER_TYPE_NAME)
       @order_type = create(:order_type, name: LabOrder::ORDER_TYPE_NAME)
 
-      [LabOrder::SPECIMEN_TYPE_CONCEPT_NAME,
+      [LabOrder::TEST_TYPE_CONCEPT_NAME,
        LabOrder::REQUESTING_CLINICIAN_CONCEPT_NAME,
        LabOrder::TARGET_LAB_CONCEPT_NAME,
        LabOrder::REASON_FOR_TEST_CONCEPT_NAME].each do |name|
@@ -21,15 +21,15 @@ module Lab
 
     describe :order_test do
       let(:encounter) { create(:encounter, type: @encounter_type) }
-      let(:test_type) { create(:concept_name) }
-      let(:specimen_types) { create_list(:concept, 5) }
+      let(:specimen_type) { create(:concept_name) }
+      let(:test_types) { create_list(:concept, 5) }
       let(:reason_for_test) { create(:concept_name) }
 
       let(:params) do
         ActiveSupport::HashWithIndifferentAccess.new(
           encounter_id: encounter.encounter_id,
-          test_type_id: test_type.concept_id,
-          specimen_types: specimen_types.map do |type|
+          specimen: { concept_id: specimen_type.concept_id },
+          tests: test_types.map do |type|
             { concept_id: type.concept_id }
           end,
           start_date: Date.today,

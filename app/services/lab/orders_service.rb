@@ -40,7 +40,7 @@ module Lab
           order = create_order(encounter, order_params)
 
           Lab::LabOrderSerializer.serialize_order(
-            order, specimens: add_specimens(order, order_params),
+            order, tests: add_tests(order, order_params),
                    requesting_clinician: add_requesting_clinician(order, order_params),
                    reason_for_test: add_reason_for_test(order, order_params),
                    target_lab: add_target_lab(order, order_params)
@@ -87,7 +87,7 @@ module Lab
       def create_order(encounter, params)
         LabOrder.create!(
           order_type: OrderType.find_by_name!(Lab::LabOrder::ORDER_TYPE_NAME),
-          concept_id: params[:test_type_id],
+          concept_id: params[:specimen][:concept_id],
           encounter_id: encounter.encounter_id,
           patient_id: encounter.patient_id,
           start_date: params[:start_date] || Date.today,
@@ -97,21 +97,21 @@ module Lab
       end
 
       ##
-      # Add specimens to an order
-      def add_specimens(order, params)
-        return [] unless params[:specimens]
+      # Add tests to order.
+      def add_tests(order, params)
+        return [] unless params[:tests]
 
-        params[:specimens].map do |specimen|
-          create_specimen(order, params['date'], specimen[:concept_id])
+        params[:tests].map do |test|
+          create_test(order, params['date'], test[:concept_id])
         end
       end
 
-      def create_specimen(order, date, specimen_id)
+      def create_test(order, date, test_type_id)
         create_order_observation(
           order,
-          LabOrder::SPECIMEN_TYPE_CONCEPT_NAME,
+          Lab::LabOrder::TEST_TYPE_CONCEPT_NAME,
           date,
-          value_coded: specimen_id
+          value_coded: test_type_id
         )
       end
 
@@ -120,7 +120,7 @@ module Lab
       def add_requesting_clinician(order, params)
         create_order_observation(
           order,
-          LabOrder::REQUESTING_CLINICIAN_CONCEPT_NAME,
+          Lab::LabOrder::REQUESTING_CLINICIAN_CONCEPT_NAME,
           params[:date],
           value_text: params['requesting_clinician']
         )
@@ -146,7 +146,8 @@ module Lab
           order,
           Lab::LabOrder::TARGET_LAB_CONCEPT_NAME,
           params[:date],
-          value_text: params['target_lab'])
+          value_text: params['target_lab']
+        )
       end
 
       def create_order_observation(order, concept_name, date, **values)
