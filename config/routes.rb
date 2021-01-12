@@ -1,12 +1,9 @@
 # frozen_string_literal: true
 
-require 'rswag/ui'
-require 'rswag/api'
-
 Lab::Engine.routes.draw do
-  resources :orders, path: 'api/v1/lab/orders'
-  resources :tests, path: 'api/v1/lab/tests' do # ?pending=true to select tests without results?
-    resources :results, only: %i[index create]
+  resources :orders, path: 'api/v1/lab/orders', except: %i[update]
+  resources :tests, path: 'api/v1/lab/tests', except: %i[update] do # ?pending=true to select tests without results?
+    resources :results, only: %i[index create destroy]
   end
 
   # Metadata
