@@ -40,20 +40,10 @@ module Lab
           order = create_order(encounter, order_params)
 
           Lab::LabOrderSerializer.serialize_order(
-            order, tests: add_tests(order, order_params),
+            order, tests: Lab::TestsService.create_tests(order, order_params[:date], order_params[:tests]),
                    requesting_clinician: add_requesting_clinician(order, order_params),
                    reason_for_test: add_reason_for_test(order, order_params),
                    target_lab: add_target_lab(order, order_params)
-          )
-        end
-      end
-
-      def update_order(order_id, order_params)
-        Order.transaction do
-          order = Lab::LabOrder.find(order_id)
-
-          Lab::LabOrderSerializer.serialize_order(
-            order, specimens: add_specimens(order, order_params)
           )
         end
       end
@@ -93,25 +83,6 @@ module Lab
           start_date: params[:start_date] || Date.today,
           auto_expire_date: params[:end_date],
           accession_number: next_accession_number
-        )
-      end
-
-      ##
-      # Add tests to order.
-      def add_tests(order, params)
-        return [] unless params[:tests]
-
-        params[:tests].map do |test|
-          create_test(order, params['date'], test[:concept_id])
-        end
-      end
-
-      def create_test(order, date, test_type_id)
-        create_order_observation(
-          order,
-          Lab::LabOrder::TEST_TYPE_CONCEPT_NAME,
-          date,
-          value_coded: test_type_id
         )
       end
 

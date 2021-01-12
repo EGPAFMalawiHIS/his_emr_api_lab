@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
 module Lab
-  class LabOrderTest < ::Observation
+  class LabTest < ::Observation
     default_scope do
-      where(concept: ConceptName.where(LabOrder::TEST_TYPE_CONCEPT_NAME), voided: false)
+      where(concept: ConceptName.where(name: LabOrder::TEST_TYPE_CONCEPT_NAME))
     end
 
     has_one :result,
             -> { where(concept: ConceptName.where(name: LabOrder::LAB_TEST_RESULT_CONCEPT_NAME)) },
-            class_name: 'Observation',
+            class_name: '::Lab::LabResult',
             foreign_key: :obs_group_id
   end
 end

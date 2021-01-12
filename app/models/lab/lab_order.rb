@@ -10,6 +10,7 @@ module Lab
       end
     end
 
+    # TODO: Move these constants to a suitable place, perhaps a constants service?
     ORDER_TYPE_NAME = 'Lab order'
     REASON_FOR_TEST_CONCEPT_NAME = 'Reason for test'
     REQUESTING_CLINICIAN_CONCEPT_NAME = 'Requesting Clinician'
@@ -20,7 +21,7 @@ module Lab
 
     has_many :tests,
              make_obs_concept_filter(TEST_TYPE_CONCEPT_NAME),
-             class_name: '::Lab::LabOrderTest',
+             class_name: '::Lab::LabTest',
              foreign_key: :order_id
 
     has_many :results,
