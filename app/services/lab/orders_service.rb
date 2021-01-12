@@ -39,9 +39,10 @@ module Lab
           encounter = find_encounter(order_params)
           order = create_order(encounter, order_params)
 
+          Lab::TestsService.create_tests(order, order_params[:date], order_params[:tests])
+
           Lab::LabOrderSerializer.serialize_order(
-            order, tests: Lab::TestsService.create_tests(order, order_params[:date], order_params[:tests]),
-                   requesting_clinician: add_requesting_clinician(order, order_params),
+            order, requesting_clinician: add_requesting_clinician(order, order_params),
                    reason_for_test: add_reason_for_test(order, order_params),
                    target_lab: add_target_lab(order, order_params)
           )
