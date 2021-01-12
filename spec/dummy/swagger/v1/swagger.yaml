@@ -4,56 +4,6 @@ info:
   title: API V1
   version: v1
 paths:
-  "/api/v1/lab/orders/{order_id}/specimens":
-    post:
-      summary: Add specimens to order
-      tags:
-      - Lab
-      description: |
-        Add specimens to an existing order.
-
-        An order can be created without specifying specimens.
-        This endpoint allows one to add specimens to that order.
-      parameters:
-      - name: order_id
-        in: path
-        required: true
-        schema:
-          type: integer
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    concept_id:
-                      type: integer
-                    name:
-                      type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                specimens:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      concept_id:
-                        type: integer
-                        description: Specimen type concept ID
-                    required:
-                    - concept_id
-              required:
-              - specimens
   "/api/v1/lab/orders":
     post:
       summary: Create order
@@ -89,7 +39,7 @@ paths:
                       format: datetime
                     accession_number:
                       type: string
-                    test_type:
+                    specimen:
                       type: object
                       properties:
                         concept_id:
@@ -114,7 +64,7 @@ paths:
                       required:
                       - concept_id
                       - name
-                    specimens:
+                    tests:
                       type: array
                       items:
                         type: object
@@ -126,19 +76,29 @@ paths:
                           name:
                             type: string
                           result:
-                            type: string
+                            type: object
                             nullable: true
-                          result_date:
-                            type: string
-                            format: datetime
-                            nullable: true
+                            properties:
+                              id:
+                                type: integer
+                              value:
+                                type: string
+                                nullable: true
+                              date:
+                                type: string
+                                format: datetime
+                                nullable: true
+                            required:
+                            - id
+                            - value
+                            - date
                         required:
                         - id
                         - concept_id
                         - name
                   required:
                   - order_id
-                  - test_type
+                  - specimen
                   - reason_for_test
                   - accession_number
                   - patient_id
@@ -155,17 +115,20 @@ paths:
                     properties:
                       encounter_id:
                         type: integer
-                      test_type_id:
-                        type: integer
-                        description: Test type concept ID (see GET /lab/test_types)
-                      specimens:
+                      specimen:
+                        type: object
+                        properties:
+                          concept_id:
+                            type: integer
+                            description: Specimen type concept ID (see GET /lab/test_types)
+                      tests:
                         type: array
                         items:
                           type: object
                           properties:
                             concept_id:
                               type: integer
-                              description: Specimen type concept ID (see GET /lab/test_types)
+                              description: Test type concept ID (see GET /lab/test_types)
                       requesting_clinician:
                         type: string
                         description: Fullname of the clinician requesting the test
@@ -200,12 +163,6 @@ paths:
         description: Filter orders using sample accession number
         schema:
           type: integer
-      - name: pending_results
-        in: query
-        required: false
-        description: 'Select orders pending results [default: false]'
-        schema:
-          type: boolean
       - name: date
         in: query
         required: false
@@ -233,7 +190,7 @@ paths:
                       format: datetime
                     accession_number:
                       type: string
-                    test_type:
+                    specimen:
                       type: object
                       properties:
                         concept_id:
@@ -258,7 +215,7 @@ paths:
                       required:
                       - concept_id
                       - name
-                    specimens:
+                    tests:
                       type: array
                       items:
                         type: object
@@ -270,23 +227,67 @@ paths:
                           name:
                             type: string
                           result:
-                            type: string
+                            type: object
                             nullable: true
-                          result_date:
-                            type: string
-                            format: datetime
-                            nullable: true
+                            properties:
+                              id:
+                                type: integer
+                              value:
+                                type: string
+                                nullable: true
+                              date:
+                                type: string
+                                format: datetime
+                                nullable: true
+                            required:
+                            - id
+                            - value
+                            - date
                         required:
                         - id
                         - concept_id
                         - name
                   required:
                   - order_id
-                  - test_type
+                  - specimen
                   - reason_for_test
                   - accession_number
                   - patient_id
                   - order_date
+  "/api/v1/lab/tests/{test_id}/results":
+    post:
+      summary: Add results to order
+      tags:
+      - Lab
+      description: Attach results to specimens on order
+      parameters:
+      - name: test_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Created
+          content: {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                encounter_id:
+                  type: integer
+                provider_id:
+                  type: integer
+                modifier:
+                  type: string
+                value:
+                  type: string
+                date:
+                  type: string
+              required:
+              - value
   "/api/v1/lab/specimen_types":
     get:
       summary: Specimen types
@@ -351,6 +352,113 @@ paths:
                 required:
                 - concept_id
                 - name
+  "/api/v1/lab/tests":
+    get:
+      summary: Search for tests
+      tags:
+      - Tests
+      description: 'Search for tests by accession number, date and other parameters.
+
+        '
+      parameters:
+      - name: accession_number
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: test_type_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: specimen_type_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: patient_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: order_date
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Okay
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    concept_id:
+                      type: integer
+                    name:
+                      type: string
+                    order:
+                      order_id:
+                        type: string
+                      accession_number:
+                        type: string
+    post:
+      summary: Add tests to an existing order
+      tags:
+      - Tests
+      description: |
+        Add tests to an existing order.
+
+        An order can be created without specifying tests.
+        This endpoint allows one to add tests to that order.
+      parameters: []
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    concept_id:
+                      type: integer
+                    name:
+                      type: string
+                    order:
+                      order_id:
+                        type: string
+                      accession_number:
+                        type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                order_id:
+                  type: integer
+                tests:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      concept_id:
+                        type: integer
+                        description: Test type concept ID
+                    required:
+                    - concept_id
+              required:
+              - order_id
+              - tests
 servers:
 - url: http://{defaultHost}
   variables:
