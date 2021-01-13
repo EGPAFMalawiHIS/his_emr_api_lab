@@ -5,7 +5,7 @@ require 'swagger_helper'
 RSpec.describe 'results' do
   path '/api/v1/lab/tests/{test_id}/results' do
     post 'Add results to order' do
-      tags 'Lab'
+      tags 'Results'
       description 'Attach results to specimens on order'
 
       consumes 'application/json'

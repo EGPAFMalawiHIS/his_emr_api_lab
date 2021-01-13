@@ -19,7 +19,7 @@ describe 'Test types' do
     end
 
     get 'Test types' do
-      tags 'Lab'
+      tags 'Concepts'
       description 'Retrieve all test types'
 
       produces 'application/json'

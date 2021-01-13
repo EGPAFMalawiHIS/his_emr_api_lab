@@ -68,7 +68,7 @@ describe 'orders' do
 
   path '/api/v1/lab/orders' do
     post 'Create order' do
-      tags 'Lab'
+      tags 'Orders'
 
       description <<~DESC
         Create a lab order for a test.
@@ -162,7 +162,7 @@ describe 'orders' do
     end
 
     get 'Retrieve lab orders' do
-      tags 'Lab'
+      tags 'Orders'
       description 'Search/retrieve for lab orders.'
 
       produces 'application/json'

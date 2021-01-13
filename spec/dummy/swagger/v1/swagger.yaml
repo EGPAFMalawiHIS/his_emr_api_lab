@@ -8,7 +8,7 @@ paths:
     post:
       summary: Create order
       tags:
-      - Lab
+      - Orders
       description: |
         Create a lab order for a test.
 
@@ -146,7 +146,7 @@ paths:
     get:
       summary: Retrieve lab orders
       tags:
-      - Lab
+      - Orders
       description: Search/retrieve for lab orders.
       security:
       - api_key: []
@@ -258,7 +258,7 @@ paths:
     post:
       summary: Add results to order
       tags:
-      - Lab
+      - Results
       description: Attach results to specimens on order
       parameters:
       - name: test_id
@@ -292,7 +292,7 @@ paths:
     get:
       summary: Specimen types
       tags:
-      - Lab
+      - Concepts
       description: Retrieve all specimen types
       security:
       - api_key: []
@@ -324,7 +324,7 @@ paths:
     get:
       summary: Test types
       tags:
-      - Lab
+      - Concepts
       description: Retrieve all test types
       security:
       - api_key: []

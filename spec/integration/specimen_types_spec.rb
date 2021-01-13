@@ -19,7 +19,7 @@ describe 'Specimen types' do
     end
 
     get 'Specimen types' do
-      tags 'Lab'
+      tags 'Concepts'
       description 'Retrieve all specimen types'
 
       produces 'application/json'
