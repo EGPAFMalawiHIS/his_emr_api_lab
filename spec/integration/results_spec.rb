@@ -25,7 +25,7 @@ RSpec.describe 'results' do
         required: %i[value]
       }
 
-      before(:all) do
+      before(:each) do
         lab_test_type = create(:order_type, name: Lab::LabOrder::ORDER_TYPE_NAME)
         specimen_type_concept = create(:concept_name, name: Lab::LabOrder::SPECIMEN_TYPE_CONCEPT_NAME)
         test_type_concept = create(:concept_name, name: Lab::LabOrder::TEST_TYPE_CONCEPT_NAME)

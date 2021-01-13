@@ -15,7 +15,7 @@ def test_schema
 end
 
 RSpec.describe 'Tests' do
-  before(:all) do
+  before(:each) do
     @test_type_concept = create(:concept_name, name: Lab::LabOrder::TEST_TYPE_CONCEPT_NAME)
     @encounter = create(:encounter)
     @order = create(:order, order_type: create(:order_type, name: Lab::LabOrder::ORDER_TYPE_NAME),

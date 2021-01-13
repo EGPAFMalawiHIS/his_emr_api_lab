@@ -54,32 +54,12 @@ module Lab
 
         expect { subject.order_test(params_subset) }.to raise_error(::InvalidParameterError)
       end
-    end
 
-    describe :search_orders do
-      before(:each) do
-        encounter = create(:encounter, type: @encounter_type)
-        @lab_order = create(:order, type: @order_type,
-                                    encounter: encounter,
-                                    patient_id: encounter.patient_id,
-                                    start_date: Date.today)
-      end
+      it 'attaches tests to the order' do
+        order = subject.order_test(params)
 
-      # TODO: Implement the following tests
-
-      xit 'retrieves orders by patient_id' do
-      end
-
-      xit 'retrieves orders by accession_number' do
-      end
-
-      xit 'retrieves orders by date' do
-      end
-
-      xit 'retrieves orders by pending_results status' do
-      end
-
-      xit 'retrieves all orders when no filters are specified' do
+        tests = Lab::LabTest.where(order_id: order[:order_id])
+        expect(tests.size).to eq(params[:tests].size)
       end
     end
   end
