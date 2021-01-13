@@ -6,8 +6,7 @@ module Lab
       result_params = params.require(:result)
                             .permit(%i[encounter_id modifier value date])
 
-      test = Lab::LabTest.find(params[:test_id])
-      result = Lab::ResultsService.create_result(test, result_params)
+      result = Lab::ResultsService.create_result(params[:test_id], result_params)
 
       render json: result, status: :created
     end

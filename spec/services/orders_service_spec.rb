@@ -58,8 +58,35 @@ module Lab
       it 'attaches tests to the order' do
         order = subject.order_test(params)
 
-        tests = Lab::LabTest.where(order_id: order[:order_id])
+        tests = Lab::LabTest.where(order_id: order[:id])
         expect(tests.size).to eq(params[:tests].size)
+      end
+    end
+
+    describe :void_order do
+      before :each do
+        encounter = create(:encounter)
+        @order = subject.order_test(encounter_id: encounter.encounter_id,
+                                    target_lab: 'Rockport',
+                                    requesting_clinician: 'Razor',
+                                    specimen: { concept_id: create(:concept_name).concept_id },
+                                    tests: [{ concept_id: create(:concept_name).concept_id }])
+
+        create(:concept_name, name: Lab::LabOrder::LAB_TEST_RESULT_CONCEPT_NAME)
+        ResultsService.create_result(@order[:tests][0][:id], encounter_id: create(:encounter).encounter_id,
+                                                             value: 42)
+      end
+
+      it 'voids an order and all its associated records' do
+        expect(Lab::LabOrder.where(order_id: @order[:id]).exists?).to be(true)
+        expect(Observation.where(order_id: @order[:id]).exists?).to be(true)
+        expect(Observation.where(obs_group_id: @order[:tests][0][:id]).exists?).to be(true)
+
+        subject.void_order(@order[:id], 'Sent to the catacombs')
+
+        expect(Lab::LabOrder.where(order_id: @order[:id]).exists?).to be(false)
+        expect(Observation.where(order_id: @order[:id]).exists?).to be(false)
+        expect(Observation.where(obs_group_id: @order[:tests][0][:id]).exists?).to be(false)
       end
     end
   end

@@ -49,6 +49,22 @@ module Lab
         end
       end
 
+      def void_order(order_id, reason)
+        order = Lab::LabOrder.includes(%i[requesting_clinician reason_for_test target_lab], tests: [:result])
+                             .find(order_id)
+
+        order.requesting_clinician&.void(reason)
+        order.reason_for_test&.void(reason)
+        order.target_lab&.void(reason)
+
+        order.tests.each do |test|
+          test.result&.void(reason)
+          test.void(reason)
+        end
+
+        order.void(reason)
+      end
+
       private
 
       ##
@@ -58,9 +74,7 @@ module Lab
       # a 'Lab' encounter is created using the provided program_id and
       # patient_id.
       def find_encounter(order_params)
-        if order_params[:encounter_id]
-          return Encounter.find(order_params[:encounter_id])
-        end
+        return Encounter.find(order_params[:encounter_id]) if order_params[:encounter_id]
 
         unless order_params[:patient_id] && order_params[:program_id]
           raise InvalidParameterError, 'encounter_id or [patient_id, program_id] required'

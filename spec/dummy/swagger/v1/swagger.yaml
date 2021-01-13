@@ -28,7 +28,7 @@ paths:
                 items:
                   type: object
                   properties:
-                    order_id:
+                    id:
                       type: integer
                     patient_id:
                       type: integer
@@ -97,7 +97,7 @@ paths:
                         - concept_id
                         - name
                   required:
-                  - order_id
+                  - id
                   - specimen
                   - reason_for_test
                   - accession_number
@@ -179,7 +179,7 @@ paths:
                 items:
                   type: object
                   properties:
-                    order_id:
+                    id:
                       type: integer
                     patient_id:
                       type: integer
@@ -248,12 +248,38 @@ paths:
                         - concept_id
                         - name
                   required:
-                  - order_id
+                  - id
                   - specimen
                   - reason_for_test
                   - accession_number
                   - patient_id
                   - order_date
+  "/api/v1/lab/orders/{order_id}":
+    delete:
+      summary: Void lab order
+      tags:
+      - Orders
+      description: |
+        Void a lab order and all it's associated records
+
+        This action voids an order, all it's linked tests and results.
+      security:
+      - api_key: []
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: reason
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: No Content
+          content: {}
   "/api/v1/lab/tests/{test_id}/results":
     post:
       summary: Add results to order

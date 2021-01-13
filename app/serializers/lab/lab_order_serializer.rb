@@ -10,7 +10,8 @@ module Lab
 
       ActiveSupport::HashWithIndifferentAccess.new(
         {
-          order_id: order.order_id,
+          id: order.order_id,
+          order_id: order.order_id, # Deprecated: Link to :id
           encounter_id: order.encounter_id,
           order_date: order.start_date,
           patient_id: order.patient_id,

@@ -3,8 +3,10 @@
 module Lab
   module ResultsService
     class << self
-      def create_result(test, params)
+      def create_result(test_id, params)
+        test = Lab::LabTest.find(test_id)
         encounter = find_encounter(test, params)
+
         result = Lab::LabResult.create(
           person_id: test.person_id,
           encounter_id: encounter.encounter_id,

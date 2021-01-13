@@ -6,7 +6,7 @@ def order_schema
   {
     type: :object,
     properties: {
-      order_id: { type: :integer },
+      id: { type: :integer },
       patient_id: { type: :integer },
       encounter_id: { type: :integer },
       order_date: { type: :string, format: :datetime },
@@ -52,7 +52,7 @@ def order_schema
         }
       }
     },
-    required: %i[order_id specimen reason_for_test accession_number patient_id order_date]
+    required: %i[id specimen reason_for_test accession_number patient_id order_date]
   }
 end
 
@@ -199,10 +199,10 @@ describe 'orders' do
         return if no_specimen
 
         observations = [
-          [@test_type, value_coded: create(:concept_name).concept_id],
-          [@target_lab, value_text: 'Ze Lab'],
-          [@reason_for_test, value_coded: create(:concept_name).concept_id],
-          [@requesting_clinician, value_text: Faker::Name.name]
+          [@test_type, { value_coded: create(:concept_name).concept_id }],
+          [@target_lab, { value_text: 'Ze Lab' }],
+          [@reason_for_test, { value_coded: create(:concept_name).concept_id }],
+          [@requesting_clinician, { value_text: Faker::Name.name }]
         ]
 
         observations.each do |concept, params,|
@@ -236,6 +236,41 @@ describe 'orders' do
           expect(response[0]['patient_id']).to eq(patient_id)
           expect(response[0]['order_date'].to_date).to eq(date)
           expect(response[0]['accession_number']).to eq(accession_number)
+        end
+      end
+    end
+  end
+
+  path '/api/v1/lab/orders/{order_id}' do
+    delete 'Void lab order' do
+      tags 'Orders'
+
+      description <<~DESC
+        Void a lab order and all it's associated records
+
+        This action voids an order, all it's linked tests and results.
+      DESC
+
+      security [api_key: []]
+
+      parameter name: :order_id, in: :path, type: :integer, required: true
+      parameter name: :reason, in: :query, type: :string, required: true
+
+      let(:Authorization) { 'Bearer API Key' }
+
+      let(:order_id) do
+        encounter = create(:encounter)
+        create(:order, order_type: create(:order_type, name: Lab::LabOrder::ORDER_TYPE_NAME),
+                       encounter: encounter,
+                       patient: encounter.patient)
+          .order_id
+      end
+
+      let(:reason) { 'Hate this order!' }
+
+      response 204, 'No Content' do
+        run_test! do
+          expect(Lab::LabOrder.find_by_order_id(order_id)).to be_nil
         end
       end
     end

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Lab
   class OrdersController < ApplicationController
     def create
@@ -16,6 +15,12 @@ module Lab
       filters = params.permit(%i[patient_id accession_number date])
 
       render json: OrdersSearchService.find_orders(filters)
+    end
+
+    def destroy
+      OrdersService.void_order(params[:id], params[:reason])
+
+      render status: :no_content
     end
   end
 end
