@@ -97,7 +97,8 @@ module Lab
           patient_id: encounter.patient_id,
           start_date: params[:start_date] || Date.today,
           auto_expire_date: params[:end_date],
-          accession_number: next_accession_number
+          accession_number: next_accession_number,
+          orderer: User.current&.user_id
         )
       end
 
