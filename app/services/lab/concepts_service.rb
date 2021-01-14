@@ -4,7 +4,7 @@ module Lab
   # A read-only repository of sort for all lab-centric concepts.
   module ConceptsService
     def self.test_types(name: nil, specimen_type: nil)
-      test_types = ConceptSet.find_members_by_name(LabOrder::TEST_TYPE_CONCEPT_NAME)
+      test_types = ConceptSet.find_members_by_name(Lab::LabOrder::TEST_TYPE_CONCEPT_NAME)
       test_types = test_types.filter_members(name: name) if name
 
       unless specimen_type
@@ -15,7 +15,7 @@ module Lab
 
       # Filter out only those test types that have the specified specimen
       # type.
-      specimen_types = ConceptSet.find_members_by_name(LabOrder::SPECIMEN_TYPE_CONCEPT_NAME)
+      specimen_types = ConceptSet.find_members_by_name(Lab::LabOrder::SPECIMEN_TYPE_CONCEPT_NAME)
                                  .filter_members(name: specimen_type)
                                  .select(:concept_id)
 
@@ -30,7 +30,7 @@ module Lab
     end
 
     def self.specimen_types(name: nil, test_type: nil)
-      specimen_types = ConceptSet.find_members_by_name(LabOrder::SPECIMEN_TYPE_CONCEPT_NAME)
+      specimen_types = ConceptSet.find_members_by_name(Lab::LabOrder::SPECIMEN_TYPE_CONCEPT_NAME)
       specimen_types = specimen_types.filter_members(name: name) if name
 
       unless test_type
@@ -41,7 +41,7 @@ module Lab
 
       # Retrieve only those specimen types that belong to concept
       # set of the selected test_type
-      test_types = ConceptSet.find_members_by_name(LabOrder::TEST_TYPE_CONCEPT_NAME)
+      test_types = ConceptSet.find_members_by_name(Lab::LabOrder::TEST_TYPE_CONCEPT_NAME)
                              .filter_members(name: test_type)
                              .select(:concept_id)
 

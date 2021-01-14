@@ -90,7 +90,7 @@ module Lab
       end
 
       def create_order(encounter, params)
-        LabOrder.create!(
+        Lab::LabOrder.create!(
           order_type: OrderType.find_by_name!(Lab::LabOrder::ORDER_TYPE_NAME),
           concept_id: params[:specimen][:concept_id],
           encounter_id: encounter.encounter_id,
