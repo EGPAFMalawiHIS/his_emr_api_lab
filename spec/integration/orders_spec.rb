@@ -58,12 +58,12 @@ end
 
 describe 'orders' do
   before(:each) do
-    @encounter_type = create(:encounter_type, name: Lab::LabEncounter::ENCOUNTER_TYPE_NAME)
-    @order_type = create(:order_type, name: Lab::LabOrder::ORDER_TYPE_NAME)
-    @test_type = create(:concept_name, name: Lab::LabOrder::TEST_TYPE_CONCEPT_NAME).concept
-    @reason_for_test = create(:concept_name, name: Lab::LabOrder::REASON_FOR_TEST_CONCEPT_NAME).concept
-    @requesting_clinician = create(:concept_name, name: Lab::LabOrder::REQUESTING_CLINICIAN_CONCEPT_NAME).concept
-    @target_lab = create(:concept_name, name: Lab::LabOrder::TARGET_LAB_CONCEPT_NAME).concept
+    @encounter_type = create(:encounter_type, name: Lab::Metadata::ENCOUNTER_TYPE_NAME)
+    @order_type = create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME)
+    @test_type = create(:concept_name, name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME).concept
+    @reason_for_test = create(:concept_name, name: Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME).concept
+    @requesting_clinician = create(:concept_name, name: Lab::Metadata::REQUESTING_CLINICIAN_CONCEPT_NAME).concept
+    @target_lab = create(:concept_name, name: Lab::Metadata::TARGET_LAB_CONCEPT_NAME).concept
   end
 
   path '/api/v1/lab/orders' do
@@ -260,7 +260,7 @@ describe 'orders' do
 
       let(:order_id) do
         encounter = create(:encounter)
-        create(:order, order_type: create(:order_type, name: Lab::LabOrder::ORDER_TYPE_NAME),
+        create(:order, order_type: create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME),
                        encounter: encounter,
                        patient: encounter.patient)
           .order_id

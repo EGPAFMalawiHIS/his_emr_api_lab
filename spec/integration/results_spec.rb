@@ -26,12 +26,12 @@ RSpec.describe 'results' do
       }
 
       before(:each) do
-        lab_test_type = create(:order_type, name: Lab::LabOrder::ORDER_TYPE_NAME)
-        specimen_type_concept = create(:concept_name, name: Lab::LabOrder::SPECIMEN_TYPE_CONCEPT_NAME)
-        test_type_concept = create(:concept_name, name: Lab::LabOrder::TEST_TYPE_CONCEPT_NAME)
+        lab_test_type = create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME)
+        specimen_type_concept = create(:concept_name, name: Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME)
+        test_type_concept = create(:concept_name, name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
 
-        create(:encounter_type, name: Lab::LabEncounter::ENCOUNTER_TYPE_NAME)
-        create(:concept_name, name: Lab::LabOrder::LAB_TEST_RESULT_CONCEPT_NAME)
+        create(:encounter_type, name: Lab::Metadata::ENCOUNTER_TYPE_NAME)
+        create(:concept_name, name: Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME)
 
         encounter = create(:encounter)
         order = create(:order, encounter: encounter,

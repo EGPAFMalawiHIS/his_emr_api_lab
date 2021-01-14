@@ -83,7 +83,7 @@ module Lab
         Encounter.create!(
           patient_id: order_params[:patient_id],
           program_id: program_id,
-          type: EncounterType.find_by_name!(Lab::LabEncounter::ENCOUNTER_TYPE_NAME),
+          type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
           encounter_datetime: order_params[:date] || Date.today,
           provider_id: order_params[:provider_id] || User.current&.user_id
         )
@@ -91,7 +91,7 @@ module Lab
 
       def create_order(encounter, params)
         Lab::LabOrder.create!(
-          order_type: OrderType.find_by_name!(Lab::LabOrder::ORDER_TYPE_NAME),
+          order_type: OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME),
           concept_id: params[:specimen][:concept_id],
           encounter_id: encounter.encounter_id,
           patient_id: encounter.patient_id,
@@ -107,7 +107,7 @@ module Lab
       def add_requesting_clinician(order, params)
         create_order_observation(
           order,
-          Lab::LabOrder::REQUESTING_CLINICIAN_CONCEPT_NAME,
+          Lab::Metadata::REQUESTING_CLINICIAN_CONCEPT_NAME,
           params[:date],
           value_text: params['requesting_clinician']
         )
@@ -120,7 +120,7 @@ module Lab
       def add_reason_for_test(order, params)
         create_order_observation(
           order,
-          Lab::LabOrder::REASON_FOR_TEST_CONCEPT_NAME,
+          Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME,
           params[:date],
           value_coded: params['reason_for_test_id']
         )
@@ -131,7 +131,7 @@ module Lab
       def add_target_lab(order, params)
         create_order_observation(
           order,
-          Lab::LabOrder::TARGET_LAB_CONCEPT_NAME,
+          Lab::Metadata::TARGET_LAB_CONCEPT_NAME,
           params[:date],
           value_text: params['target_lab']
         )

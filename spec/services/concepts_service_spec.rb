@@ -6,8 +6,8 @@ module Lab
   RSpec.describe ConceptsService do
     subject { ConceptsService }
 
-    let(:test_type) { create :concept_name, name: Lab::LabOrder::TEST_TYPE_CONCEPT_NAME }
-    let(:specimen_type) { create :concept_name, name: Lab::LabOrder::SPECIMEN_TYPE_CONCEPT_NAME }
+    let(:test_type) { create :concept_name, name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME }
+    let(:specimen_type) { create :concept_name, name: Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME }
     let(:viral_load) { create :concept_name, name: 'Viral Load' }
     let(:tb) { create :concept_name, name: 'TB tests' }
     let(:blood) { create :concept_name, name: 'Blood' }

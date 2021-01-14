@@ -24,7 +24,7 @@ module Lab
         Lab::LabTest.transaction do
           tests_params.map do |params|
             test = Lab::LabTest.create!(
-              concept_id: ConceptName.find_by_name!(Lab::LabOrder::TEST_TYPE_CONCEPT_NAME)
+              concept_id: ConceptName.find_by_name!(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                                      .concept_id,
               encounter_id: order.encounter_id,
               order_id: order.order_id,
@@ -81,7 +81,7 @@ module Lab
       def create_test(order, date, test_type_id)
         create_order_observation(
           order,
-          Lab::LabOrder::TEST_TYPE_CONCEPT_NAME,
+          Lab::Metadata::TEST_TYPE_CONCEPT_NAME,
           date,
           value_coded: test_type_id
         )

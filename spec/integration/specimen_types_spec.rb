@@ -5,8 +5,8 @@ require 'swagger_helper'
 describe 'Specimen types' do
   path '/api/v1/lab/specimen_types' do
     before :each do
-      test_type = create :concept_name, name: Lab::LabOrder::TEST_TYPE_CONCEPT_NAME
-      specimen_type = create :concept_name, name: Lab::LabOrder::SPECIMEN_TYPE_CONCEPT_NAME
+      test_type = create :concept_name, name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME
+      specimen_type = create :concept_name, name: Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME
       viral_load = create :concept_name, name: 'Viral Load'
       fbc = create :concept_name, name: 'FBC'
 

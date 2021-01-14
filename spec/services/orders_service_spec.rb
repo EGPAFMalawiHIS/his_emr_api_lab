@@ -8,13 +8,13 @@ module Lab
 
     before :each do
       # Initialize Lab metadata...
-      @encounter_type = create(:encounter_type, name: LabEncounter::ENCOUNTER_TYPE_NAME)
-      @order_type = create(:order_type, name: LabOrder::ORDER_TYPE_NAME)
+      @encounter_type = create(:encounter_type, name: Lab::Metadata::ENCOUNTER_TYPE_NAME)
+      @order_type = create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME)
 
-      [LabOrder::TEST_TYPE_CONCEPT_NAME,
-       LabOrder::REQUESTING_CLINICIAN_CONCEPT_NAME,
-       LabOrder::TARGET_LAB_CONCEPT_NAME,
-       LabOrder::REASON_FOR_TEST_CONCEPT_NAME].each do |name|
+      [Lab::Metadata::TEST_TYPE_CONCEPT_NAME,
+       Lab::Metadata::REQUESTING_CLINICIAN_CONCEPT_NAME,
+       Lab::Metadata::TARGET_LAB_CONCEPT_NAME,
+       Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME].each do |name|
         create(:concept_name, name: name)
       end
     end
@@ -72,7 +72,7 @@ module Lab
                                     specimen: { concept_id: create(:concept_name).concept_id },
                                     tests: [{ concept_id: create(:concept_name).concept_id }])
 
-        create(:concept_name, name: Lab::LabOrder::LAB_TEST_RESULT_CONCEPT_NAME)
+        create(:concept_name, name: Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME)
         ResultsService.create_result(@order[:tests][0][:id], encounter_id: create(:encounter).encounter_id,
                                                              value: 42)
       end

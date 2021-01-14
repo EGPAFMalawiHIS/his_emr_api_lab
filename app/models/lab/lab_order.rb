@@ -10,41 +10,32 @@ module Lab
       end
     end
 
-    # TODO: Move these constants to a suitable place, perhaps a constants service?
-    ORDER_TYPE_NAME = 'Lab'
-    REASON_FOR_TEST_CONCEPT_NAME = 'Reason for test'
-    REQUESTING_CLINICIAN_CONCEPT_NAME = 'Person making request'
-    SPECIMEN_TYPE_CONCEPT_NAME = 'Specimen'
-    TARGET_LAB_CONCEPT_NAME = 'Lab'
-    TEST_TYPE_CONCEPT_NAME = 'Test type'
-    LAB_TEST_RESULT_CONCEPT_NAME = 'Lab test result'
-
     has_many :tests,
-             make_obs_concept_filter(TEST_TYPE_CONCEPT_NAME),
+             make_obs_concept_filter(Lab::Metadata::TEST_TYPE_CONCEPT_NAME),
              class_name: '::Lab::LabTest',
              foreign_key: :order_id
 
     has_many :results,
-             make_obs_concept_filter(LAB_TEST_RESULT_CONCEPT_NAME),
+             make_obs_concept_filter(Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME),
              class_name: 'Observation',
              foreign_key: :order_id
 
     has_one :reason_for_test,
-            make_obs_concept_filter(REASON_FOR_TEST_CONCEPT_NAME),
+            make_obs_concept_filter(Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME),
             class_name: 'Observation',
             foreign_key: :order_id
 
     has_one :requesting_clinician,
-            make_obs_concept_filter(REQUESTING_CLINICIAN_CONCEPT_NAME),
+            make_obs_concept_filter(Lab::Metadata::REQUESTING_CLINICIAN_CONCEPT_NAME),
             class_name: 'Observation',
             foreign_key: :order_id
 
     has_one :target_lab,
-            make_obs_concept_filter(TARGET_LAB_CONCEPT_NAME),
+            make_obs_concept_filter(Lab::Metadata::TARGET_LAB_CONCEPT_NAME),
             class_name: 'Observation',
             foreign_key: :order_id
 
-    default_scope { joins(:order_type).merge(OrderType.where(name: ORDER_TYPE_NAME)) }
+    default_scope { joins(:order_type).merge(OrderType.where(name: Lab::Metadata::ORDER_TYPE_NAME)) }
 
     def self.prefetch_relationships
       includes(:reason_for_test,
