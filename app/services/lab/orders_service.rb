@@ -76,13 +76,13 @@ module Lab
       def find_encounter(order_params)
         return Encounter.find(order_params[:encounter_id]) if order_params[:encounter_id]
 
-        unless order_params[:patient_id] && order_params[:program_id]
-          raise InvalidParameterError, 'encounter_id or [patient_id, program_id] required'
-        end
+        raise InvalidParameterError, 'encounter_id or patient_id required' unless order_params[:patient_id]
+
+        program_id = order_params[:program_id] || Program.find_by_name!(Lab::Metadata::LAB_PROGRAM_NAME).program_id
 
         Encounter.create!(
           patient_id: order_params[:patient_id],
-          program_id: order_params[:program_id],
+          program_id: program_id,
           type: EncounterType.find_by_name!(Lab::LabEncounter::ENCOUNTER_TYPE_NAME),
           encounter_datetime: order_params[:date] || Date.today,
           provider_id: order_params[:provider_id] || User.current&.user_id
