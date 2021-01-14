@@ -85,7 +85,7 @@ module Lab
           program_id: order_params[:program_id],
           type: EncounterType.find_by_name!(Lab::LabEncounter::ENCOUNTER_TYPE_NAME),
           encounter_datetime: order_params[:date] || Date.today,
-          provider_id: order_params[:provider_id]
+          provider_id: order_params[:provider_id] || User.current&.user_id
         )
       end
 
