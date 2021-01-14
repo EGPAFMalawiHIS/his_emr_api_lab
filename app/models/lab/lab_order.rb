@@ -4,7 +4,7 @@ module Lab
   class LabOrder < ::Order
     class << self
       def make_obs_concept_filter(concept_name)
-        concept = ConceptName.where('name LIKE ?', concept_name).select(:concept_id)
+        concept = ConceptName.where(name: concept_name).select(:concept_id)
 
         -> { where(concept: concept) }
       end
@@ -44,11 +44,7 @@ module Lab
             class_name: 'Observation',
             foreign_key: :order_id
 
-    default_scope do
-      joins(:order_type)
-        .merge(OrderType.where('name LIKE ?', ORDER_TYPE_NAME))
-        .where(voided: false)
-    end
+    default_scope { joins(:order_type).merge(OrderType.where(name: ORDER_TYPE_NAME)) }
 
     def self.prefetch_relationships
       includes(:reason_for_test,
