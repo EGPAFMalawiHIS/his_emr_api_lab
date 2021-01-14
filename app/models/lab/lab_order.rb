@@ -11,7 +11,7 @@ module Lab
     end
 
     # TODO: Move these constants to a suitable place, perhaps a constants service?
-    ORDER_TYPE_NAME = 'Lab order'
+    ORDER_TYPE_NAME = 'Lab'
     REASON_FOR_TEST_CONCEPT_NAME = 'Reason for test'
     REQUESTING_CLINICIAN_CONCEPT_NAME = 'Requesting Clinician'
     SPECIMEN_TYPE_CONCEPT_NAME = 'Specimen'
