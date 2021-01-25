@@ -25,6 +25,8 @@ RSpec.describe 'results' do
         required: %i[value]
       }
 
+      security [api_key: []]
+
       before(:each) do
         lab_test_type = create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME)
         specimen_type_concept = create(:concept_name, name: Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME)
@@ -55,6 +57,8 @@ RSpec.describe 'results' do
           date: Date.today.to_s
         }
       end
+
+      let(:Authorization) { 'dummy-key' }
 
       response 201, 'Created' do
         schema type: :object, properties: {

@@ -104,12 +104,16 @@ RSpec.describe 'Tests' do
         required: %i[order_id tests]
       }
 
+      security [api_key: []]
+
       let(:tests) do
         {
           order_id: @order.order_id,
           tests: [{ concept_id: @test_type.concept_id }]
         }
       end
+
+      let(:Authorization) { 'dummy-key' }
 
       response 201, 'Created' do
         schema type: :array, items: {
