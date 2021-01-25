@@ -9,8 +9,8 @@ require 'factory_bot_rails'
 require 'faker'
 # Add additional requires below this line. Rails is not loaded until this point!
 
-ActiveRecord::Base.logger = Logger.new(STDOUT)
-ActiveRecord::Base.logger.level = :debug
+# ActiveRecord::Base.logger = Logger.new(STDOUT)
+# ActiveRecord::Base.logger.level = :debug
 
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are
