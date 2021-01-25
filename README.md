@@ -13,7 +13,8 @@ The engine provides an API that provides the following functionalities:
   - Order lab tests
   - Attach a result to a test
 
-For details on how to perform these operations please see the [API docs](./docs/api.html).
+For details on how to perform these operations please see the
+[API docs](https://htmlpreview.github.io/?https://github.com/EGPAFMalawiHIS/HIS-EMR-API-Lab/blob/development/docs/api.html).
 
 ## Installation
 
