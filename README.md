@@ -1,4 +1,4 @@
-[![Actions Status](https://github.com/EGPAFMalawiHIS/HIS-EMR-API-Lab/workflows/rspec/badge.svg)](https://github.com/EGPAFMalawiHIS/HIS-EMR-API-Lab/actions)
+![Ruby](https://github.com/EGPAFMalawiHIS/HIS-EMR-API-Lab/workflows/Ruby/badge.svg?branch=development)
 # Lab
 
 A Rails engine for [HIS-EMR-API](https://github.com/EGPAFMalawiHIS/HIS-EMR-API)
