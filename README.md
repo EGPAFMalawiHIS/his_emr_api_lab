@@ -39,7 +39,7 @@ $ gem install lab
 Finally run:
 
 ```bash
-$ bundle exec rails g lab:install
+$ bundle exec rails lab:install
 ```
 
 ## Contributing
