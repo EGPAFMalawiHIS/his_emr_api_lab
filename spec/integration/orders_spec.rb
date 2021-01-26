@@ -243,6 +243,57 @@ describe 'orders' do
   end
 
   path '/api/v1/lab/orders/{order_id}' do
+    put 'Update order' do
+      tags 'Orders'
+
+      description 'Update an existing order'
+
+      consumes 'application/json'
+      produces 'application/json'
+
+      security [api_key: []]
+
+      parameter name: :order_id, in: :path, type: :integer, required: true
+
+      parameter name: :order, in: :body, schema: {
+        type: :object,
+        properties: {
+          specimen: {
+            type: :object,
+            properties: {
+              concept_id: { type: :integer }
+            },
+            required: [:concept_id]
+          }
+        }
+      }
+
+      let(:Authorization) { 'some-key' }
+
+      let(:order_id) do
+        encounter = create(:encounter)
+        create(:order, order_type: create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME),
+                       concept_id: create(:concept_name, name: 'Unknown').concept_id,
+                       encounter: encounter,
+                       patient: encounter.patient)
+          .order_id
+      end
+
+      let(:order) do
+        {
+          specimen: {
+            concept_id: create(:concept_name).concept_id
+          }
+        }
+      end
+
+      response 200, 'Ok' do
+        schema type: :object, properties: order_schema
+
+        run_test!
+      end
+    end
+
     delete 'Void lab order' do
       tags 'Orders'
 

@@ -11,6 +11,14 @@ module Lab
       render json: orders, status: :created
     end
 
+    def update
+      specimen = params.require(:specimen).permit(:concept_id)
+
+      order = OrdersService.update_order(params[:id], specimen: specimen)
+
+      render json: order
+    end
+
     def index
       filters = params.permit(%i[patient_id accession_number date])
 

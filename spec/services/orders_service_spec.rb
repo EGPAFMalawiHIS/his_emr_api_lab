@@ -80,6 +80,44 @@ module Lab
       end
     end
 
+    describe :update_order do
+      let(:encounter) { create(:encounter, type: @encounter_type) }
+      let(:test_types) { create_list(:concept, 5) }
+      let(:reason_for_test) { create(:concept_name) }
+
+      let(:params) do
+        ActiveSupport::HashWithIndifferentAccess.new(
+          encounter_id: encounter.encounter_id,
+          tests: test_types.map do |type|
+            { concept_id: type.concept_id }
+          end,
+          start_date: Date.today,
+          end_date: 5.days.from_now,
+          requesting_clinician: 'Doctor Seuss',
+          target_lab: 'Halls of Valhalla',
+          reason_for_test_id: reason_for_test.concept_id
+        )
+      end
+
+      it 'allows updating specimen from unknown to something else' do
+        order = subject.order_test(params)
+        new_specimen = create(:concept_name, name: 'Blood')
+        order = subject.update_order(order['id'], specimen: { concept_id: new_specimen.concept_id })
+
+        expect(Order.find(order[:id]).concept_id).to eq(new_specimen.concept_id)
+      end
+
+      it 'does not allow updating a known specimen' do
+        complete_params = params.dup
+        complete_params[:specimen] = { concept_id: create(:concept_name, name: 'Blood').concept_id }
+
+        order = subject.order_test(complete_params)
+
+        expect { subject.update_order(order[:id], specimen: { concept_id: create(:concept_name) }) }
+          .to raise_error(::UnprocessableEntityError)
+      end
+    end
+
     describe :void_order do
       before :each do
         encounter = create(:encounter)

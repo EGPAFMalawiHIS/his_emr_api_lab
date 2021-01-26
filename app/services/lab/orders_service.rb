@@ -49,6 +49,17 @@ module Lab
         end
       end
 
+      def update_order(order_id, params)
+        specimen_id = params.dig(:specimen, :concept_id)
+        raise ::InvalidParameterError unless specimen_id
+
+        order = Lab::LabOrder.find(order_id)
+        raise ::UnprocessableEntityError unless order.concept_id == unknown_concept_id
+
+        order.update!(concept_id: specimen_id)
+        Lab::LabOrderSerializer.serialize_order(order)
+      end
+
       def void_order(order_id, reason)
         order = Lab::LabOrder.includes(%i[requesting_clinician reason_for_test target_lab], tests: [:result])
                              .find(order_id)
@@ -153,7 +164,7 @@ module Lab
       end
 
       def unknown_concept_id
-        @unknown_concept_id ||= ConceptName.find_by_name!('Unknown').concept_id
+        ConceptName.find_by_name!('Unknown').concept_id
       end
     end
   end
