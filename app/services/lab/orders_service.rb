@@ -92,7 +92,7 @@ module Lab
       def create_order(encounter, params)
         Lab::LabOrder.create!(
           order_type: OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME),
-          concept_id: params[:specimen][:concept_id],
+          concept_id: params.dig(:specimen, :concept_id) || unknown_concept_id,
           encounter_id: encounter.encounter_id,
           patient_id: encounter.patient_id,
           start_date: params[:start_date] || Date.today,
@@ -150,6 +150,10 @@ module Lab
 
       def next_accession_number(date = nil)
         Lab::AccessionNumberService.next_accession_number(date)
+      end
+
+      def unknown_concept_id
+        @unknown_concept_id ||= ConceptName.find_by_name!('Unknown').concept_id
       end
     end
   end

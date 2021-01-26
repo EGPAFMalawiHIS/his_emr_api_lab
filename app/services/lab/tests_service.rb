@@ -21,6 +21,8 @@ module Lab
       end
 
       def create_tests(order, date, tests_params)
+        raise InvalidParameterError, 'tests are required' if tests_params.nil? || tests_params.empty?
+
         Lab::LabTest.transaction do
           tests_params.map do |params|
             test = Lab::LabTest.create!(

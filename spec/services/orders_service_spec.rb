@@ -12,7 +12,8 @@ module Lab
       @encounter_type = create(:encounter_type, name: Lab::Metadata::ENCOUNTER_TYPE_NAME)
       @order_type = create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME)
 
-      [Lab::Metadata::TEST_TYPE_CONCEPT_NAME,
+      ['Unknown',
+       Lab::Metadata::TEST_TYPE_CONCEPT_NAME,
        Lab::Metadata::REQUESTING_CLINICIAN_CONCEPT_NAME,
        Lab::Metadata::TARGET_LAB_CONCEPT_NAME,
        Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME].each do |name|
@@ -54,6 +55,21 @@ module Lab
         params_subset = params.delete_if { |key, _| %w[encounter_id patient_id program_id].include?(key) }
 
         expect { subject.order_test(params_subset) }.to raise_error(::InvalidParameterError)
+      end
+
+      it 'requires tests to be specified' do
+        params_subset = params.delete_if { |key, _| key == 'tests' }
+
+        expect { subject.order_test(params_subset) }.to raise_error(::InvalidParameterError)
+      end
+
+      it 'does not require specimen to be specified' do
+        params_subset = params.delete_if { |key, _| key == 'specimen' }
+
+        expect do
+          order = subject.order_test(params_subset)
+          expect(order['specimen']['concept_id']).to eq(ConceptName.find_by_name!('Unknown').concept_id)
+        end.not_to raise_error
       end
 
       it 'attaches tests to the order' do

@@ -121,7 +121,7 @@ describe 'orders' do
                   description: 'One of routine, targeted, or confirmatory'
                 }
               },
-              required: %i[encounter_id test_type_id target_lab reason_for_test_id]
+              required: %i[encounter_id tests target_lab reason_for_test_id]
             }
           }
         }
@@ -135,8 +135,8 @@ describe 'orders' do
           orders: [
             {
               encounter_id: create(:encounter, type: @encounter_type).encounter_id,
-              specimen: { concept_id: create(:concept_name, name: 'Viral load').concept_id },
-              tests: [{ concept_id: create(:concept_name, name: 'FBC').concept_id }],
+              specimen: { concept_id: create(:concept_name, name: 'Blood').concept_id },
+              tests: [{ concept_id: create(:concept_name, name: 'Viral load').concept_id }],
               requesting_clinician: 'Barry Allen',
               target_lab: 'Starlabs',
               reason_for_test_id: create(:concept_name, name: 'Routine').concept_id
