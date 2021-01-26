@@ -148,9 +148,8 @@ module Lab
         )
       end
 
-      def next_accession_number
-        # TODO: Replace with algorithm used in LIMS
-        SecureRandom.alphanumeric(10)
+      def next_accession_number(date = nil)
+        Lab::AccessionNumberService.next_accession_number(date)
       end
     end
   end

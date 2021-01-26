@@ -9,8 +9,7 @@
 # you'll amass, the slower it'll run and the greater likelihood for issues).
 #
 # It's strongly recommended that you check this file into your version control system.
-
-ActiveRecord::Schema.define(version: 2020_09_28_133511) do
+ActiveRecord::Schema.define(version: 2021_01_26_092910) do
   create_table "concept", primary_key: "concept_id", id: :integer, force: :cascade do |t|
     t.integer "retired", limit: 2, default: 0, null: false
     t.string "short_name"
@@ -854,6 +853,14 @@ ActiveRecord::Schema.define(version: 2020_09_28_133511) do
     t.index ["creator"], name: "user_creator"
     t.index ["person_id"], name: "person_id_for_user"
     t.index ["retired_by"], name: "user_who_retired_this_user"
+  end
+  
+  create_table "lab_accession_number_counters", force: :cascade do |t|
+    t.date "date"
+    t.bigint "value"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["date"], name: "index_lab_accession_number_counters_on_date", unique: true
   end
 
   add_foreign_key "concept", "concept_class", column: "class_id", primary_key: "concept_class_id", name: "concept_classes"

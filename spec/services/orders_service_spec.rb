@@ -8,6 +8,7 @@ module Lab
 
     before :each do
       # Initialize Lab metadata...
+      @site_prefix = create(:global_property, property: 'site_prefix')
       @encounter_type = create(:encounter_type, name: Lab::Metadata::ENCOUNTER_TYPE_NAME)
       @order_type = create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME)
 

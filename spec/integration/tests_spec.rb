@@ -134,6 +134,7 @@ RSpec.describe 'Tests' do
                                                  order_id: @order.order_id,
                                                  value_coded: @test_type.concept_id)
                                           .exists?
+
           expect(observation_exists).to be(true)
         end
       end
