@@ -188,6 +188,12 @@ describe 'orders' do
                 type: :date,
                 description: 'Select results falling on a specific date'
 
+      parameter name: :status,
+                in: :query,
+                required: false,
+                type: :string,
+                description: 'Filter by sample status: ordered, drawn'
+
       def create_order(no_specimen: false)
         encounter = create(:encounter, type: @encounter_type)
         order = create(:order, encounter: encounter,
@@ -220,12 +226,14 @@ describe 'orders' do
 
       before(:each) do
         @orders = 5.times.map { |i| create_order(no_specimen: i.odd?) }
+        create(:concept_name, name: 'Unknown')
       end
 
       let(:Authorization) { 'dummy' }
       let(:patient_id) { @orders.first.patient_id }
       let(:accession_number) { @orders.first.accession_number }
       let(:date) { @orders.first.start_date }
+      let(:status) { 'drawn' }
 
       response 200, 'Success' do
         schema type: :array, items: order_schema
