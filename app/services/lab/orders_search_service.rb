@@ -25,7 +25,7 @@ module Lab
         orders.where('start_date >= DATE(?) AND start_date < DATE(?)', start_date, end_date)
       end
 
-      def filters_orders_by_status(orders, status)
+      def filter_orders_by_status(orders, status)
         case status.downcase
         when 'ordered' then orders.where(concept_id: unknown_concept_id)
         when 'drawn' then orders.where.not(concept_id: unknown_concept_id)
