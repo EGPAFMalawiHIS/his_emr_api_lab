@@ -20,7 +20,7 @@ module Lab
     end
 
     def index
-      filters = params.permit(%i[patient_id accession_number date])
+      filters = params.permit(%i[patient_id accession_number date status])
 
       render json: OrdersSearchService.find_orders(filters)
     end
