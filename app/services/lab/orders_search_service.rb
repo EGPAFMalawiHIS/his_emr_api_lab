@@ -33,7 +33,7 @@ module Lab
         ConceptName.find_by_name!('Unknown').concept_id
       end
 
-      def filters_orders_by_status(orders, status)
+      def filter_orders_by_status(orders, status)
         case status.downcase
         when 'ordered' then orders.where(concept_id: unknown_concept_id)
         when 'drawn' then orders.where.not(concept_id: unknown_concept_id)
