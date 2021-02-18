@@ -19,10 +19,7 @@ module Lab
       end
 
       def filter_orders_by_date(orders, date)
-        start_date = date.to_date
-        end_date = start_date + 1.day
-
-        orders.where('start_date >= DATE(?) AND start_date < DATE(?)', start_date, end_date)
+        orders.where('start_date < DATE(?)', date.to_date + 1.day)
       end
 
       def filter_orders_by_status(orders, status)
