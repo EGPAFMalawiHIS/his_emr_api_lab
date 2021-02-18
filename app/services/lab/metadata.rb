@@ -6,7 +6,7 @@ module Lab
     LAB_TEST_RESULT_CONCEPT_NAME = 'Lab test result'
     REASON_FOR_TEST_CONCEPT_NAME = 'Reason for test'
     REQUESTING_CLINICIAN_CONCEPT_NAME = 'Person making request'
-    SPECIMEN_TYPE_CONCEPT_NAME = 'Specimen'
+    SPECIMEN_TYPE_CONCEPT_NAME = 'Specimen type'
     TARGET_LAB_CONCEPT_NAME = 'Lab'
     TEST_TYPE_CONCEPT_NAME = 'Test type'
 
