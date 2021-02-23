@@ -15,7 +15,7 @@ The engine provides an API that provides the following functionalities:
   - Attach a result to a test
 
 For details on how to perform these operations please see the
-[API docs](https://htmlpreview.github.io/?https://github.com/EGPAFMalawiHIS/HIS-EMR-API-Lab/blob/development/docs/api.html).
+[API docs](https://raw.githack.com/EGPAFMalawiHIS/HIS-EMR-API-Lab/development/docs/api.html).
 
 ## Installation
 
