@@ -20,12 +20,27 @@ module Lab
       # Parameters schema:
       #
       #     {
-      #       encounter_id: int,
-      #       test_type_id: int,
-      #       specimen_type_ids: array<int>,
-      #       target_lab: string,
-      #       reason_for_test_id: int,
-      #       requesting_clinician: string
+      #       encounter_id: {
+      #         type: :integer,
+      #         required: :false,
+      #         description: 'Attach order to this if program_id and patient_id are not provided'
+      #       },
+      #       program_id: { type: :integer, required: false },
+      #       patient_id: { type: :integer, required: false }
+      #       specimen_type_id: { type: :object, properties: { concept_id: :integer }, required: %i[concept_id] },
+      #       test_type_ids: {
+      #         type: :array,
+      #         items: {
+      #           type: :object,
+      #           properties: { concept_id: :integer },
+      #           required: %i[concept_id]
+      #         }
+      #       },
+      #       start_date: { type: :datetime }
+      #       accession_number: { type: :string }
+      #       target_lab: { type: :string },
+      #       reason_for_test_id: { type: :integer },
+      #       requesting_clinician: { type: :string }
       #     }
       #
       # encounter_id: is an ID of the encounter the lab order is to be created under
@@ -108,7 +123,7 @@ module Lab
           patient_id: encounter.patient_id,
           start_date: params[:start_date] || Date.today,
           auto_expire_date: params[:end_date],
-          accession_number: next_accession_number,
+          accession_number: params[:accession_number] || next_accession_number,
           orderer: User.current&.user_id
         )
       end
