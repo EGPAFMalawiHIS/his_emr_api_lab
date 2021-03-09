@@ -28,8 +28,8 @@ class CouchBum
     end
   end
 
-  def couch_rest(method, route)
-    CouchRest.send(method, expand_route(route))
+  def couch_rest(method, route, *args, **kwargs)
+    CouchRest.send(method, expand_route(route), *args, **kwargs)
   end
 
   private
