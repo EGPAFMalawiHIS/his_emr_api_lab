@@ -164,6 +164,8 @@ GEM
       rainbow (>= 2.2.2, < 4.0)
       ruby-progressbar (~> 1.7)
       unicode-display_width (>= 1.4.0, < 1.7)
+    rubocop-rspec (1.41.0)
+      rubocop (>= 0.68.1)
     ruby-progressbar (1.10.1)
     sprockets (4.0.2)
       concurrent-ruby (~> 1.0)
@@ -196,6 +198,7 @@ DEPENDENCIES
   rswag-specs
   rswag-ui
   rubocop (~> 0.79.0)
+  rubocop-rspec
   sqlite3
 
 BUNDLED WITH
