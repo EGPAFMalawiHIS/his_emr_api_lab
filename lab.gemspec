@@ -38,6 +38,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rswag-ui'
   spec.add_development_dependency 'rubocop', '~> 0.79.0'
   spec.add_development_dependency 'rubocop-rspec'
+  spec.add_development_dependency 'shoulda-matchers'
 
   spec.add_development_dependency 'sqlite3'
 end
