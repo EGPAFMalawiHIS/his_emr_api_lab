@@ -49,7 +49,7 @@ module Lab
     def self.concept_name(concept_id)
       return concept_id unless concept_id
 
-      ConceptName.find_by_concept_id(concept_id)&.name
+      ConceptName.select(:name).find_by_concept_id(concept_id)&.name
     end
   end
 end
