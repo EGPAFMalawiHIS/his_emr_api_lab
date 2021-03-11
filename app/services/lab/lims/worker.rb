@@ -27,7 +27,7 @@ module Lab
           mapping.update(pushed_at: Time.now)
         else
           order_dto = lims_api.create_order(order_dto)
-          LimsOrderMapping.create(order: order, lims_id: order_dto._id, pushed_at: Time.now)
+          LimsOrderMapping.create(order: order, lims_id: order_dto[:_id], pushed_at: Time.now)
         end
 
         order_dto
@@ -53,7 +53,7 @@ module Lab
 
       private
 
-      def find_patient(nhid)
+      def find_patient_by_nhid(nhid)
         national_id_type = PatientIdentifierType.where(name: 'National id')
         identifier = PatientIdentifier.where(type: national_id_type, identifier: nhid)
         patients = Patient.joins(:identifiers).merge(identifier).group(:patient_id).all
