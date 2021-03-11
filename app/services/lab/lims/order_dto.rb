@@ -68,13 +68,11 @@ module Lab
         end
 
         def current_district
-          return @current_district if @current_district
-
           unless current_health_center.parent
             raise "Current health center ##{current_health_center.id} is not associated with any district"
           end
 
-          @current_district = current_health_center.parent.name
+          current_health_center.city_village || current_health_center.parent.name
         end
 
         def current_facility_name
