@@ -21,7 +21,7 @@ module Lab
       # by calling method +choke+.
       def consume_orders(from: 0, limit: 30)
         bum.binge_changes(since: from, limit: limit, include_docs: true) do |change|
-          yield change['doc'], self
+          yield OrderDTO.new(change['doc']), self
         end
       end
 
