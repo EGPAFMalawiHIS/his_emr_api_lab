@@ -7,7 +7,7 @@ module Lab
   module Loaders
     ##
     # Load specimens and their tests into the database
-    module TestMeasuresLoader
+    module TestResultIndicatorsLoader
       class << self
         include LoaderMixin
       
@@ -40,7 +40,7 @@ module Lab
 
         def add_measure_to_test(test_name, measure_concept)
           [
-            add_concept_to_set(set_concept_id: find_or_create_concept(Lab::Metadata::TEST_RESULT_MEASURE_CONCEPT_NAME).concept_id,
+            add_concept_to_set(set_concept_id: find_or_create_concept(Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME).concept_id,
                                concept_id: measure_concept.concept_id),
             add_concept_to_set(set_concept_id: find_or_create_concept(test_name).concept_id, concept_id: measure_concept.concept_id)
           ]

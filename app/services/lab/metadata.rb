@@ -8,7 +8,7 @@ module Lab
     SPECIMEN_TYPE_CONCEPT_NAME = 'Specimen type'
     TARGET_LAB_CONCEPT_NAME = 'Lab'
     TEST_RESULT_CONCEPT_NAME = 'Lab test result'
-    TEST_RESULT_MEASURE_CONCEPT_NAME = 'Lab test result measure'
+    TEST_RESULT_INDICATOR_CONCEPT_NAME = 'Lab test result indicator'
     TEST_TYPE_CONCEPT_NAME = 'Test type'
 
     # Encounter
