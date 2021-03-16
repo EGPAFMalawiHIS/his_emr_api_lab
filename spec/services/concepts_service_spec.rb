@@ -20,18 +20,11 @@ module Lab
     end
 
     before :each do
-      create_concept_set = lambda do |set, elements|
-        elements.map do |element|
-          create :concept_set, concept_set: set.concept_id,
-                               concept_id: element.concept_id
-        end
-      end
-
-      create_concept_set[test_type, [viral_load, tb, blood]]
-      create_concept_set[specimen_type, [fbc, sputum, xray]]
-      create_concept_set[viral_load, [fbc]]
-      create_concept_set[tb, [sputum, xray]]
-      create_concept_set[blood, [fbc]]
+      create_concept_set(test_type, [viral_load, tb, blood])
+      create_concept_set(specimen_type, [fbc, sputum, xray])
+      create_concept_set(viral_load, [fbc])
+      create_concept_set(tb, [sputum, xray])
+      create_concept_set(blood, [fbc])
     end
 
     describe :test_types do
@@ -77,6 +70,32 @@ module Lab
         expected = Set.new([sputum, xray].map { |specimen| serialize_test(specimen) })
 
         expect(specimens).to eq(expected)
+      end
+    end
+
+    describe :test_measures do
+      it 'retrieves test measures for a given test_type' do
+        test = viral_load
+        measures = create_list(:concept_name, 5)
+        result_measure_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_MEASURE_CONCEPT_NAME)
+        create_concept_set(result_measure_concept, measures)
+        create_concept_set(test, measures)
+
+        found_measures = Set.new(subject.test_measures(test.concept_id).collect(&:concept_id))
+
+        expect(found_measures).to eq(Set.new(measures.collect(&:concept_id)))
+      end
+
+      it 'does not return measures for a concept_id not marked as a test' do
+        test = create(:concept_name)
+        measures = create_list(:concept_name, 5)
+        result_measure_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_MEASURE_CONCEPT_NAME)
+        create_concept_set(result_measure_concept, measures)
+        create_concept_set(test, measures)
+
+        found_measures = Set.new(subject.test_measures(test.concept_id).collect(&:concept_id))
+
+        expect(found_measures).to be_empty
       end
     end
   end
