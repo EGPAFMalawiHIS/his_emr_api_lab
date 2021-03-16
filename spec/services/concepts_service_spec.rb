@@ -73,29 +73,29 @@ module Lab
       end
     end
 
-    describe :test_measures do
-      it 'retrieves test measures for a given test_type' do
+    describe :test_result_indicators do
+      it 'retrieves test indicators for a given test_type' do
         test = viral_load
-        measures = create_list(:concept_name, 5)
-        result_measure_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_MEASURE_CONCEPT_NAME)
-        create_concept_set(result_measure_concept, measures)
-        create_concept_set(test, measures)
+        indicators = create_list(:concept_name, 5)
+        result_indicator_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
+        create_concept_set(result_indicator_concept, indicators)
+        create_concept_set(test, indicators)
 
-        found_measures = Set.new(subject.test_measures(test.concept_id).collect(&:concept_id))
+        found_indicators = Set.new(subject.test_result_indicators(test.concept_id).collect(&:concept_id))
 
-        expect(found_measures).to eq(Set.new(measures.collect(&:concept_id)))
+        expect(found_indicators).to eq(Set.new(indicators.collect(&:concept_id)))
       end
 
-      it 'does not return measures for a concept_id not marked as a test' do
+      it 'does not return indicators for a concept_id not marked as a test' do
         test = create(:concept_name)
-        measures = create_list(:concept_name, 5)
-        result_measure_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_MEASURE_CONCEPT_NAME)
-        create_concept_set(result_measure_concept, measures)
-        create_concept_set(test, measures)
+        indicators = create_list(:concept_name, 5)
+        result_indicator_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
+        create_concept_set(result_indicator_concept, indicators)
+        create_concept_set(test, indicators)
 
-        found_measures = Set.new(subject.test_measures(test.concept_id).collect(&:concept_id))
+        found_indicators = Set.new(subject.test_result_indicators(test.concept_id).collect(&:concept_id))
 
-        expect(found_measures).to be_empty
+        expect(found_indicators).to be_empty
       end
     end
   end
