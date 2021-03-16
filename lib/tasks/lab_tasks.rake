@@ -21,4 +21,9 @@ namespace :lab do
     puts '=> rails destroy lab:install'
     `rails destroy lab:install`
   end
+
+  desc 'Load Lab metadata into database'
+  task :load_metadata do
+    sh "rails r #{__dir__}/loaders/metadata_loader.rb"
+  end
 end
