@@ -8,5 +8,6 @@ Lab::Engine.routes.draw do
 
   # Metadata
   resources :specimen_types, only: %i[index], path: 'api/v1/lab/specimen_types'
+  resources :test_result_indicators, only: %i[index], path: 'api/v1/lab/test_result_indicators'
   resources :test_types, only: %i[index], path: 'api/v1/lab/test_types'
 end
