@@ -16,7 +16,7 @@ module Lab
              foreign_key: :order_id
 
     has_many :results,
-             make_obs_concept_filter(Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME),
+             make_obs_concept_filter(Lab::Metadata::TEST_RESULT_CONCEPT_NAME),
              class_name: 'Observation',
              foreign_key: :order_id
 

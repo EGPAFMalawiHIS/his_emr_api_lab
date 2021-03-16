@@ -7,7 +7,7 @@ module Lab
     end
 
     has_one :result,
-            -> { where(concept: ConceptName.where(name: Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME)) },
+            -> { where(concept: ConceptName.where(name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME)) },
             class_name: '::Lab::LabResult',
             foreign_key: :obs_group_id
   end

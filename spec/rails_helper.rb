@@ -109,7 +109,7 @@ def create_order(patient, seq: 0, add_result: false)
 
   create(:observation, order: order,
                        encounter: create(:encounter, patient: patient),
-                       concept_id: create(:concept_name, name: Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME).concept_id,
+                       concept_id: create(:concept_name, name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME).concept_id,
                        person_id: patient.patient_id,
                        obs_group_id: test.obs_id,
                        value_modifier: '=',
