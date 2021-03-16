@@ -10,7 +10,7 @@ module Lab
         result = Lab::LabResult.create(
           person_id: test.person_id,
           encounter_id: encounter.encounter_id,
-          concept_id: ConceptName.find_by_name!(Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME).concept_id,
+          concept_id: ConceptName.find_by_name!(Lab::Metadata::TEST_RESULT_CONCEPT_NAME).concept_id,
           order_id: test.order_id,
           obs_group_id: test.obs_id,
           obs_datetime: params[:date]&.to_datetime || DateTime.now,

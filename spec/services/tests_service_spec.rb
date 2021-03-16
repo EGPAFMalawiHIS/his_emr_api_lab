@@ -9,7 +9,7 @@ module Lab
     describe :find_tests do
       before :each do
         @test_type_concept = create(:concept_name, name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
-        @test_result_concept = create(:concept_name, name: Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME)
+        @test_result_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME)
         @lab_order_type = create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME)
 
         def create_order(patient, seq, add_result:)
