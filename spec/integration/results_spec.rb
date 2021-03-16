@@ -33,7 +33,7 @@ RSpec.describe 'results' do
         test_type_concept = create(:concept_name, name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
 
         create(:encounter_type, name: Lab::Metadata::ENCOUNTER_TYPE_NAME)
-        create(:concept_name, name: Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME)
+        create(:concept_name, name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME)
 
         encounter = create(:encounter)
         order = create(:order, encounter: encounter,
