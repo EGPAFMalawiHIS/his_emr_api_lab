@@ -4,9 +4,14 @@ module Lab
   class ResultsController < ApplicationController
     def create
       result_params = params.require(:result)
-                            .permit(%i[encounter_id modifier value date])
+                            .permit([:encounter_id,
+                                     :date,
+                                     { measures: [:value,
+                                                  :value_type,
+                                                  :value_modifier,
+                                                  { indicator: [:concept_id] }] }])
 
-      result = Lab::ResultsService.create_result(params[:test_id], result_params)
+      result = Lab::ResultsService.create_results(params[:test_id], result_params)
 
       render json: result, status: :created
     end

@@ -423,14 +423,43 @@ paths:
                   type: integer
                 provider_id:
                   type: integer
-                modifier:
-                  type: string
-                value:
-                  type: string
                 date:
                   type: string
+                measures:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      indicator:
+                        type: object
+                        properties:
+                          concept_id:
+                            type: integer
+                            description: Concept ID of a test result indicator for
+                              this test (see GET /test_result_indicators)
+                          required:
+                          - concept_id
+                      value:
+                        type: string
+                        example: LDL
+                      value_modifier:
+                        type: string
+                        example: "="
+                      value_type:
+                        type: string
+                        enum:
+                        - text
+                        - boolean
+                        - numeric
+                        - coded
+                        description: Determines under what column the value is to
+                          be saved under in the obs table (defaults to text)
+                        example: text
+                    required:
+                    - indicator
+                    - value
               required:
-              - value
+              - measures
   "/api/v1/lab/specimen_types":
     get:
       summary: Specimen types
