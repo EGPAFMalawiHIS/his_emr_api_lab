@@ -8,7 +8,7 @@ class CreateLabLimsOrderMappings < ActiveRecord::Migration[5.2]
 
       t.timestamps
 
-      t.foreign_key :order, foreign_key: :order_id
+      t.foreign_key :orders, foreign_key: :order_id
       t.index :lims_id
     end
   end
