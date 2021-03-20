@@ -81,9 +81,10 @@ module Lab
         create_concept_set(result_indicator_concept, indicators)
         create_concept_set(test, indicators)
 
-        found_indicators = Set.new(subject.test_result_indicators(test.concept_id).collect(&:concept_id))
+        found_indicators = subject.test_result_indicators(test.concept_id)
+                                  .map { |indicator| indicator[:concept_id] }
 
-        expect(found_indicators).to eq(Set.new(indicators.collect(&:concept_id)))
+        expect(Set.new(found_indicators)).to eq(Set.new(indicators.collect(&:concept_id)))
       end
 
       it 'does not return indicators for a concept_id not marked as a test' do
