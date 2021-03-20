@@ -27,13 +27,7 @@ module Lab
             name: concept_name(reason_for_test&.value_coded)
           },
           tests: tests.map do |test|
-            result = if test.respond_to?(:result) && test.result
-                       {
-                         id: test.result&.obs_id,
-                         value: test.result&.value_text,
-                         date: test.result&.obs_datetime
-                       }
-                     end
+            result = ResultSerializer.serialize(result) if test.respond_to?(:result) && test.result
 
             {
               id: test.obs_id,
