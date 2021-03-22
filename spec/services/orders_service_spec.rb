@@ -127,9 +127,17 @@ module Lab
                                     specimen: { concept_id: create(:concept_name).concept_id },
                                     tests: [{ concept_id: create(:concept_name).concept_id }])
 
-        create(:concept_name, name: Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME)
-        ResultsService.create_result(@order[:tests][0][:id], encounter_id: create(:encounter).encounter_id,
-                                                             value: 42)
+        create(:concept_name, name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME)
+        ResultsService.create_results(
+          @order[:tests][0][:id],
+          encounter_id: create(:encounter).encounter_id,
+          measures: [
+            {
+              indicator: { concept_id: create(:concept_name).concept_id },
+              value: 42
+            }
+          ]
+        )
       end
 
       it 'voids an order and all its associated records' do

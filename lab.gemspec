@@ -27,6 +27,7 @@ Gem::Specification.new do |spec|
 
   spec.files = Dir['{app,config,db,lib}/**/*', 'MIT-LICENSE', 'Rakefile', 'README.md']
 
+  spec.add_dependency 'couchrest'
   spec.add_dependency 'rails', '~> 5.2.4', '>= 5.2.4.3'
   spec.add_development_dependency 'bcrypt'
   spec.add_development_dependency 'factory_bot_rails'
@@ -36,6 +37,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rswag-specs'
   spec.add_development_dependency 'rswag-ui'
   spec.add_development_dependency 'rubocop', '~> 0.79.0'
+  spec.add_development_dependency 'rubocop-rspec'
+  spec.add_development_dependency 'shoulda-matchers'
 
   spec.add_development_dependency 'sqlite3'
 end

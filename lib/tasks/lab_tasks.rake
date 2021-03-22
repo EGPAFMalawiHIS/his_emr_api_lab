@@ -9,16 +9,17 @@ end
 namespace :lab do
   desc 'Install Lab engine into container application'
   task :install do
-    puts '=> rails generate lab:install'
-    `rails generate lab:install`
-
-    puts '=> rake lab:install:migrations'
-    `rake lab:install:migrations`
+    sh 'rails generate lab:install'
+    sh 'rake lab:install:migrations'
   end
 
   desc 'Uninstall Lab engine from container application'
   task :uninstall do
-    puts '=> rails destroy lab:install'
-    `rails destroy lab:install`
+    sh 'rails destroy lab:install'
+  end
+
+  desc 'Load Lab metadata into database'
+  task :load_metadata do
+    sh "rails r #{__dir__}/loaders/metadata_loader.rb"
   end
 end

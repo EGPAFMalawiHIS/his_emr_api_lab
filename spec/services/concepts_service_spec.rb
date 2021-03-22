@@ -20,18 +20,11 @@ module Lab
     end
 
     before :each do
-      create_concept_set = lambda do |set, elements|
-        elements.map do |element|
-          create :concept_set, concept_set: set.concept_id,
-                               concept_id: element.concept_id
-        end
-      end
-
-      create_concept_set[test_type, [viral_load, tb, blood]]
-      create_concept_set[specimen_type, [fbc, sputum, xray]]
-      create_concept_set[viral_load, [fbc]]
-      create_concept_set[tb, [sputum, xray]]
-      create_concept_set[blood, [fbc]]
+      create_concept_set(test_type, [viral_load, tb, blood])
+      create_concept_set(specimen_type, [fbc, sputum, xray])
+      create_concept_set(viral_load, [fbc])
+      create_concept_set(tb, [sputum, xray])
+      create_concept_set(blood, [fbc])
     end
 
     describe :test_types do
@@ -77,6 +70,33 @@ module Lab
         expected = Set.new([sputum, xray].map { |specimen| serialize_test(specimen) })
 
         expect(specimens).to eq(expected)
+      end
+    end
+
+    describe :test_result_indicators do
+      it 'retrieves test indicators for a given test_type' do
+        test = viral_load
+        indicators = create_list(:concept_name, 5)
+        result_indicator_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
+        create_concept_set(result_indicator_concept, indicators)
+        create_concept_set(test, indicators)
+
+        found_indicators = subject.test_result_indicators(test.concept_id)
+                                  .map { |indicator| indicator[:concept_id] }
+
+        expect(Set.new(found_indicators)).to eq(Set.new(indicators.collect(&:concept_id)))
+      end
+
+      it 'does not return indicators for a concept_id not marked as a test' do
+        test = create(:concept_name)
+        indicators = create_list(:concept_name, 5)
+        result_indicator_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
+        create_concept_set(result_indicator_concept, indicators)
+        create_concept_set(test, indicators)
+
+        found_indicators = Set.new(subject.test_result_indicators(test.concept_id).collect(&:concept_id))
+
+        expect(found_indicators).to be_empty
       end
     end
   end

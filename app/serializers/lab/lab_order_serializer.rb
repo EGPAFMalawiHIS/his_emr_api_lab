@@ -27,13 +27,7 @@ module Lab
             name: concept_name(reason_for_test&.value_coded)
           },
           tests: tests.map do |test|
-            result = if test.respond_to?(:result) && test.result
-                       {
-                         id: test.result&.obs_id,
-                         value: test.result&.value_text,
-                         date: test.result&.obs_datetime
-                       }
-                     end
+            result = ResultSerializer.serialize(result) if test.respond_to?(:result) && test.result
 
             {
               id: test.obs_id,
@@ -49,7 +43,7 @@ module Lab
     def self.concept_name(concept_id)
       return concept_id unless concept_id
 
-      ConceptName.find_by_concept_id(concept_id)&.name
+      ConceptName.select(:name).find_by_concept_id(concept_id)&.name
     end
   end
 end

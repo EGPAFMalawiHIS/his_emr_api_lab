@@ -54,5 +54,31 @@ module Lab
                  .joins('INNER JOIN concept_name ON concept_name.concept_id = concept_set.concept_id')
                  .group('concept_name.concept_id')
     end
+
+    def self.test_result_indicators(test_type_id)
+      # Verify that the specified test_type is indeed a test_type
+      test_concept = ConceptSet.find_members_by_name(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
+                               .where(concept_id: test_type_id)
+                               .select(:concept_id)
+
+      # Find all concepts in the chosen test type's concept_set
+      test_concept_set_members = ConceptSet.where(concept_set: test_concept)
+                                           .select(:concept_id)
+
+      # From the members above, filter out only those concepts that are result indicators
+      ConceptSet.find_members_by_name(Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
+                .where(concept_id: test_concept_set_members)
+                .joins('INNER JOIN concept_name AS measure ON measure.concept_id = concept_set.concept_id')
+                .group(:concept_id)
+                .select('measure.concept_id, measure.name')
+                .map { |concept| { name: concept.name, concept_id: concept.concept_id } }
+    end
+
+    def self.reasons_for_test
+      ConceptSet.find_members_by_name(Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME)
+                .joins('INNER JOIN concept_name ON concept_name.concept_id = concept_set.concept_id')
+                .select('concept_name.concept_id, concept_name.name')
+                .map { |concept| { name: concept.name, concept_id: concept.concept_id } }
+    end
   end
 end

@@ -32,6 +32,17 @@ module Lab
       def unknown_concept_id
         ConceptName.find_by_name!('Unknown').concept_id
       end
+
+      def filter_orders_by_status(orders, status)
+        case status.downcase
+        when 'ordered' then orders.where(concept_id: unknown_concept_id)
+        when 'drawn' then orders.where.not(concept_id: unknown_concept_id)
+        end
+      end
+
+      def unknown_concept_id
+        ConceptName.find_by_name!('Unknown').concept_id
+      end
     end
   end
 end

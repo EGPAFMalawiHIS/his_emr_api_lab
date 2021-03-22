@@ -2,8 +2,10 @@
 
 module Lab
   class LabResult < Observation
+    alias measures children
+
     default_scope do
-      lab_test_concept = ConceptName.where(name: Lab::Metadata::LAB_TEST_RESULT_CONCEPT_NAME)
+      lab_test_concept = ConceptName.where(name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME)
                                     .select(:concept_id)
       where(voided: 0, concept: lab_test_concept)
     end
