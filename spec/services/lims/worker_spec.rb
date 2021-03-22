@@ -8,7 +8,7 @@ RSpec.describe Lab::Lims::Worker do
   subject { Lab::Lims::Worker.new(lims_api) }
 
   let(:lims_api) { DummyLimsApi.new }
-  let(:order) { create_order(create(:patient)) }
+  let(:order) { create_order(create(:patient), add_result: true) }
 
   before(:each) do
     @location = create(:location, parent: create(:location))

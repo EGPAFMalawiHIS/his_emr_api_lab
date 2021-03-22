@@ -15,6 +15,7 @@ def create_order(patient, seq: 0, add_result: false)
   encounter = create(:encounter, patient: patient)
 
   order = create(:order, order_type: create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME),
+                         concept_id: create(:concept_name).concept_id,
                          encounter: encounter,
                          patient: patient,
                          start_date: Date.today + seq.days,
@@ -39,13 +40,22 @@ def create_order(patient, seq: 0, add_result: false)
 
   return order unless add_result
 
-  create(:observation, order: order,
-                       encounter: create(:encounter, patient: patient),
-                       concept_id: create(:concept_name, name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME).concept_id,
-                       person_id: patient.patient_id,
-                       obs_group_id: test.obs_id,
-                       value_modifier: '=',
-                       value_text: '200')
+  result = create(:observation, order: order,
+                                encounter: create(:encounter, patient: patient),
+                                concept_id: create(:concept_name, name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME).concept_id,
+                                person_id: patient.patient_id,
+                                obs_group_id: test.obs_id,
+                                value_modifier: '=',
+                                value_text: '200')
+
+  5.times.each do
+    create(:observation, obs_group_id: result.obs_id,
+                         concept_id: create(:concept_name).concept_id,
+                         person_id: result.person_id,
+                         encounter_id: result.encounter_id,
+                         value_modifier: '=',
+                         value_numeric: 200)
+  end
 
   order
 end

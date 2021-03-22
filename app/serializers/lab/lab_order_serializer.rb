@@ -27,13 +27,13 @@ module Lab
             name: concept_name(reason_for_test&.value_coded)
           },
           tests: tests.map do |test|
-            result = ResultSerializer.serialize(result) if test.respond_to?(:result) && test.result
+            result_obs = test.children.first
 
             {
               id: test.obs_id,
               concept_id: test.value_coded,
               name: concept_name(test.value_coded),
-              result: result
+              result: result_obs && ResultSerializer.serialize(result_obs)
             }
           end
         }
