@@ -17,12 +17,16 @@ module Lab
             tracking_number: serialized_order.accession_number,
             sending_facility: current_facility_name,
             receiving_facility: serialized_order.target_lab,
+            tests: serialized_order.tests.collect(&:name),
             patient: format_patient(serialized_order.patient_id),
             order_location: format_order_location(serialized_order.encounter_id),
-            sample_type: serialized_order.specimen.name,
+            sample_type: format_sample_type(serialized_order.specimen.name),
+            sample_status: format_sample_status(serialized_order.specimen.name),
             districy: current_district, # yes districy [sic]...
             priority: serialized_order.reason_for_test.name,
-            date_created: serialized_order.order_date
+            date_created: serialized_order.order_date,
+            test_results: format_test_results(serialized_order),
+            type: 'Order'
           )
         end
 
@@ -58,6 +62,26 @@ module Lab
             gender: person.gender,
             email: nil
           }
+        end
+
+        def format_sample_type(name)
+          name.casecmp?('Unknown') ? 'not_specified' : name
+        end
+
+        def format_sample_status(name)
+          name.casecmp?('Unknown') ? 'specimen_not_collected' : 'specimen_collected'
+        end
+
+        def format_test_results(order)
+          order.tests.each_with_object({}) do |test, results|
+            results[test.name] = {
+              results: test.result.each_with_object({}) do |measure, measures|
+                measures[measure.indicator.name] = { result_value: "#{measure.value_modifier}#{measure.value}" }
+              end,
+              result_date: test.result.first&.date,
+              result_entered_by: {}
+            }
+          end
         end
 
         def current_health_center
