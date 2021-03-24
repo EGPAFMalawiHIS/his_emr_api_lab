@@ -42,7 +42,8 @@ module Lab
           [
             add_concept_to_set(set_concept_id: find_or_create_concept(Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME).concept_id,
                                concept_id: measure_concept.concept_id),
-            add_concept_to_set(set_concept_id: find_or_create_concept(test_name).concept_id, concept_id: measure_concept.concept_id)
+            add_concept_to_set(set_concept_id: measure_concept.concept_id,
+                               concept_id: find_or_create_concept(test_name).concept_id)
           ]
         rescue StandardError => e
           raise "Failed to create measure for test `#{name}`: #{e}"

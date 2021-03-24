@@ -79,7 +79,7 @@ module Lab
         indicators = create_list(:concept_name, 5)
         result_indicator_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
         create_concept_set(result_indicator_concept, indicators)
-        create_concept_set(test, indicators)
+        indicators.each { |indicator| create_concept_set(indicator, [test]) }
 
         found_indicators = subject.test_result_indicators(test.concept_id)
                                   .map { |indicator| indicator[:concept_id] }
@@ -92,7 +92,7 @@ module Lab
         indicators = create_list(:concept_name, 5)
         result_indicator_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
         create_concept_set(result_indicator_concept, indicators)
-        create_concept_set(test, indicators)
+        indicators.each { |indicator| create_concept_set(indicator, [test]) }
 
         found_indicators = Set.new(subject.test_result_indicators(test.concept_id).collect(&:concept_id))
 
