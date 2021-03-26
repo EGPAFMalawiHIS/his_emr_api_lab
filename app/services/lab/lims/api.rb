@@ -2,6 +2,8 @@
 
 require 'couch_bum/couch_bum'
 
+require_relative './config'
+
 module Lab
   module Lims
     ##
@@ -9,8 +11,15 @@ module Lab
     class Api
       attr_reader :bum
 
-      def initialize(lims_config)
-        @bum = CouchBum.new(lims_config || self.lims_config)
+      def initialize(config: nil)
+        config ||= Config.couchdb
+
+        @bum = CouchBum.new(protocol: config['protocol'],
+                            host: config['host'],
+                            port: config['port'],
+                            database: "#{config['prefix']}_order_#{config['suffix']}",
+                            username: config['username'],
+                            password: config['password'])
       end
 
       ##
@@ -31,28 +40,6 @@ module Lab
 
       def update_order(id, order)
         bum.couch_rest :put, "/#{id}", order
-      end
-
-      private
-
-      def lims_config
-        return @lims_config if @lims_config
-
-        @lims_config ||= YAML.load_file(lims_config_path)[Rails.env]
-      end
-
-      def lims_config_path
-        paths = [
-          "#{ENV['HOME']}/apps/nlims_controller/config/couch.yml",
-          Rails.root.parent.join('nlims_controller/config/couch.yml'),
-          Rails.root.join('config/lims-couch.yml')
-        ]
-
-        paths.each do |path|
-          return path if File.exist?(path)
-        end
-
-        raise "Could not find a configuration file, checked: #{path}"
       end
     end
   end
