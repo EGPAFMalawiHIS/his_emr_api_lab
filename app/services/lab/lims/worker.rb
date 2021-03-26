@@ -7,27 +7,48 @@ module Lab
     ##
     # Pull/Push orders from/to the LIMS queue (Oops meant CouchDB).
     class Worker
-      include Utils
-
-      attr_reader :lims_api
-
       def initialize(lims_api)
         @lims_api = lims_api
       end
 
+      include Utils
+
+      attr_reader :lims_api
+
+      def push_orders(batch_size: 100)
+        loop do
+          logger.info('Fetching new orders...')
+          orders = LabOrder.where.not(order_id: LimsOrderMapping.all.select(:order_id))
+                           .limit(batch_size)
+
+          if orders.empty?
+            logger.info('No new orders available; exiting...')
+            break
+          end
+
+          orders.each { |order| push_order(order) }
+        end
+      end
+
+      def push_order_by_id(order_id)
+        order = LabOrder.find(order_id)
+        push_order(order)
+      end
+
       ##
       # Pushes given order to LIMS queue
-      def push_order(order_id)
-        order = LabOrder.find(order_id)
+      def push_order(order)
+        logger.info("Pushing order ##{order.order_id}")
+
         order_dto = OrderDTO.from_order(order)
-        mapping = LimsOrderMapping.find_by(order_id: order_id)
+        mapping = LimsOrderMapping.find_by(order_id: order.order_id)
 
         if mapping
           lims_api.update_order(mapping.lims_id, order_dto)
           mapping.update(pushed_at: Time.now)
         else
           order_dto = lims_api.create_order(order_dto)
-          LimsOrderMapping.create(order: order, lims_id: order_dto[:_id], pushed_at: Time.now)
+          LimsOrderMapping.create!(order: order, lims_id: order_dto['id'], pushed_at: Time.now)
         end
 
         order_dto

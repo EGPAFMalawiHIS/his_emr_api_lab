@@ -11,5 +11,9 @@ module Lab
     def copy_rswag_initializer
       copy_file('rswag-ui-lab.rb', 'config/initializers/rswag-ui-lab.rb')
     end
+
+    def copy_worker
+      copy_file('start_worker.rb', 'bin/lab/start_worker.rb')
+    end
   end
 end
