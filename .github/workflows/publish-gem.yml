@@ -1,12 +1,19 @@
+name: Publish gem
+
 on:
   push:
     tags:
       - '*'
 
----
+jobs:
+  build:
 
-- name: Publish gem
-  uses: dawidd6/action-publish-gem@v1
-  with:
-    # api_key: ${{secrets.RUBYGEMS_API_KEY}}
-    github_token: ${{secrets.GITHUB_TOKEN}}
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build and publish gem
+      uses: jstastny/publish-gem-to-github@master
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        owner: jstastny
