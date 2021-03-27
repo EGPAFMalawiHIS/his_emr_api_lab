@@ -66,7 +66,7 @@ module Lab
 
       def update_order(order_id, params)
         specimen_id = params.dig(:specimen, :concept_id)
-        raise ::InvalidParameterError unless specimen_id
+        raise ::InvalidParameterError, 'Specimen concept_id is required' unless specimen_id
 
         order = Lab::LabOrder.find(order_id)
         raise ::UnprocessableEntityError unless order.concept_id == unknown_concept_id

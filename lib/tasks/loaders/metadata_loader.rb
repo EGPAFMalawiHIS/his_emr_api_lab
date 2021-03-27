@@ -8,6 +8,13 @@ module Lab
   module Loaders
     module MetadataLoader
       def self.load
+        unless Program.where(name: 'Laboratory program').exists?
+          Program.create(name: 'Laboratory program',
+                         description: 'Manage Lab information',
+                         creator: 1,
+                         uuid: SecureRandom.uuid)
+        end
+
         SpecimensLoader.load
         TestResultIndicatorsLoader.load
         ReasonsForTestLoader.load
