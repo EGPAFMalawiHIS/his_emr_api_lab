@@ -5,12 +5,12 @@ require 'lab/version'
 
 # Describe your gem and declare its dependencies:
 Gem::Specification.new do |spec|
-  spec.name        = 'lab'
+  spec.name        = 'HIS-EMR-API-Lab'
   spec.version     = Lab::VERSION
   spec.license     = 'MIT'
   spec.authors     = ['Elizabeth Glaser Pediatric Foundation Malawi']
   spec.email       = ['emrdevelopersmalawi@pedaids.org']
-  spec.homepage    = 'https://github.com/EGPAFMalawiHIS/HIS-EMR-API'
+  spec.homepage    = 'https://github.com/EGPAFMalawiHIS/HIS-EMR-API-Lab'
   spec.summary     = 'Lab extension for the HIS-EMR-API'
   spec.description = <<~DESC
     This adds a lab interface to the OpenMRS compatible core API provided by
@@ -19,11 +19,11 @@ Gem::Specification.new do |spec|
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'
   # to allow pushing to a single host or delete this section to allow pushing to any host.
-  # if spec.respond_to?(:metadata)
-  #   spec.metadata['allowed_push_host'] = "TODO: Set to 'http://mygemserver.com'"
-  # else
-  #   raise 'RubyGems 2.0 or newer is required to protect against public gem pushes.'
-  # end
+  if spec.respond_to?(:metadata)
+    spec.metadata['source_code_uri'] = spec.homepage
+  else
+    raise 'RubyGems 2.0 or newer is required to protect against public gem pushes.'
+  end
 
   spec.files = Dir['{app,config,db,lib}/**/*', 'MIT-LICENSE', 'Rakefile', 'README.md']
 
