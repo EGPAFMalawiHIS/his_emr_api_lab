@@ -3,17 +3,21 @@ name: Publish gem
 on:
   push:
     tags:
-      - '*'
+      - v*
+    branches:
+      - development
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Build and publish gem
-      uses: jstastny/publish-gem-to-github@master
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        owner: EGPAFMalawiHIS
+      - uses: actions/checkout@v1
+
+      - name: Release Gem
+        if: contains(github.ref, 'refs/tags/v')
+        uses: cadwallion/publish-rubygems-action@master
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          RUBYGEMS_API_KEY: ${{secrets.RUBYGEMS_PUBLISH_KEY}}
+          RELEASE_COMMAND: rake release
