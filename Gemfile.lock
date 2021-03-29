@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    lab (0.1.0)
+    his-emr-api-lab (0.0.1)
       couchrest
       rails (~> 5.2.4, >= 5.2.4.3)
 
@@ -91,7 +91,7 @@ GEM
       mime-types-data (~> 3.2015)
     mime-types-data (3.2021.0225)
     mimemagic (0.3.5)
-    mini_mime (1.0.2)
+    mini_mime (1.0.3)
     mini_portile2 (2.5.0)
     minitest (5.14.4)
     multi_json (1.15.0)
@@ -196,7 +196,7 @@ DEPENDENCIES
   byebug
   factory_bot_rails
   faker
-  lab!
+  his-emr-api-lab!
   rspec-rails
   rswag-api
   rswag-specs
