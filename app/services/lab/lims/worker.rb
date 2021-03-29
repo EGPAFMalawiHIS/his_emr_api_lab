@@ -48,7 +48,7 @@ module Lab
           mapping.update(pushed_at: Time.now)
         else
           order_dto = lims_api.create_order(order_dto)
-          LimsOrderMapping.create!(order: order, lims_id: order_dto['id'], pushed_at: Time.now)
+          LimsOrderMapping.create!(order: order, lims_id: order_dto['_id'], pushed_at: Time.now)
         end
 
         order_dto
