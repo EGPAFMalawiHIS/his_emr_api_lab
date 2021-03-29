@@ -5,7 +5,7 @@ require 'lab/version'
 
 # Describe your gem and declare its dependencies:
 Gem::Specification.new do |spec|
-  spec.name        = 'his-emr-api-lab'
+  spec.name        = 'his_emr_api_lab'
   spec.version     = Lab::VERSION
   spec.license     = 'MIT'
   spec.authors     = ['Elizabeth Glaser Pediatric Foundation Malawi']
@@ -27,18 +27,18 @@ Gem::Specification.new do |spec|
 
   spec.files = Dir['{app,config,db,lib}/**/*', 'MIT-LICENSE', 'Rakefile', 'README.md']
 
-  spec.add_dependency 'couchrest'
+  spec.add_dependency 'couchrest', '~> 2.0.0'
   spec.add_dependency 'rails', '~> 5.2.4', '>= 5.2.4.3'
-  spec.add_development_dependency 'bcrypt'
-  spec.add_development_dependency 'factory_bot_rails'
-  spec.add_development_dependency 'faker'
-  spec.add_development_dependency 'rspec-rails'
-  spec.add_development_dependency 'rswag-api'
-  spec.add_development_dependency 'rswag-specs'
-  spec.add_development_dependency 'rswag-ui'
+  spec.add_development_dependency 'bcrypt', '~> 3.1.0'
+  spec.add_development_dependency 'factory_bot_rails', '~> 6.1.0'
+  spec.add_development_dependency 'faker', '~> 2.16.0'
+  spec.add_development_dependency 'rspec-rails', '~> 5.0.0'
+  spec.add_development_dependency 'rswag-api', '~> 2.4.0'
+  spec.add_development_dependency 'rswag-specs', '~> 2.4.0'
+  spec.add_development_dependency 'rswag-ui', '~> 2.4.0'
   spec.add_development_dependency 'rubocop', '~> 0.79.0'
-  spec.add_development_dependency 'rubocop-rspec'
-  spec.add_development_dependency 'shoulda-matchers'
+  spec.add_development_dependency 'rubocop-rspec', '~> 1.41.0'
+  spec.add_development_dependency 'shoulda-matchers', '~> 4.5.0'
 
-  spec.add_development_dependency 'sqlite3'
+  spec.add_development_dependency 'sqlite3', '~> 1.4.0'
 end
