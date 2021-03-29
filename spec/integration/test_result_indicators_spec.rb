@@ -28,7 +28,7 @@ RSpec.describe 'Test Result Indicators' do
         result_indicator_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
         create_concept_set(test_type_concept, [test])
         create_concept_set(result_indicator_concept, indicators)
-        create_concept_set(test, indicators)
+        indicators.each { |indicator| create_concept_set(indicator, [test]) }
       end
 
       response 200, 'Ok' do
