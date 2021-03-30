@@ -1,9 +1,11 @@
+# frozen_string_literal: true
+
 require_relative 'boot'
 
 require 'rails/all'
 
 Bundler.require(*Rails.groups)
-require "lab"
+require 'his_emr_api_lab'
 
 module Dummy
   class Application < Rails::Application
@@ -21,4 +23,3 @@ module Dummy
     config.api_only = true
   end
 end
-
