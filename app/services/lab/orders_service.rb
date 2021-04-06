@@ -27,7 +27,7 @@ module Lab
       #       },
       #       program_id: { type: :integer, required: false },
       #       patient_id: { type: :integer, required: false }
-      #       specimen_type_id: { type: :object, properties: { concept_id: :integer }, required: %i[concept_id] },
+      #       specimen: { type: :object, properties: { concept_id: :integer }, required: %i[concept_id] },
       #       test_type_ids: {
       #         type: :array,
       #         items: {
@@ -66,10 +66,14 @@ module Lab
 
       def update_order(order_id, params)
         specimen_id = params.dig(:specimen, :concept_id)
-        raise ::InvalidParameterError, 'Specimen concept_id is required' unless specimen_id
+        unless specimen_id
+          raise ::InvalidParameterError, 'Specimen concept_id is required'
+        end
 
         order = Lab::LabOrder.find(order_id)
-        raise ::UnprocessableEntityError unless order.concept_id == unknown_concept_id
+        if order.concept_id != unknown_concept_id && !params[:force_update]
+          raise ::UnprocessableEntityError
+        end
 
         order.update!(concept_id: specimen_id)
         Lab::LabOrderSerializer.serialize_order(order)
@@ -100,9 +104,13 @@ module Lab
       # a 'Lab' encounter is created using the provided program_id and
       # patient_id.
       def find_encounter(order_params)
-        return Encounter.find(order_params[:encounter_id]) if order_params[:encounter_id]
+        if order_params[:encounter_id]
+          return Encounter.find(order_params[:encounter_id])
+        end
 
-        raise InvalidParameterError, 'encounter_id or patient_id required' unless order_params[:patient_id]
+        unless order_params[:patient_id]
+          raise InvalidParameterError, 'encounter_id or patient_id required'
+        end
 
         program_id = order_params[:program_id] || Program.find_by_name!(Lab::Metadata::LAB_PROGRAM_NAME).program_id
 
@@ -111,7 +119,7 @@ module Lab
           program_id: program_id,
           type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
           encounter_datetime: order_params[:date] || Date.today,
-          provider_id: order_params[:provider_id] || User.current&.user_id
+          provider_id: order_params[:provider_id] || User.current.person.person_id
         )
       end
 
