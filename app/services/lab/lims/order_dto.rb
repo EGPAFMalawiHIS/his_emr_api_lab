@@ -106,26 +106,28 @@ module Lab
 
       ##
       # Unpacks a LIMS order into an object that OrdersService can handle
-      def to_order_service_params(lims_order)
+      def to_order_service_params(patient_id:)
         ActiveSupport::HashWithIndifferentAccess.new(
           program_id: lab_program.program_id,
-          patient_id: patient.patient_id,
-          specimen_type: { concept_id: specimen_type_id(lims_order.sample_type) },
-          tests: lims_order.tests&.map { |test| { concept_id: test_type_id(test) } },
-          requesting_clinician: requesting_clinician(lims_order.who_order_test),
-          start_date: start_date(lims_order.date_created),
-          target_lab: facility_name(lims_order.receiving_facility),
-          order_location: facility_name(lims_order.sending_facility),
-          reason_for_test: reason_for_test(lims_order.sample_priority)
+          patient_id: patient_id,
+          specimen: { concept_id: specimen_type_id },
+          tests: self['tests']&.map { |test| { concept_id: test_type_id(test) } },
+          requesting_clinician: requesting_clinician,
+          start_date: start_date,
+          target_lab: facility_name(self['receiving_facility']),
+          order_location: facility_name(self['sending_facility']),
+          reason_for_test: reason_for_test
         )
       end
 
       private
 
       # Translates a LIMS specimen name to an OpenMRS concept_id
-      def specimen_type_id(lims_specimen_name)
-        if lims_specimen_name == 'specimen_not_collected'
-          return ConceptName.select(:concept_id).find_by_name!('Unknown')
+      def specimen_type_id
+        lims_specimen_name = self['sample_type']
+
+        if %w[specimen_not_collected not_assigned].include?(lims_specimen_name)
+          return ConceptName.select(:concept_id).find_by_name!('Unknown').concept_id
         end
 
         concept = ConceptName.select(:concept_id).find_by_name(lims_specimen_name)
@@ -143,11 +145,11 @@ module Lab
       end
 
       # Extract requesting clinician name from LIMS
-      def requesting_clinician(lims_user)
+      def requesting_clinician
         # TODO: Extend requesting clinician to an obs tree having extra parameters
         # like phone number and ID to closely match the lims user.
-        first_name = lims_user.first_name || ''
-        last_name = lims_user.last_name || ''
+        first_name = self['who_order_test']['first_name'] || ''
+        last_name = self['who_order_test']['last_name'] || ''
 
         if first_name.blank? && last_name.blank?
           logger.warn('Missing requesting clinician name')
@@ -157,8 +159,8 @@ module Lab
         "#{first_name} #{last_name}"
       end
 
-      def start_date(lims_order_date_created)
-        lims_order_date_created.to_datetime
+      def start_date
+        self['start_date']&.to_datetime
       end
 
       # Parses a LIMS facility name
@@ -168,9 +170,19 @@ module Lab
         lims_target_lab
       end
 
-      # Translates a LIMS priority to a concept_id
-      def reason_for_test(lims_sample_priority)
-        ConceptName.find_by_name!(lims_sample_priority).concept_id
+      # Translates a LIMS sample priority to a concept_id
+      def reason_for_test
+        return unknown_concept.concept_id unless self['sample_priority']
+
+        ConceptName.find_by_name!(self['sample_priority']).concept_id
+      end
+
+      def lab_program
+        Program.find_by_name!(Lab::Metadata::LAB_PROGRAM_NAME)
+      end
+
+      def unknown_concept
+        ConceptName.find_by_name!('Unknown')
       end
     end
   end

@@ -3,11 +3,23 @@
 module Lab
   module ResultsService
     class << self
+      ##
+      # Attach results to a test
+      #
+      # Params:
+      #   test_id: The tests id (maps to obs_id of the test's observation in OpenMRS)
+      #   params: A hash comprising the following fields
+      #     - encounter_id: Encounter to create result under (can be ommitted but provider_id has to specified)
+      #     - provider_id: Specify a provider for an encounter the result is going to be created under
+      #     - date: Retrospective date when the result was received (can be ommitted, defaults to today)
+      #     - measures: An array of measures. A measure is an object of the following structure
+      #         - indicator: An object that has a concept_id field (concept_id of the indicator)
+      #         - value_type: An enum that's limited to 'numeric', 'boolean', 'text', and 'coded'
       def create_results(test_id, params)
         ActiveRecord::Base.transaction do
           test = Lab::LabTest.find(test_id)
           encounter = find_encounter(test, encounter_id: params[:encounter_id],
-                                           date: params[:date],
+                                           date: params[:date]&.to_date,
                                            provider_id: params[:provider_id])
 
           results_obs = create_results_obs(encounter, test, params[:date])
@@ -57,7 +69,9 @@ module Lab
       end
 
       def validate_measure_params(params)
-        raise InvalidParameterError, 'measures.value is required' if params[:value].blank?
+        if params[:value].blank?
+          raise InvalidParameterError, 'measures.value is required'
+        end
 
         if params[:indicator]&.[](:concept_id).blank?
           raise InvalidParameterError, 'measures.indicator.concept_id is required'
