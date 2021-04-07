@@ -7,7 +7,7 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
-### Added
+## [0.0.2] - 2021-04-07
 
 ### Fixed
 
