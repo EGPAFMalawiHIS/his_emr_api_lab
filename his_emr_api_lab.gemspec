@@ -1,4 +1,6 @@
-$:.push File.expand_path('lib', __dir__)
+# frozen_string_literal: true
+
+$LOAD_PATH.push File.expand_path('lib', __dir__)
 
 # Maintain your gem's version:
 require 'lab/version'
@@ -10,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.license     = 'MIT'
   spec.authors     = ['Elizabeth Glaser Pediatric Foundation Malawi']
   spec.email       = ['emrdevelopersmalawi@pedaids.org']
-  spec.homepage    = 'https://github.com/EGPAFMalawiHIS/his-emr-api-Lab'
+  spec.homepage    = 'https://github.com/EGPAFMalawiHIS/his_emr_api_lab'
   spec.summary     = 'Lab extension for the HIS-EMR-API'
   spec.description = <<~DESC
     This adds a lab interface to the OpenMRS compatible core API provided by
