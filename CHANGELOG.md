@@ -11,6 +11,7 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ### Fixed
 
+- Setting order start_date to current date when retrospective date is specified
 
 ## [0.0.1] - 2021-03-27
 

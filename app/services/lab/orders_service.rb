@@ -66,10 +66,14 @@ module Lab
 
       def update_order(order_id, params)
         specimen_id = params.dig(:specimen, :concept_id)
-        raise ::InvalidParameterError, 'Specimen concept_id is required' unless specimen_id
+        unless specimen_id
+          raise ::InvalidParameterError, 'Specimen concept_id is required'
+        end
 
         order = Lab::LabOrder.find(order_id)
-        raise ::UnprocessableEntityError unless order.concept_id == unknown_concept_id
+        unless order.concept_id == unknown_concept_id
+          raise ::UnprocessableEntityError
+        end
 
         order.update!(concept_id: specimen_id)
         Lab::LabOrderSerializer.serialize_order(order)
@@ -100,9 +104,13 @@ module Lab
       # a 'Lab' encounter is created using the provided program_id and
       # patient_id.
       def find_encounter(order_params)
-        return Encounter.find(order_params[:encounter_id]) if order_params[:encounter_id]
+        if order_params[:encounter_id]
+          return Encounter.find(order_params[:encounter_id])
+        end
 
-        raise InvalidParameterError, 'encounter_id or patient_id required' unless order_params[:patient_id]
+        unless order_params[:patient_id]
+          raise InvalidParameterError, 'encounter_id or patient_id required'
+        end
 
         program_id = order_params[:program_id] || Program.find_by_name!(Lab::Metadata::LAB_PROGRAM_NAME).program_id
 
@@ -121,7 +129,7 @@ module Lab
           concept_id: params.dig(:specimen, :concept_id) || unknown_concept_id,
           encounter_id: encounter.encounter_id,
           patient_id: encounter.patient_id,
-          start_date: params[:start_date] || Date.today,
+          start_date: params[:date]&.to_date || Date.today,
           auto_expire_date: params[:end_date],
           accession_number: params[:accession_number] || next_accession_number,
           orderer: User.current&.user_id
