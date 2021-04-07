@@ -129,7 +129,7 @@ module Lab
           concept_id: params.dig(:specimen, :concept_id) || unknown_concept_id,
           encounter_id: encounter.encounter_id,
           patient_id: encounter.patient_id,
-          start_date: params[:start_date] || Date.today,
+          start_date: params[:date]&.to_date || Date.today,
           auto_expire_date: params[:end_date],
           accession_number: params[:accession_number] || next_accession_number,
           orderer: User.current&.user_id
