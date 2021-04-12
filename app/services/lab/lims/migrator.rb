@@ -7,7 +7,7 @@ module Lab
   module Lims
     module Migrator
       class MigratorApi < Api
-        def consume_orders(from: nil, limit: 250)
+        def consume_orders(from: nil, limit: 5000)
           start_key_param = from ? "&skip=#{from}" : ''
           url = "_all_docs?include_docs=true&limit=#{limit}#{start_key_param}"
 
