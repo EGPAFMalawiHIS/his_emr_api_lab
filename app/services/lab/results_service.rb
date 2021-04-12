@@ -22,7 +22,7 @@ module Lab
                                            date: params[:date]&.to_date,
                                            provider_id: params[:provider_id])
 
-          results_obs = create_results_obs(encounter, test, params[:date])
+          results_obs = create_results_obs(encounter, test, params[:date], params[:comments])
           params[:measures].map { |measure| add_measure_to_results(results_obs, measure, params[:date]) }
 
           Lab::ResultSerializer.serialize(results_obs)
@@ -44,14 +44,15 @@ module Lab
       end
 
       # Creates the parent observation for results to which the different measures are attached
-      def create_results_obs(encounter, test, date)
+      def create_results_obs(encounter, test, date, comments = nil)
         Lab::LabResult.create!(
           person_id: encounter.patient_id,
           encounter_id: encounter.encounter_id,
           concept_id: ConceptName.find_by_name!(Lab::Metadata::TEST_RESULT_CONCEPT_NAME).concept_id,
           order_id: test.order_id,
           obs_group_id: test.obs_id,
-          obs_datetime: date&.to_datetime || DateTime.now
+          obs_datetime: date&.to_datetime || DateTime.now,
+          comments: comments
         )
       end
 

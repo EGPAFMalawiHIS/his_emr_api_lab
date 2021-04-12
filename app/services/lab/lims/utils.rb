@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'cgi/util'
+
 module Lab
   module Lims
     ##
@@ -21,6 +23,13 @@ module Lab
         else
           object
         end
+      end
+
+      def find_concept_by_name(name)
+        ConceptName.joins(:concept)
+                   .merge(Concept.all) # Filter out voided
+                   .where(name: CGI.unescapeHTML(name))
+                   .first
       end
     end
   end
