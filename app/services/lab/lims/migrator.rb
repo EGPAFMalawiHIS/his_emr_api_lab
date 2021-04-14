@@ -6,6 +6,7 @@ require 'logger_multiplexor'
 
 require 'concept'
 require 'concept_name'
+require 'drug_order'
 require 'encounter'
 require 'encounter_type'
 require 'observation'
@@ -19,8 +20,18 @@ require 'person_name'
 require 'program'
 require 'user'
 
+require 'lab/lab_encounter'
+require 'lab/lab_order'
+require 'lab/lab_result'
+require 'lab/lab_test'
+require 'lab/lims_order_mapping'
+require 'lab/lims_failed_import'
+
 require_relative '../orders_service'
 require_relative '../results_service'
+require_relative '../../../serializers/lab/lab_order_serializer'
+require_relative '../../../serializers/lab/result_serializer'
+require_relative '../../../serializers/lab/test_serializer'
 
 require_relative 'order_dto'
 require_relative 'utils'
@@ -121,7 +132,7 @@ module Lab
         logger.level = :debug
         Rails.logger = logger
         ActiveRecord::Base.logger = logger
-        CouchBum.logger = logger
+        # CouchBum.logger = logger
 
         api = MigratorApi.new
         worker = MigrationWorker.new(api)

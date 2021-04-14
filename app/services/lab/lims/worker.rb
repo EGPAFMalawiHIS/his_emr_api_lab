@@ -80,7 +80,7 @@ module Lab
           end
         rescue DuplicateNHID
           logger.warn("Failed to import order due to duplicate patient NHID: #{order_dto[:patient][:id]}")
-          save_failed_import(order_dto, "Demographics patient NHID: #{order_dto[:patient][:id]}")
+          save_failed_import(order_dto, "Duplicate local patient NHID: #{order_dto[:patient][:id]}")
         ensure
           update_last_seq(context.last_seq)
         end
