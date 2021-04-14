@@ -209,7 +209,16 @@ module Lab
         end
       end
 
+      TEST_NAME_MAPPINGS = {
+        # For some weird reason(s) some tests have multiple names in LIMS,
+        # this is used to sanitize those names.
+        'hiv_viral_load' => 'HIV Viral Load',
+        'viral laod' => 'HIV Viral Load',
+        'viral load' => 'HIV Viral Load'
+      }.freeze
+
       def find_test(order_id, test_name)
+        test_name = TEST_NAME_MAPPINGS[test_name] || test_name
         test_concept = Utils.find_concept_by_name(test_name)
         raise "Unknown test name, #{test_name}!" unless test_concept
 
