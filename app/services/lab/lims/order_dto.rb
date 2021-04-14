@@ -5,13 +5,13 @@ module Lab
     ##
     # LIMS' Data Transfer Object for orders
     class OrderDTO < ActiveSupport::HashWithIndifferentAccess
-      class << self
-        include Utils
+      include Utils
 
+      class << self
         ##
         # Takes a Lab::LabOrder and serializes it into a DTO
         def from_order(order)
-          serialized_order = structify(Lab::LabOrderSerializer.serialize_order(order))
+          serialized_order = Utils.structify(Lab::LabOrderSerializer.serialize_order(order))
 
           new(
             tracking_number: serialized_order.accession_number,
@@ -104,8 +104,6 @@ module Lab
         end
       end
 
-      include Utils
-
       ##
       # Unpacks a LIMS order into an object that OrdersService can handle
       def to_order_service_params(patient_id:)
@@ -132,7 +130,7 @@ module Lab
           return ConceptName.select(:concept_id).find_by_name!('Unknown').concept_id
         end
 
-        concept = find_concept_by_name(lims_specimen_name)
+        concept = Utils.find_concept_by_name(lims_specimen_name)
         return concept.concept_id if concept
 
         raise "Unknown specimen name: #{lims_specimen_name}"
@@ -140,7 +138,7 @@ module Lab
 
       # Translates a LIMS test type name to an OpenMRS concept_id
       def test_type_id(lims_test_name)
-        concept = find_concept_by_name(lims_test_name)
+        concept = Utils.find_concept_by_name(lims_test_name)
         return concept.concept_id if concept
 
         raise "Unknown test type: #{lims_test_name}"
