@@ -11,7 +11,7 @@ module Lab
         Rails.logger
       end
 
-      def structify(object)
+      def self.structify(object)
         if object.is_a?(Hash)
           object.each_with_object(OpenStruct.new) do |kv_pair, struct|
             key, value = kv_pair
@@ -25,7 +25,7 @@ module Lab
         end
       end
 
-      def find_concept_by_name(name)
+      def self.find_concept_by_name(name)
         ConceptName.joins(:concept)
                    .merge(Concept.all) # Filter out voided
                    .where(name: CGI.unescapeHTML(name))

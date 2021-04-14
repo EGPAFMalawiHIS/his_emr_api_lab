@@ -9,7 +9,7 @@ module Lab
         include Utils
 
         def serialize_order(order)
-          serialized_order = structify(Lab::LabOrderSerializer.serialize_order(order))
+          serialized_order = Utils.structify(Lab::LabOrderSerializer.serialize_order(order))
 
           OrderDTO.new(
             tracking_number: serialized_order.accession_number,

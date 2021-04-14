@@ -64,29 +64,25 @@ module Lab
       def pull_orders
         logger.info("Retrieving LIMS orders starting from #{last_seq}")
         last_seq_processed = lims_api.consume_orders(from: last_seq) do |order_dto, context|
-          # Rubocop complaining of syntax error without the begin - rescue
-          # although code runs properly without it.
-          begin
-            logger.debug("Retrieved order ##{order_dto[:tracking_number]}: #{order_dto}")
+          logger.debug("Retrieved order ##{order_dto[:tracking_number]}: #{order_dto}")
 
-            patient = find_patient_by_nhid(order_dto[:patient][:id])
-            unless patient
-              logger.debug("Discarding order: Non local patient ##{order_dto[:patient][:id]} on order ##{order_dto[:tracking_number]}")
-              next
-            end
-
-            diff = match_patient_demographics(patient, order_dto['patient'])
-            if diff.empty?
-              save_order(patient, order_dto)
-            else
-              save_failed_import(order_dto, 'Demographics not matching', diff)
-            end
-          rescue DuplicateNHID
-            logger.warn("Failed to import order due to duplicate patient NHID: #{order_dto[:patient][:id]}")
-            save_failed_import(order_dto, "Demographics patient NHID: #{order_dto[:patient][:id]}")
-          ensure
-            update_last_seq(context.last_seq)
+          patient = find_patient_by_nhid(order_dto[:patient][:id])
+          unless patient
+            logger.debug("Discarding order: Non local patient ##{order_dto[:patient][:id]} on order ##{order_dto[:tracking_number]}")
+            next
           end
+
+          diff = match_patient_demographics(patient, order_dto['patient'])
+          if diff.empty?
+            save_order(patient, order_dto)
+          else
+            save_failed_import(order_dto, 'Demographics not matching', diff)
+          end
+        rescue DuplicateNHID
+          logger.warn("Failed to import order due to duplicate patient NHID: #{order_dto[:patient][:id]}")
+          save_failed_import(order_dto, "Demographics patient NHID: #{order_dto[:patient][:id]}")
+        ensure
+          update_last_seq(context.last_seq)
         end
 
         update_last_seq(last_seq_processed)
@@ -214,26 +210,26 @@ module Lab
       end
 
       def find_test(order_id, test_name)
-        test_type = find_concept_by_name(Metadata::TEST_TYPE_CONCEPT_NAME)
-        test_concept = find_concept_by_name(test_name)
+        test_concept = Utils.find_concept_by_name(test_name)
+        raise "Unknown test name, #{test_name}!" unless test_concept
 
-        LabTest.find_by(order_id: order_id, concept_id: test_type, value_coded: test_concept)
+        LabTest.find_by(order_id: order_id, value_coded: test_concept.concept_id)
       end
 
       def find_measure(_order, indicator_name, value)
-        indicator = find_concept_by_name(indicator_name)
+        indicator = Utils.find_concept_by_name(indicator_name)
         unless indicator
           logger.warn("Result indicator #{indicator_name} not found in concepts list")
           return nil
         end
 
         value_modifier, value, value_type = parse_lims_result_value(value)
-        return nil unless value
+        return nil if value.blank?
 
         ActiveSupport::HashWithIndifferentAccess.new(
           indicator: { concept_id: indicator.concept_id },
           value_type: value_type,
-          value: value,
+          value: value_type == 'numeric' ? value.to_f : value,
           value_modifier: value_modifier
         )
       end
@@ -249,11 +245,9 @@ module Lab
       end
 
       def guess_result_datatype(result)
-        if result.match?(/^\d+(\.\d+)?$/)
-          'numeric'
-        else
-          'text'
-        end
+        return 'numeric' if result.match?(/^[+-]?(\d+(\.\d+)|\.\d+)?$/)
+
+        'text'
       end
 
       def format_result_entered_by(result_entered_by)
