@@ -45,15 +45,31 @@ module Lab
 
       # Creates the parent observation for results to which the different measures are attached
       def create_results_obs(encounter, test, date, comments = nil)
+        void_existing_results_obs(encounter, test)
+
         Lab::LabResult.create!(
           person_id: encounter.patient_id,
           encounter_id: encounter.encounter_id,
-          concept_id: ConceptName.find_by_name!(Lab::Metadata::TEST_RESULT_CONCEPT_NAME).concept_id,
+          concept_id: test_result_concept.concept_id,
           order_id: test.order_id,
           obs_group_id: test.obs_id,
           obs_datetime: date&.to_datetime || DateTime.now,
           comments: comments
         )
+      end
+
+      def void_existing_results_obs(encounter, test)
+        result = Lab::LabResult.find_by(person_id: encounter.patient_id,
+                                        concept_id: test_result_concept.concept_id,
+                                        obs_group_id: test.obs_id)
+        return unless result
+
+        result.measures.map { |child_obs| child_obs.void("Updated/overwritten by #{User.current.username}") }
+        result.void("Updated/overwritten by #{User.current.username}")
+      end
+
+      def test_result_concept
+        ConceptName.find_by_name!(Lab::Metadata::TEST_RESULT_CONCEPT_NAME)
       end
 
       def add_measure_to_results(results_obs, params, date)
@@ -62,6 +78,7 @@ module Lab
         Observation.create!(
           person_id: results_obs.person_id,
           encounter_id: results_obs.encounter_id,
+          order_id: results_obs.order_id,
           concept_id: params[:indicator][:concept_id],
           obs_group_id: results_obs.obs_id,
           obs_datetime: date&.to_datetime || DateTime.now,
