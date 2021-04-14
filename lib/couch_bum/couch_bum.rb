@@ -13,7 +13,7 @@ class CouchBum
   def initialize(database:, protocol: 'http', host: 'localhost', port: 5984, username: nil, password: nil)
     @connection_string = make_connection_string(protocol, username, password, host, port, database)
 
-    CouchBum.logger ||= Logger.new
+    CouchBum.logger ||= Logger.new(STDOUT)
   end
 
   ##
