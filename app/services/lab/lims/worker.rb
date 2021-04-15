@@ -11,6 +11,7 @@ module Lab
       include Utils
 
       class DuplicateNHID < StandardError; end
+      class MissingAccessionNumber < StandardError; end
 
       attr_reader :lims_api
 
@@ -81,6 +82,9 @@ module Lab
         rescue DuplicateNHID
           logger.warn("Failed to import order due to duplicate patient NHID: #{order_dto[:patient][:id]}")
           save_failed_import(order_dto, "Duplicate local patient NHID: #{order_dto[:patient][:id]}")
+        rescue MissingAccessionNumber
+          logger.warn("Failed to import order due to missing accession number: #{order_dto[:_id]}")
+          save_failed_import(order_dto, 'Order missing tracking number')
         ensure
           update_last_seq(context.last_seq)
         end
@@ -139,6 +143,8 @@ module Lab
       end
 
       def save_order(patient, order_dto)
+        raise MissingAccessionNumber if order_dto[:tracking_number].blank?
+
         logger.info("Importing LIMS order ##{order_dto[:tracking_number]}")
         mapping = LimsOrderMapping.find_by(lims_id: order_dto[:_id])
 
