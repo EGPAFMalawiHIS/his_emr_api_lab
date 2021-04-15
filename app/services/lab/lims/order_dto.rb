@@ -109,6 +109,7 @@ module Lab
       def to_order_service_params(patient_id:)
         ActiveSupport::HashWithIndifferentAccess.new(
           program_id: lab_program.program_id,
+          accession_number: self['tracking_number'],
           patient_id: patient_id,
           specimen: { concept_id: specimen_type_id },
           tests: self['tests']&.map { |test| { concept_id: test_type_id(test) } },
