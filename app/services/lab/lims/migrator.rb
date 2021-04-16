@@ -29,6 +29,7 @@ require 'lab/lims_failed_import'
 
 require_relative '../orders_service'
 require_relative '../results_service'
+require_relative '../tests_service'
 require_relative '../../../serializers/lab/lab_order_serializer'
 require_relative '../../../serializers/lab/result_serializer'
 require_relative '../../../serializers/lab/test_serializer'
