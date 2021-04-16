@@ -114,7 +114,7 @@ module Lab
           specimen: { concept_id: specimen_type_id },
           tests: self['tests']&.map { |test| { concept_id: test_type_id(test) } },
           requesting_clinician: requesting_clinician,
-          start_date: start_date,
+          date: start_date,
           target_lab: facility_name(self['receiving_facility']),
           order_location: facility_name(self['sending_facility']),
           reason_for_test: reason_for_test
@@ -139,6 +139,7 @@ module Lab
 
       # Translates a LIMS test type name to an OpenMRS concept_id
       def test_type_id(lims_test_name)
+        lims_test_name = Utils.translate_test_name(lims_test_name)
         concept = Utils.find_concept_by_name(lims_test_name)
         return concept.concept_id if concept
 
@@ -161,7 +162,7 @@ module Lab
       end
 
       def start_date
-        self['start_date']&.to_datetime
+        Utils.parse_date(self['date_created'])
       end
 
       # Parses a LIMS facility name

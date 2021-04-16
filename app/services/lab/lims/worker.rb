@@ -85,6 +85,10 @@ module Lab
         rescue MissingAccessionNumber
           logger.warn("Failed to import order due to missing accession number: #{order_dto[:_id]}")
           save_failed_import(order_dto, 'Order missing tracking number')
+        # rescue StandardError => e
+        #   next if e.message.match?(/Unknown test type: ELISA/i)
+
+        #   raise e
         ensure
           update_last_seq(context.last_seq)
         end
@@ -107,9 +111,13 @@ module Lab
 
       def find_patient_by_nhid(nhid)
         national_id_type = PatientIdentifierType.where(name: 'National id')
-        identifier = PatientIdentifier.where(type: national_id_type, identifier: nhid)
-        patients = Patient.joins(:patient_identifiers)
-                          .merge(identifier)
+        identifiers = PatientIdentifier.where(type: national_id_type, identifier: nhid)
+        if identifiers.count.zero?
+          identifiers = PatientIdentifier.unscoped.where(voided: 1, type: national_id_type, identifier: nhid)
+        end
+        return nil if identifiers.count.zero?
+
+        patients = Patient.where(patient_id: identifiers.select(:patient_id))
                           .distinct(:patient_id)
                           .all
 
@@ -209,22 +217,14 @@ module Lab
           creator = format_result_entered_by(test_results['result_entered_by'])
 
           ResultsService.create_results(test.id, provider_id: User.current.person_id,
-                                                 date: test_results['date_result_entered'],
+                                                 date: Utils.parse_date(test_results['date_result_entered'], order[:order_date].to_s),
                                                  comments: "LIMS import: Entered by: #{creator}",
                                                  measures: measures)
         end
       end
 
-      TEST_NAME_MAPPINGS = {
-        # For some weird reason(s) some tests have multiple names in LIMS,
-        # this is used to sanitize those names.
-        'hiv_viral_load' => 'HIV Viral Load',
-        'viral laod' => 'HIV Viral Load',
-        'viral load' => 'HIV Viral Load'
-      }.freeze
-
       def find_test(order_id, test_name)
-        test_name = TEST_NAME_MAPPINGS[test_name] || test_name
+        test_name = Utils.translate_test_name(test_name)
         test_concept = Utils.find_concept_by_name(test_name)
         raise "Unknown test name, #{test_name}!" unless test_concept
 
