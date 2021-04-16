@@ -35,7 +35,11 @@ module Lab
             class_name: 'Observation',
             foreign_key: :order_id
 
-    default_scope { joins(:order_type).merge(OrderType.where(name: Lab::Metadata::ORDER_TYPE_NAME)) }
+    default_scope do
+      joins(:order_type)
+        .merge(OrderType.where(name: Lab::Metadata::ORDER_TYPE_NAME))
+        .where.not(concept_id: ConceptName.where(name: 'Tests ordered').select(:concept_id))
+    end
 
     def self.prefetch_relationships
       includes(:reason_for_test,
