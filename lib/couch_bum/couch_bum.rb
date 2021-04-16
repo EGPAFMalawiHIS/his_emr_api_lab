@@ -37,6 +37,9 @@ class CouchBum
 
     logger.debug("CouchBum: Executing #{method} #{url}")
     CouchRest.send(method, url, *args, **kwargs)
+  rescue CouchRest::Exception => e
+    logger.error("Failed to communicate with CouchDB: Status: #{e.http_code} - #{e.http_body}")
+    raise e
   end
 
   private
