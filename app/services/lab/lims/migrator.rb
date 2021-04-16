@@ -41,67 +41,65 @@ module Lab
   module Lims
     module Migrator
       class MigratorApi < Api
-        attr_accessor :last_seq
+        MAX_THREADS = 6
 
-        MAX_THREADS = 4
+        def consume_orders(from: nil, limit: 50_000)
+          Parallel.each(read_orders(from, limit),
+                        in_processes: MAX_THREADS,
+                        finish: ->(_, i, _) { save_last_seq(from + i) }) do |row|
+            next unless row['doc']['type']&.casecmp?('Order')
 
-        def initialize(*args, **kwargs)
-          super(*args, **kwargs)
+            User.current = Migrator.lab_user
 
-          initialize_last_seq
-          @mutex = Mutex.new
-        end
-
-        def consume_orders(from: nil, limit: 5000)
-          loop do
-            start_key_param = from ? "&skip=#{from}" : ''
-            url = "_all_docs?include_docs=true&limit=#{limit}#{start_key_param}"
-
-            Rails.logger.debug("#{MigratorApi}: Pulling orders from LIMS CouchDB: #{url}")
-            response = bum.couch_rest :get, url
-
-            from ||= 0
-
-            return from if response['rows'].empty?
-
-            Parallel.map(response['rows'], in_threads: MAX_THREADS) do |row|
-              next unless row['doc']['type']&.casecmp?('Order')
-
-              User.current = Migrator.lab_user
-
-              yield OrderDTO.new(row['doc']), OpenStruct.new(last_seq: from)
-            end
-
-            from += response['rows'].size
-          ensure
-            save_last_seq(from)
+            yield OrderDTO.new(row['doc']), OpenStruct.new(last_seq: from)
           end
         end
 
-        def close
-          @mutex.synchronize do
-            @last_seq_file&.close
-            @last_seq_file = nil
+        def last_seq
+          return 0 unless File.exist?(last_seq_path)
+
+          File.open(last_seq_path, File::RDONLY) do |file|
+            last_seq = file.read&.strip
+            return last_seq.blank? ? nil : last_seq&.to_i
           end
         end
 
         private
 
-        def initialize_last_seq
-          last_seq_path = Rails.root.join('log/lims-migration-last-id.dat')
-          @last_seq_file = File.new(last_seq_path, File::RDWR | File::CREAT, 0o644)
-
-          stored_last_seq = @last_seq_file&.read&.strip
-          @last_seq = stored_last_seq.blank? ? nil : stored_last_seq&.to_i
+        def last_seq_path
+          Rails.root.join('log/lims-migration-last-id.dat')
         end
 
         def save_last_seq(last_seq)
           return unless last_seq
 
-          @mutex.synchronize do
-            @last_seq = last_seq
-            @last_seq_file.rewind
-            @last_seq_file.write(last_seq.to_s)
+          File.open(last_seq_path, File::WRONLY | File::CREAT, 0o644) do |file|
+            Rails.logger.debug("Process ##{Parallel.worker_number}: Saving last seq: #{last_seq}")
+            file.flock(File::LOCK_EX)
+            file.write(last_seq.to_s)
+            file.flush
+          end
+        end
+
+        def read_orders(from, batch_size)
+          Enumerator.new do |enum|
+            loop do
+              start_key_param = from ? "&skip=#{from}" : ''
+              url = "_all_docs?include_docs=true&limit=#{batch_size}#{start_key_param}"
+
+              Rails.logger.debug("#{MigratorApi}: Pulling orders from LIMS CouchDB: #{url}")
+              response = bum.couch_rest :get, url
+
+              from ||= 0
+
+              break from if response['rows'].empty?
+
+              response['rows'].each do |row|
+                enum.yield(row)
+              end
+
+              from += response['rows'].size
+            end
           end
         end
       end
@@ -139,8 +137,6 @@ module Lab
         worker = MigrationWorker.new(api)
 
         worker.pull_orders
-      ensure
-        api&.close
       end
     end
   end
