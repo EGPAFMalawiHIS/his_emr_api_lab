@@ -2,6 +2,7 @@
 
 require 'cgi/util'
 require_relative './utils'
+require_relative './order_serializer'
 
 module Lab
   module Lims
@@ -44,7 +45,7 @@ module Lab
       def push_order(order)
         logger.info("Pushing order ##{order.order_id}")
 
-        order_dto = OrderDTO.from_order(order)
+        order_dto = OrderSerializer.serialize_order(order)
         mapping = LimsOrderMapping.find_by(order_id: order.order_id)
 
         ActiveRecord::Base.transaction do
