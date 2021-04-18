@@ -71,11 +71,15 @@ module Lab
         end
 
         order = Lab::LabOrder.find(order_id)
-        if order.concept_id != unknown_concept_id && !params[:force_update]
+        unless order.concept_id == unknown_concept_id || params[:force_update]&.to_s&.casecmp?('true')
           raise ::UnprocessableEntityError
         end
 
-        order.update!(concept_id: specimen_id)
+        order.update!(concept_id: specimen_id,
+                      discontinued: true,
+                      discontinued_by: User.current.user_id,
+                      discontinued_date: params[:date]&.to_date || Date.today,
+                      discontinued_reason_non_coded: 'Sample drawn/updated')
         Lab::LabOrderSerializer.serialize_order(order)
       end
 

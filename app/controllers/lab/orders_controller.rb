@@ -14,7 +14,8 @@ module Lab
     def update
       specimen = params.require(:specimen).permit(:concept_id)
 
-      order = OrdersService.update_order(params[:id], specimen: specimen)
+      order = OrdersService.update_order(params[:id], specimen: specimen,
+                                                      force_update: params[:force_update])
 
       render json: order
     end
