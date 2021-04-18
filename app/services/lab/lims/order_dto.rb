@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative './exceptions'
+
 module Lab
   module Lims
     ##
@@ -37,7 +39,7 @@ module Lab
         concept = Utils.find_concept_by_name(lims_specimen_name)
         return concept.concept_id if concept
 
-        raise "Unknown specimen name: #{lims_specimen_name}"
+        raise UnknownSpecimenType, "Unknown specimen name: #{lims_specimen_name}"
       end
 
       # Translates a LIMS test type name to an OpenMRS concept_id
@@ -46,7 +48,7 @@ module Lab
         concept = Utils.find_concept_by_name(lims_test_name)
         return concept.concept_id if concept
 
-        raise "Unknown test type: #{lims_test_name}"
+        raise UnknownTestType, "Unknown test type: #{lims_test_name}"
       end
 
       # Extract requesting clinician name from LIMS
