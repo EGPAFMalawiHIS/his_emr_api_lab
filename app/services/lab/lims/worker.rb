@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'cgi/util'
+
 require_relative './exceptions'
 require_relative './order_serializer'
 require_relative './utils'
@@ -97,11 +98,20 @@ module Lab
       protected
 
       def last_seq
-        nil
+        File.open(last_seq_path, File::RDONLY | File::CREAT, 0o644) do |fin|
+          data = fin.read&.strip
+          return nil if data.blank?
+
+          return data
+        end
       end
 
       def update_last_seq(last_seq)
-        last_seq
+        File.open(last_seq_path, File::WRONLY | File::CREAT, 0o644) do |fout|
+          fout.flock(File::LOCK_EX)
+
+          fout.write(last_seq.to_s)
+        end
       end
 
       private
@@ -290,6 +300,10 @@ module Lab
                                  patient_nhid: order_dto[:patient][:id],
                                  reason: reason,
                                  diff: diff&.to_json)
+      end
+
+      def last_seq_path
+        Rails.root.join('log/lims/last-seq.dat')
       end
     end
   end
