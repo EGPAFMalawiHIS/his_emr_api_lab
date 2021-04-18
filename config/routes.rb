@@ -6,6 +6,8 @@ Lab::Engine.routes.draw do
     resources :results, only: %i[index create destroy]
   end
 
+  get 'api/v1/lab/labels/order', to: 'labels#print_order_label'
+
   # Metadata
   # TODO: Move the following to namespace /concepts
   resources :specimen_types, only: %i[index], path: 'api/v1/lab/specimen_types'

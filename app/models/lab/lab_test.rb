@@ -10,5 +10,10 @@ module Lab
             -> { where(concept: ConceptName.where(name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME)) },
             class_name: '::Lab::LabResult',
             foreign_key: :obs_group_id
+
+    def void(reason)
+      result&.void(reason)
+      super(reason)
+    end
   end
 end

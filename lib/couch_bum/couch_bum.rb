@@ -8,8 +8,12 @@ require 'couchrest'
 #
 # See: https://github.com/couchrest/couchrest
 class CouchBum
+  cattr_accessor :logger
+
   def initialize(database:, protocol: 'http', host: 'localhost', port: 5984, username: nil, password: nil)
     @connection_string = make_connection_string(protocol, username, password, host, port, database)
+
+    CouchBum.logger ||= Logger.new(STDOUT)
   end
 
   ##
@@ -29,7 +33,13 @@ class CouchBum
   end
 
   def couch_rest(method, route, *args, **kwargs)
-    CouchRest.send(method, expand_route(route), *args, **kwargs)
+    url = expand_route(route)
+
+    logger.debug("CouchBum: Executing #{method} #{url}")
+    CouchRest.send(method, url, *args, **kwargs)
+  rescue CouchRest::Exception => e
+    logger.error("Failed to communicate with CouchDB: Status: #{e.http_code} - #{e.http_body}")
+    raise e
   end
 
   private

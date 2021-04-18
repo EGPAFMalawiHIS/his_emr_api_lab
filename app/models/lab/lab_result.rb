@@ -17,5 +17,15 @@ module Lab
                 end),
                class_name: 'Observation',
                foreign_key: :obs_group_id
+
+    def void(reason)
+      children.each do |measure|
+        # Need to have a LabResultMeasure model that privately handles it's children
+        measure.children.each { |provider| provider.void(reason) }
+        measure.void(reason)
+      end
+
+      super(reason)
+    end
   end
 end
