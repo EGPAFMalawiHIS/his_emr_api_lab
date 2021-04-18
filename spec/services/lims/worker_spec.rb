@@ -13,6 +13,7 @@ RSpec.describe Lab::Lims::Worker do
   before(:each) do
     @location = create(:location, parent: create(:location))
     create(:global_property, property: 'current_health_center_id', property_value: @location.location_id)
+    create(:concept_name, name: 'Unknown')
   end
 
   describe :push_order do

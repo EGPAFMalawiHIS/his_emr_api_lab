@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative './order_dto'
+require_relative './utils'
+
 module Lab
   module Lims
     ##
@@ -57,7 +60,7 @@ module Lab
             first_name: name&.given_name,
             last_name: name&.family_name,
             id: national_id&.identifier,
-            phone_number: phone_number.value,
+            phone_number: phone_number&.value,
             gender: person.gender,
             email: nil
           }
@@ -77,7 +80,7 @@ module Lab
           end
 
           user = User.find(order.discontinued_by || order.creator)
-          drawn_by = PersonName.find_by(user.user_id)
+          drawn_by = PersonName.find_by_person_id(user.user_id)
           drawn_date = order.discontinued_date || order.start_date
 
           [

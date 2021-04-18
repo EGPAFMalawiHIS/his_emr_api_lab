@@ -91,10 +91,7 @@ module Lab
         order.reason_for_test&.void(reason)
         order.target_lab&.void(reason)
 
-        order.tests.each do |test|
-          test.result&.void(reason)
-          test.void(reason)
-        end
+        order.tests.each { |test| test.void(reason) }
 
         order.void(reason)
       end
