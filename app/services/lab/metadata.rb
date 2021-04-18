@@ -18,6 +18,6 @@ module Lab
     ORDER_TYPE_NAME = 'Lab'
 
     # Programs
-    LAB_PROGRAM_NAME = 'Lab Program'
+    LAB_PROGRAM_NAME = 'Laboratory Program'
   end
 end

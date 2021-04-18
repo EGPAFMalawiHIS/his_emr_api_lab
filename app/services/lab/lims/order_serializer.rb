@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative './order_dto'
+require_relative './utils'
+
 module Lab
   module Lims
     ##
@@ -9,7 +12,7 @@ module Lab
         include Utils
 
         def serialize_order(order)
-          serialized_order = structify(Lab::LabOrderSerializer.serialize_order(order))
+          serialized_order = Utils.structify(Lab::LabOrderSerializer.serialize_order(order))
 
           OrderDTO.new(
             tracking_number: serialized_order.accession_number,
@@ -20,6 +23,7 @@ module Lab
             order_location: format_order_location(serialized_order.encounter_id),
             sample_type: format_sample_type(serialized_order.specimen.name),
             sample_status: format_sample_status(serialized_order.specimen.name),
+            sample_statuses: format_sample_status_trail(order),
             districy: current_district, # yes districy [sic]...
             priority: serialized_order.reason_for_test.name,
             date_created: serialized_order.order_date,
@@ -56,7 +60,7 @@ module Lab
             first_name: name&.given_name,
             last_name: name&.family_name,
             id: national_id&.identifier,
-            phone_number: phone_number.value,
+            phone_number: phone_number&.value,
             gender: person.gender,
             email: nil
           }
@@ -68,6 +72,28 @@ module Lab
 
         def format_sample_status(name)
           name.casecmp?('Unknown') ? 'specimen_not_collected' : 'specimen_collected'
+        end
+
+        def format_sample_status_trail(order)
+          if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
+            return []
+          end
+
+          user = User.find(order.discontinued_by || order.creator)
+          drawn_by = PersonName.find_by_person_id(user.user_id)
+          drawn_date = order.discontinued_date || order.start_date
+
+          [
+            drawn_date.strftime('%Y%m%d%H%M%S') => {
+              'status' => 'Drawn',
+              'updated_by' => {
+                'first_name' => drawn_by&.given_name || user.username,
+                'last_name' => drawn_by&.family_name,
+                'phone_number' => nil,
+                'id' => user.username
+              }
+            }
+          ]
         end
 
         def format_test_results(order)

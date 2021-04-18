@@ -27,7 +27,7 @@ module Lab
       #       },
       #       program_id: { type: :integer, required: false },
       #       patient_id: { type: :integer, required: false }
-      #       specimen_type_id: { type: :object, properties: { concept_id: :integer }, required: %i[concept_id] },
+      #       specimen: { type: :object, properties: { concept_id: :integer }, required: %i[concept_id] },
       #       test_type_ids: {
       #         type: :array,
       #         items: {
@@ -71,11 +71,15 @@ module Lab
         end
 
         order = Lab::LabOrder.find(order_id)
-        unless order.concept_id == unknown_concept_id
+        unless order.concept_id == unknown_concept_id || params[:force_update]&.to_s&.casecmp?('true')
           raise ::UnprocessableEntityError
         end
 
-        order.update!(concept_id: specimen_id)
+        order.update!(concept_id: specimen_id,
+                      discontinued: true,
+                      discontinued_by: User.current.user_id,
+                      discontinued_date: params[:date]&.to_date || Date.today,
+                      discontinued_reason_non_coded: 'Sample drawn/updated')
         Lab::LabOrderSerializer.serialize_order(order)
       end
 
@@ -87,10 +91,7 @@ module Lab
         order.reason_for_test&.void(reason)
         order.target_lab&.void(reason)
 
-        order.tests.each do |test|
-          test.result&.void(reason)
-          test.void(reason)
-        end
+        order.tests.each { |test| test.void(reason) }
 
         order.void(reason)
       end
@@ -119,7 +120,7 @@ module Lab
           program_id: program_id,
           type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
           encounter_datetime: order_params[:date] || Date.today,
-          provider_id: order_params[:provider_id] || User.current&.user_id
+          provider_id: order_params[:provider_id] || User.current.person.person_id
         )
       end
 
