@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 require 'cgi/util'
-require_relative './utils'
+require_relative './exceptions'
 require_relative './order_serializer'
+require_relative './utils'
 
 module Lab
   module Lims
@@ -10,9 +11,6 @@ module Lab
     # Pull/Push orders from/to the LIMS queue (Oops meant CouchDB).
     class Worker
       include Utils
-
-      class DuplicateNHID < StandardError; end
-      class MissingAccessionNumber < StandardError; end
 
       attr_reader :lims_api
 
@@ -65,13 +63,13 @@ module Lab
       # Pulls orders from the LIMS queue and writes them to the local database
       def pull_orders
         logger.info("Retrieving LIMS orders starting from #{last_seq}")
-        last_seq_processed = lims_api.consume_orders(from: last_seq) do |order_dto, context|
+        lims_api.consume_orders(from: last_seq) do |order_dto, context|
           logger.debug("Retrieved order ##{order_dto[:tracking_number]}: #{order_dto}")
 
           patient = find_patient_by_nhid(order_dto[:patient][:id])
           unless patient
             logger.debug("Discarding order: Non local patient ##{order_dto[:patient][:id]} on order ##{order_dto[:tracking_number]}")
-            next
+            next [:rejected, "Patient NPID, '#{order_dto[:patient][:id]}', didn't match any local NPIDs"]
           end
 
           diff = match_patient_demographics(patient, order_dto['patient'])
@@ -80,22 +78,20 @@ module Lab
           else
             save_failed_import(order_dto, 'Demographics not matching', diff)
           end
+
+          [:accepted, "Patient NPID, '#{order_dto[:patient][:id]}', matched"]
         rescue DuplicateNHID
           logger.warn("Failed to import order due to duplicate patient NHID: #{order_dto[:patient][:id]}")
           save_failed_import(order_dto, "Duplicate local patient NHID: #{order_dto[:patient][:id]}")
         rescue MissingAccessionNumber
           logger.warn("Failed to import order due to missing accession number: #{order_dto[:_id]}")
           save_failed_import(order_dto, 'Order missing tracking number')
-        # rescue StandardError => e
-        #   next if e.message.match?(/Unknown test type: ELISA/i)
-
-        #   raise e
+        rescue LimsException => e
+          logger.warn("Failed to import order due to #{e.class} - #{e.message}")
+          save_failed_import(order_dto, e.message)
         ensure
           update_last_seq(context.last_seq)
         end
-
-        update_last_seq(last_seq_processed)
-        last_seq_processed
       end
 
       protected
@@ -111,7 +107,7 @@ module Lab
       private
 
       def find_patient_by_nhid(nhid)
-        national_id_type = PatientIdentifierType.where(name: 'National id')
+        national_id_type = PatientIdentifierType.where(name: ['National id', 'Old Identification Number'])
         identifiers = PatientIdentifier.where(type: national_id_type, identifier: nhid)
         if identifiers.count.zero?
           identifiers = PatientIdentifier.unscoped.where(voided: 1, type: national_id_type, identifier: nhid)
@@ -136,19 +132,31 @@ module Lab
         person = Person.find(local_patient.id)
         person_name = PersonName.find_by_person_id(local_patient.id)
 
-        unless person.gender&.first&.casecmp?(lims_patient['gender']&.first)
+        unless (person.gender.blank? && lims_patient['gender'].blank?)\
+          || person.gender&.first&.casecmp?(lims_patient['gender']&.first)
           diff[:gender] = { local: person.gender, lims: lims_patient['gender'] }
         end
 
-        unless person_name&.given_name&.casecmp?(lims_patient['first_name'])
+        unless names_match?(person_name&.given_name, lims_patient['first_name'])
           diff[:given_name] = { local: person_name&.given_name, lims: lims_patient['first_name'] }
         end
 
-        unless person_name&.family_name&.casecmp?(lims_patient['last_name'])
+        unless names_match?(person_name&.family_name, lims_patient['last_name'])
           diff[:family_name] = { local: person_name&.family_name, lims: lims_patient['last_name'] }
         end
 
         diff
+      end
+
+      def names_match?(name1, name2)
+        name1 = name1&.gsub(/'/, '')&.strip
+        name2 = name2&.gsub(/'/, '')&.strip
+
+        return true if name1.blank? && name2.blank?
+
+        return false if name1.blank? || name2.blank?
+
+        name1.casecmp?(name2)
       end
 
       def save_order(patient, order_dto)

@@ -46,8 +46,10 @@ module Lab
 
         return parse_date(fallback_date) if str_date.blank?
 
+        str_date = str_date.gsub(/^00/, '20').gsub(/^180/, '20')
+
         if str_date.match?(/\d{4}-\d{2}-\d{2}/)
-          str_date.gsub(/^00/, '20')
+          str_date
         elsif str_date.match?(/\d{2}-\d{2}-\d{2}/)
           Date.strptime(str_date, '%d-%m-%Y').strftime('%Y-%m-%d')
         elsif str_date.match?(/(\d{4}\d{2}\d{2})\d+/)

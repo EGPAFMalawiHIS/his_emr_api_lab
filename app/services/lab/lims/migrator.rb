@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
+require 'csv'
 require 'parallel'
+
 require 'couch_bum/couch_bum'
 require 'logger_multiplexor'
 
@@ -43,14 +45,15 @@ module Lab
       class MigratorApi < Api
         MAX_THREADS = 6
 
+        attr_reader :rejections
+
         def consume_orders(from: nil, limit: 50_000)
           Parallel.each(read_orders(from, limit),
                         in_processes: MAX_THREADS,
-                        finish: ->(_, i, _) { save_last_seq(from + i) }) do |row|
+                        finish: order_pmap_post_processor(from)) do |row|
             next unless row['doc']['type']&.casecmp?('Order')
 
             User.current = Migrator.lab_user
-
             yield OrderDTO.new(row['doc']), OpenStruct.new(last_seq: from)
           end
         end
@@ -67,7 +70,17 @@ module Lab
         private
 
         def last_seq_path
-          Rails.root.join('log/lims-migration-last-id.dat')
+          Rails.root.join('log/lims/migration-last-id.dat')
+        end
+
+        def order_pmap_post_processor(last_seq)
+          lambda do |item, index, result|
+            save_last_seq(last_seq + index)
+            status, reason = result
+            next unless status == :rejected
+
+            (@rejections ||= []) << OpenStruct.new(order: OrderDTO.new(item['doc']), reason: reason)
+          end
         end
 
         def save_last_seq(last_seq)
@@ -80,6 +93,8 @@ module Lab
             file.flush
           end
         end
+
+        def save_rejection(order_dto, reason); end
 
         def read_orders(from, batch_size)
           Enumerator.new do |enum|
@@ -126,8 +141,53 @@ module Lab
         User.create!(username: 'lab_daemon', person: person, creator: god_user.user_id)
       end
 
+      def self.save_csv(filename, rows:, headers: nil)
+        CSV.open(filename, File::WRONLY | File::CREAT) do |csv|
+          csv << headers if headers
+          rows.each { |row| csv << row }
+        end
+      end
+
+      MIGRATION_REJECTIONS_CSV_PATH = Rails.root.join('log/lims/migration-rejections.csv')
+
+      def self.export_rejections(rejections)
+        headers = ['Accession number', 'NHID', 'First name', 'Last name', 'Reason']
+        rows = (rejections || []).map do |rejection|
+          [
+            rejection.order[:tracking_number],
+            rejection.order[:patient][:id],
+            rejection.order[:patient][:first_name],
+            rejection.order[:patient][:last_name],
+            rejection.reason
+          ]
+        end
+
+        save_csv(MIGRATION_REJECTIONS_CSV_PATH, headers: headers, rows: rows)
+      end
+
+      MIGRATION_FAILURES_CSV_PATH = Rails.root.join('log/lims/migration-failures.csv')
+
+      def self.export_failures
+        headers = ['Accession number', 'NHID', 'Reason', 'Difference']
+        rows = Lab::LimsFailedImport.all.map do |failure|
+          [
+            failure.tracking_number,
+            failure.patient_nhid,
+            failure.reason,
+            failure.diff
+          ]
+        end
+
+        save_csv(MIGRATION_FAILURES_CSV_PATH, headers: headers, rows: rows)
+      end
+
+      MIGRATION_LOG_PATH = Rails.root.join('log/lims/migration.log')
+
       def self.start_migration
-        logger = LoggerMultiplexor.new(Logger.new($stdout), Rails.root.join('log/lims-migration.log'))
+        log_dir = Rails.root.join('log/lims')
+        Dir.mkdir(log_dir) unless File.exist?(log_dir)
+
+        logger = LoggerMultiplexor.new(Logger.new($stdout), MIGRATION_LOG_PATH)
         logger.level = :debug
         Rails.logger = logger
         ActiveRecord::Base.logger = logger
@@ -137,6 +197,9 @@ module Lab
         worker = MigrationWorker.new(api)
 
         worker.pull_orders
+      ensure
+        api && export_rejections(api.rejections)
+        export_failures
       end
     end
   end
