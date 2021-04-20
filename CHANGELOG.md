@@ -7,6 +7,12 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+
+## [0.0.4] - 2021-04-20
+
+- Added wrapper for starting single instance of push/pull worker
+- Various bug fixes for pull worker
+
 ## [0.0.3] - 2021-04-18
 
 ### Added
