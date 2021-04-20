@@ -88,6 +88,3 @@ section of the example configuration above.
 7. `password`
 
    Accompanies the username above
-
-
-

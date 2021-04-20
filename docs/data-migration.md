@@ -75,3 +75,33 @@ demographics not matching, to patients sharing the same identifier. Each entry
 has a reason specified under the reason column. For non-matching demographics,
 a diff is included in the diff column. The diff just shows what field failed
 to match and lists the values that were compared.
+
+
+## Wrapping up
+
+When the migration is done, you may want to set up synchronisation with the
+LIMS. This ensures that if there are any new orders coming from LIMS, they
+get imported into the local openmrs database, and if there are new orders
+in the local openmrs database, they get exported to LIMS.
+
+Setting up the syncronisation is simply a matter of setting up a cron job
+that uses the `rails runner` to run the LIMS worker script. There are
+different ways to do it, however this section discusses how it's done in
+[BHT-EMR-API](https://github.com/HISMalawi/BHT-EMR-API).
+
+Starting from version v4.10.34, the [BHT-EMR-API](https://github.com/HISMalawi/BHT-EMR-API)
+is configured to setup this cronjob using [whenever](https://github.com/javan/whenever).
+So all that needs to be done from the deployment side is to run:
+
+```sh
+$ whenever --update-crontab
+```
+
+The command above creates a cronjob that runs every 5 minutes in your
+crontab. To check if the cronjob works, run the following command and
+copy the command that comes after the four *s. Paste that command
+into any terminal and see if runs without any errors.
+
+```sh
+$ whenever
+```
