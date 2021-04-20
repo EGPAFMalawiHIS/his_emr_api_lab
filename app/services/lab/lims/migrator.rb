@@ -29,6 +29,7 @@ require 'lab/lab_test'
 require 'lab/lims_order_mapping'
 require 'lab/lims_failed_import'
 
+require_relative './worker'
 require_relative '../orders_service'
 require_relative '../results_service'
 require_relative '../tests_service'
@@ -47,14 +48,16 @@ module Lab
 
         attr_reader :rejections
 
-        def consume_orders(from: nil, limit: 50_000)
+        def consume_orders(from: nil, **_kwargs)
+          limit = 50_000
+
           Parallel.each(read_orders(from, limit),
                         in_processes: MAX_THREADS,
                         finish: order_pmap_post_processor(from)) do |row|
             next unless row['doc']['type']&.casecmp?('Order')
 
-            User.current = Migrator.lab_user
-            yield OrderDTO.new(row['doc']), OpenStruct.new(last_seq: from)
+            User.current = Utils.lab_user
+            yield OrderDTO.new(row['doc']), OpenStruct.new(last_seq: (from || 0) + limit, current_seq: from)
           end
         end
 
@@ -70,7 +73,7 @@ module Lab
         private
 
         def last_seq_path
-          Rails.root.join('log/lims/migration-last-id.dat')
+          LIMS_LOG_PATH.join('migration-last-id.dat')
         end
 
         def order_pmap_post_processor(last_seq)
@@ -129,18 +132,6 @@ module Lab
         def update_last_seq(_last_seq); end
       end
 
-      def self.lab_user
-        user = User.find_by_username('lab_daemon')
-        return user if user
-
-        god_user = User.first
-
-        person = Person.create!(creator: god_user.user_id)
-        PersonName.create!(person: person, given_name: 'Lab', family_name: 'Daemon', creator: god_user.user_id)
-
-        User.create!(username: 'lab_daemon', person: person, creator: god_user.user_id)
-      end
-
       def self.save_csv(filename, rows:, headers: nil)
         CSV.open(filename, File::WRONLY | File::CREAT) do |csv|
           csv << headers if headers
@@ -148,7 +139,7 @@ module Lab
         end
       end
 
-      MIGRATION_REJECTIONS_CSV_PATH = Rails.root.join('log/lims/migration-rejections.csv')
+      MIGRATION_REJECTIONS_CSV_PATH = LIMS_LOG_PATH.join('migration-rejections.csv')
 
       def self.export_rejections(rejections)
         headers = ['Accession number', 'NHID', 'First name', 'Last name', 'Reason']
@@ -165,7 +156,7 @@ module Lab
         save_csv(MIGRATION_REJECTIONS_CSV_PATH, headers: headers, rows: rows)
       end
 
-      MIGRATION_FAILURES_CSV_PATH = Rails.root.join('log/lims/migration-failures.csv')
+      MIGRATION_FAILURES_CSV_PATH = LIMS_LOG_PATH.join('migration-failures.csv')
 
       def self.export_failures
         headers = ['Accession number', 'NHID', 'Reason', 'Difference']
@@ -181,7 +172,7 @@ module Lab
         save_csv(MIGRATION_FAILURES_CSV_PATH, headers: headers, rows: rows)
       end
 
-      MIGRATION_LOG_PATH = Rails.root.join('log/lims/migration.log')
+      MIGRATION_LOG_PATH = LIMS_LOG_PATH.join('migration.log')
 
       def self.start_migration
         log_dir = Rails.root.join('log/lims')

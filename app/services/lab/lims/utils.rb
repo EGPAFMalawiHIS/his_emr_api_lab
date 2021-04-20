@@ -39,6 +39,18 @@ module Lab
         end
       end
 
+      def self.lab_user
+        user = User.find_by_username('lab_daemon')
+        return user if user
+
+        god_user = User.first
+
+        person = Person.create!(creator: god_user.user_id)
+        PersonName.create!(person: person, given_name: 'Lab', family_name: 'Daemon', creator: god_user.user_id)
+
+        User.create!(username: 'lab_daemon', person: person, creator: god_user.user_id)
+      end
+
       def self.parse_date(str_date, fallback_date = nil)
         if str_date.blank? && fallback_date.blank?
           raise "Can't parse blank date"

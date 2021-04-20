@@ -24,18 +24,21 @@ class CouchBum
   # within the passed block.
   def binge_changes(since: 0, limit: nil, include_docs: nil, &block)
     catch(:choke) do
-      extra_params = stringify_params(limit: limit, include_docs: include_docs)
+      logger.debug("Binging #{limit} changes from '#{since}'")
+      params = stringify_params(limit: limit, include_docs: include_docs)
+      params = "since=#{since}&#{params}" unless since.blank?
 
-      changes = couch_rest(:get, "_changes?since=#{since}&#{extra_params}")
+      changes = couch_rest(:get, "_changes?#{params}")
       context = BingeContext.new(changes)
-      changes['results'].each { |change| context.instance_exec(change, &block) }
+      changes['results'].each do |change|
+        context.current_seq = change['seq']
+        context.instance_exec(change, &block)
+      end
     end
   end
 
   def couch_rest(method, route, *args, **kwargs)
     url = expand_route(route)
-
-    logger.debug("CouchBum: Executing #{method} #{url}")
     CouchRest.send(method, url, *args, **kwargs)
   rescue CouchRest::Exception => e
     logger.error("Failed to communicate with CouchDB: Status: #{e.http_code} - #{e.http_body}")
@@ -46,6 +49,8 @@ class CouchBum
 
   # Context under which the callback passed to binge_changes is executed.
   class BingeContext
+    attr_accessor :current_seq
+
     def initialize(changes)
       @changes = changes
     end

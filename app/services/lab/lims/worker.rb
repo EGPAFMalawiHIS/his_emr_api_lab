@@ -2,18 +2,35 @@
 
 require 'cgi/util'
 
+require_relative './api'
 require_relative './exceptions'
 require_relative './order_serializer'
 require_relative './utils'
 
 module Lab
   module Lims
+    LIMS_LOG_PATH = Rails.root.join('log/lims')
+    Dir.mkdir(LIMS_LOG_PATH) unless File.exist?(LIMS_LOG_PATH)
+
     ##
     # Pull/Push orders from/to the LIMS queue (Oops meant CouchDB).
     class Worker
       include Utils
 
       attr_reader :lims_api
+
+      def self.start
+        File.open(LIMS_LOG_PATH.join('worker.lock'), File::WRONLY | File::CREAT, 0o644) do |fout|
+          fout.flock(File::LOCK_EX)
+
+          User.current = Utils.lab_user
+
+          fout.write("Worker ##{Process.pid} started at #{Time.now}")
+          worker = new(Api.new)
+          worker.pull_orders
+          worker.push_orders
+        end
+      end
 
       def initialize(lims_api)
         @lims_api = lims_api
@@ -52,8 +69,8 @@ module Lab
             lims_api.update_order(mapping.lims_id, order_dto)
             mapping.update(pushed_at: Time.now)
           else
-            order_dto = lims_api.create_order(order_dto)
-            LimsOrderMapping.create!(order: order, lims_id: order_dto['_id'], pushed_at: Time.now)
+            update = lims_api.create_order(order_dto)
+            LimsOrderMapping.create!(order: order, lims_id: update['id'], revision: update['rev'], pushed_at: Time.now)
           end
         end
 
@@ -64,7 +81,8 @@ module Lab
       # Pulls orders from the LIMS queue and writes them to the local database
       def pull_orders
         logger.info("Retrieving LIMS orders starting from #{last_seq}")
-        lims_api.consume_orders(from: last_seq) do |order_dto, context|
+
+        lims_api.consume_orders(from: last_seq, limit: 100) do |order_dto, context|
           logger.debug("Retrieved order ##{order_dto[:tracking_number]}: #{order_dto}")
 
           patient = find_patient_by_nhid(order_dto[:patient][:id])
@@ -80,6 +98,8 @@ module Lab
             save_failed_import(order_dto, 'Demographics not matching', diff)
           end
 
+          update_last_seq(context.current_seq)
+
           [:accepted, "Patient NPID, '#{order_dto[:patient][:id]}', matched"]
         rescue DuplicateNHID
           logger.warn("Failed to import order due to duplicate patient NHID: #{order_dto[:patient][:id]}")
@@ -90,8 +110,6 @@ module Lab
         rescue LimsException => e
           logger.warn("Failed to import order due to #{e.class} - #{e.message}")
           save_failed_import(order_dto, e.message)
-        ensure
-          update_last_seq(context.last_seq)
         end
       end
 
@@ -303,7 +321,7 @@ module Lab
       end
 
       def last_seq_path
-        Rails.root.join('log/lims/last-seq.dat')
+        LIMS_LOG_PATH.join('last_seq.dat')
       end
     end
   end

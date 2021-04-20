@@ -97,7 +97,9 @@ module Lab
         end
 
         def format_test_results(order)
-          order.tests.each_with_object({}) do |test, results|
+          order.tests&.each_with_object({}) do |test, results|
+            next unless test.result
+
             results[test.name] = {
               results: test.result.each_with_object({}) do |measure, measures|
                 measures[measure.indicator.name] = { result_value: "#{measure.value_modifier}#{measure.value}" }
