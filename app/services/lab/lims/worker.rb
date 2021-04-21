@@ -269,6 +269,7 @@ module Lab
       end
 
       def find_measure(_order, indicator_name, value)
+        value = value.strip
         indicator = Utils.find_concept_by_name(indicator_name)
         unless indicator
           logger.warn("Result indicator #{indicator_name} not found in concepts list")
@@ -282,7 +283,7 @@ module Lab
           indicator: { concept_id: indicator.concept_id },
           value_type: value_type,
           value: value_type == 'numeric' ? value.to_f : value,
-          value_modifier: value_modifier
+          value_modifier: value_modifier.blank? ? '=' : value_modifier
         )
       end
 
@@ -297,7 +298,7 @@ module Lab
       end
 
       def guess_result_datatype(result)
-        return 'numeric' if result.match?(/^[+-]?(\d+(\.\d+)|\.\d+)?$/)
+        return 'numeric' if result.strip.match?(/^[+-]?(\d+(\.\d+)|\.\d+)?$/)
 
         'text'
       end
