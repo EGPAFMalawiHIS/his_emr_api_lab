@@ -7,6 +7,10 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [0.0.5] - 2021-04-21
+
+- Fixed grouping of numeric values with leading and trailing spaces as text in LIMS worker 
+
 
 ## [0.0.4] - 2021-04-20
 
