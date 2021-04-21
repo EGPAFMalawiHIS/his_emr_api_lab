@@ -269,7 +269,6 @@ module Lab
       end
 
       def find_measure(_order, indicator_name, value)
-        value = value.strip
         indicator = Utils.find_concept_by_name(indicator_name)
         unless indicator
           logger.warn("Result indicator #{indicator_name} not found in concepts list")
@@ -288,7 +287,7 @@ module Lab
       end
 
       def parse_lims_result_value(value)
-        value = value['result_value']
+        value = value['result_value']&.strip
         return nil, nil, nil if value.blank?
 
         match = value&.match(/^(>|=|<|<=|>=)(.*)$/)
