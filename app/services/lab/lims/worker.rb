@@ -282,12 +282,12 @@ module Lab
           indicator: { concept_id: indicator.concept_id },
           value_type: value_type,
           value: value_type == 'numeric' ? value.to_f : value,
-          value_modifier: value_modifier
+          value_modifier: value_modifier.blank? ? '=' : value_modifier
         )
       end
 
       def parse_lims_result_value(value)
-        value = value['result_value']
+        value = value['result_value']&.strip
         return nil, nil, nil if value.blank?
 
         match = value&.match(/^(>|=|<|<=|>=)(.*)$/)
@@ -297,7 +297,7 @@ module Lab
       end
 
       def guess_result_datatype(result)
-        return 'numeric' if result.match?(/^[+-]?(\d+(\.\d+)|\.\d+)?$/)
+        return 'numeric' if result.strip.match?(/^[+-]?(\d+(\.\d+)|\.\d+)?$/)
 
         'text'
       end

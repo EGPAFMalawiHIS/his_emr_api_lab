@@ -175,6 +175,12 @@ paths:
         description: 'Filter by sample status: ordered, drawn'
         schema:
           type: string
+      - name: end_date
+        in: query
+        required: false
+        description: Select all results before this date
+        schema:
+          type: date
       responses:
         '200':
           description: Success
