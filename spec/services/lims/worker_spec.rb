@@ -28,10 +28,10 @@ RSpec.describe Lab::Lims::Worker do
     end
 
     it 'passes a serialised order lims_api#update_order for existing orders' do
-      response_dto = subject.push_order_by_id(order.order_id) # Initial order
+      response = subject.push_order_by_id(order.order_id) # Initial order
       subject.push_order_by_id(order.order_id) # Updated order
 
-      expect(lims_api.updated_order.id).to eq(response_dto[:_id])
+      expect(lims_api.updated_order.id).to eq(response[:id])
       expect(lims_api.updated_order.order).to be_an_instance_of(Lab::Lims::OrderDTO)
       expect(lims_api.updated_order.order[:tracking_number]).to eq(order.accession_number)
       expect(lims_api.updated_order.order[:sending_facility]).to eq(@location.name)

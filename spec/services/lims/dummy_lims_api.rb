@@ -11,12 +11,12 @@ class DummyLimsApi
     self.created_order = order
 
     @id += 1
-    order.merge(_id: "id-#{@id}")
+    OpenStruct.new(id: "id-#{@id}")
   end
 
   def update_order(id, order)
-    self.updated_order = OpenStruct.new(id: id, order: order)
+    self.updated_order = OpenStruct.new(order: order)
 
-    order.merge(_id: "id-#{id}")
+    order.merge(id: id)
   end
 end
