@@ -194,6 +194,12 @@ describe 'orders' do
                 type: :string,
                 description: 'Filter by sample status: ordered, drawn'
 
+      parameter name: :end_date,
+                in: :query,
+                required: false,
+                type: :date,
+                description: 'Select all results before this date'
+
       def create_order(no_specimen: false)
         encounter = create(:encounter, type: @encounter_type)
         order = create(:order, encounter: encounter,

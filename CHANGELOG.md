@@ -7,14 +7,24 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### Added
+
+- Search orders in a given date range
+
 ## [0.0.5] - 2021-04-21
 
-- Fixed grouping of numeric values with leading and trailing spaces as text in LIMS worker 
+### Fixed
 
+- Grouping of numeric values with leading and trailing spaces as text in LIMS worker 
 
 ## [0.0.4] - 2021-04-20
 
-- Added wrapper for starting single instance of push/pull worker
+### Added
+
+- Wrapper for starting single instance of push/pull worker
+
+### Fixed
+
 - Various bug fixes for pull worker
 
 ## [0.0.3] - 2021-04-18
