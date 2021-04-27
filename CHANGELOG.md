@@ -7,6 +7,12 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [0.0.7] - 2021-04-27
+
+### Fixed
+
+- Classifying of not_specified specimen_types as unknown specimen instead of not drawn in LIMS worker
+
 ### Added
 
 - Search orders in a given date range
