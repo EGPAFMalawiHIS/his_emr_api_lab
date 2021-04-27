@@ -30,9 +30,9 @@ module Lab
 
       # Translates a LIMS specimen name to an OpenMRS concept_id
       def specimen_type_id
-        lims_specimen_name = self['sample_type']
+        lims_specimen_name = self['sample_type']&.strip&.downcase
 
-        if %w[specimen_not_collected not_assigned].include?(lims_specimen_name)
+        if %w[specimen_not_collected not_assigned not_specified].include?(lims_specimen_name)
           return ConceptName.select(:concept_id).find_by_name!('Unknown').concept_id
         end
 
@@ -53,6 +53,8 @@ module Lab
 
       # Extract requesting clinician name from LIMS
       def requesting_clinician
+        return 'Unknown' unless self['who_order_test']
+
         # TODO: Extend requesting clinician to an obs tree having extra parameters
         # like phone number and ID to closely match the lims user.
         first_name = self['who_order_test']['first_name'] || ''

@@ -142,9 +142,10 @@ module Lab
       MIGRATION_REJECTIONS_CSV_PATH = LIMS_LOG_PATH.join('migration-rejections.csv')
 
       def self.export_rejections(rejections)
-        headers = ['Accession number', 'NHID', 'First name', 'Last name', 'Reason']
+        headers = ['doc_id', 'Accession number', 'NHID', 'First name', 'Last name', 'Reason']
         rows = (rejections || []).map do |rejection|
           [
+            rejection.order[:_id],
             rejection.order[:tracking_number],
             rejection.order[:patient][:id],
             rejection.order[:patient][:first_name],
@@ -159,9 +160,10 @@ module Lab
       MIGRATION_FAILURES_CSV_PATH = LIMS_LOG_PATH.join('migration-failures.csv')
 
       def self.export_failures
-        headers = ['Accession number', 'NHID', 'Reason', 'Difference']
+        headers = ['doc_id', 'Accession number', 'NHID', 'Reason', 'Difference']
         rows = Lab::LimsFailedImport.all.map do |failure|
           [
+            failure.lims_id,
             failure.tracking_number,
             failure.patient_nhid,
             failure.reason,
