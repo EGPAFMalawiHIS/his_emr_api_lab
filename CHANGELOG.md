@@ -7,6 +7,12 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [0.0.8] - 2021-04-27
+
+### Fixed
+
+- Order label: Added tests and shortened reason for test
+
 ## [0.0.7] - 2021-04-27
 
 ### Fixed
