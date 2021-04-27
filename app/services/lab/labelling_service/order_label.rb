@@ -27,7 +27,7 @@ module Lab
                                '',
                                drawer,
                                '',
-                               specimen,
+                               tests,
                                reason_for_test,
                                order.accession_number,
                                order.accession_number)
@@ -36,7 +36,7 @@ module Lab
       def reason_for_test
         return 'Unknown' unless order.reason_for_test
 
-        ConceptName.find_by_concept_id(order.reason_for_test.value_coded)&.name || 'Unknown'
+        short_concept_name(order.reason_for_test.value_coded) || 'Unknown'
       end
 
       def patient
@@ -71,6 +71,24 @@ module Lab
         return 'N/A' if order.concept_id == unknown_concept.concept_id
 
         ConceptName.find_by_concept_id(order.concept_id)&.name || 'Unknown'
+      end
+
+      def tests
+        tests = order.tests.map do |test|
+          name = short_concept_name(test.value_coded) || 'Unknown'
+
+          next 'VL' if name.match?(/Viral load/i)
+
+          name.size > 7 ? name[0..6] : name
+        end
+
+        tests.join(', ')
+      end
+
+      def short_concept_name(concept_id)
+        ConceptName.where(concept_id: concept_id)
+                   .min_by { |concept| concept.name.size }
+                   &.name
       end
 
       def unknown_concept

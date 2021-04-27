@@ -28,7 +28,9 @@ module Lab
           fout.write("Worker ##{Process.pid} started at #{Time.now}")
           worker = new(Api.new)
           worker.pull_orders
-          worker.push_orders
+          # TODO: Verify that names being pushed to LIMS are of the correct format (ie matching
+          # LIMS naming conventions). Enable pushing when that is done
+          # worker.push_orders
         end
       end
 
