@@ -66,6 +66,8 @@ module Lab
           Date.strptime(str_date, '%d-%m-%Y').strftime('%Y-%m-%d')
         elsif str_date.match?(/(\d{4}\d{2}\d{2})\d+/)
           Date.strptime(str_date, '%Y%m%d').strftime('%Y-%m-%d')
+        elsif str_date.match?(%r{\d{2}/\d{2}/\d{4}})
+          str_date.to_date.to_s
         else
           Rails.logger.warn("Invalid date: #{str_date}")
           parse_date(fallback_date)
