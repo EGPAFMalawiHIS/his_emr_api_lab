@@ -60,11 +60,14 @@ module Lab
       def drawer
         return 'N/A' if order.concept_id == unknown_concept.concept_id
 
-        name = PersonName.find_by_person_id(order.creator)
-        return "#{name.given_name} #{name.family_name}" if name
+        drawer_id = order.discontinued_by || order.creator
+        draw_date = (order.discontinued_date || order.start_date).strftime('%d/%^b/%Y %H:%M:%S')
 
-        user = User.find(order.creator)
-        user&.username || 'N/A'
+        name = PersonName.find_by_person_id(drawer_id)
+        return "#{name.given_name} #{name.family_name} #{draw_date}" if name
+
+        user = User.find_by_user_id(drawer_id)
+        user ? "#{user.username} #{draw_date}" : 'N/A'
       end
 
       def specimen
