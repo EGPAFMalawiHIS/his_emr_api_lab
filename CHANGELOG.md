@@ -7,6 +7,12 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [0.0.11] - 2021-04-29
+
+### Added
+
+- Sample draw time to lab order label
+
 ## [0.0.9] - 2021-04-28
 
 ### Added
