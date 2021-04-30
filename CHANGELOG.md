@@ -7,6 +7,12 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [0.0.12] - 2021-04-30
+
+### Added
+
+- Limiting number of LIMS migration workers through an environment variable: MIGRATION_WORKERS
+
 ## [0.0.11] - 2021-04-29
 
 ### Added
