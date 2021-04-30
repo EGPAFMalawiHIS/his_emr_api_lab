@@ -44,7 +44,7 @@ module Lab
   module Lims
     module Migrator
       class MigratorApi < Api
-        MAX_THREADS = 6
+        MAX_THREADS = (ENV.fetch('MIGRATION_WORKERS') { 6 }).to_i
 
         attr_reader :rejections
 
