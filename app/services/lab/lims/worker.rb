@@ -139,9 +139,17 @@ module Lab
       def find_patient_by_nhid(nhid)
         national_id_type = PatientIdentifierType.where(name: ['National id', 'Old Identification Number'])
         identifiers = PatientIdentifier.where(type: national_id_type, identifier: nhid)
+                                       .joins('INNER JOIN person ON person.person_id = patient_identifier.patient_id AND person.voided  = 0')
         if identifiers.count.zero?
-          identifiers = PatientIdentifier.unscoped.where(voided: 1, type: national_id_type, identifier: nhid)
+          identifiers = PatientIdentifier.unscoped
+                                         .where(voided: 1, type: national_id_type, identifier: nhid)
+                                         .joins('INNER JOIN person ON person.person_id = patient_identifier.patient_id AND person.voided  = 0')
         end
+
+        # Joining to person above to ensure that the person is not voided,
+        # it was noted at one site that there were some people that were voided
+        # upon merging but the patient and patient_identifier was not voided
+
         return nil if identifiers.count.zero?
 
         patients = Patient.where(patient_id: identifiers.select(:patient_id))
