@@ -7,8 +7,15 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
-## [0.0.12] - 2021-04-30
+## [0.0.13] - 2021-05-01
 
+### Added
+
+- Workaround for partially voided patients in LIMS worker (in some sites there are patients
+  that have everything voided besides the patient and patient identifiers entities - after
+  merging)
+
+## [0.0.12] - 2021-04-30
 ### Added
 
 - Limiting number of LIMS migration workers through an environment variable: MIGRATION_WORKERS
