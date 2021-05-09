@@ -60,7 +60,7 @@ module Lab
       def drawer
         return 'N/A' if order.concept_id == unknown_concept.concept_id
 
-        drawer_id = order.discontinued_by || order.creator
+        drawer_id = User.find(order.discontinued_by || order.creator).person_id
         draw_date = (order.discontinued_date || order.start_date).strftime('%d/%^b/%Y %H:%M:%S')
 
         name = PersonName.find_by_person_id(drawer_id)

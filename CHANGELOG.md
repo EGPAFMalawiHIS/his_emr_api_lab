@@ -7,6 +7,10 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### Fixed
+
+- Wrong provider name on order label
+
 ## [0.0.13] - 2021-05-01
 
 ### Added
