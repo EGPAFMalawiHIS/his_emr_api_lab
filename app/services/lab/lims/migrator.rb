@@ -29,6 +29,7 @@ require 'lab/lab_test'
 require 'lab/lims_order_mapping'
 require 'lab/lims_failed_import'
 
+require_relative './config'
 require_relative './worker'
 require_relative '../orders_service'
 require_relative '../results_service'
@@ -43,28 +44,64 @@ require_relative 'utils'
 module Lab
   module Lims
     module Migrator
-      class MigratorApi < Api
-        MAX_THREADS = (ENV.fetch('MIGRATION_WORKERS') { 6 }).to_i
+      MAX_THREADS = ENV.fetch('MIGRATION_WORKERS', 1).to_i
 
-        attr_reader :rejections
+      class CouchDbMigratorApi < Api::CouchDbApi
+        def initialize(*args, processes: 1, on_merge_processes: nil, **kwargs)
+          super(*args, **kwargs)
+
+          @processes = processes
+          @on_merge_processes = on_merge_processes
+        end
 
         def consume_orders(from: nil, **_kwargs)
-          limit = 50_000
+          limit = 25_000
 
-          Parallel.each(read_orders(from, limit),
-                        in_processes: MAX_THREADS,
-                        finish: order_pmap_post_processor(from)) do |row|
-            next unless row['doc']['type']&.casecmp?('Order')
+          loop do
+            on_merge_processes = ->(_item, index, _result) { @on_merge_processes&.call(from + index) }
+            processes = @processes > 1 ? @processes : 0
 
-            User.current = Utils.lab_user
-            yield OrderDTO.new(row['doc']), OpenStruct.new(last_seq: (from || 0) + limit, current_seq: from)
+            orders = read_orders(from, limit)
+            break if orders.empty?
+
+            Parallel.each(orders, in_processes: processes, finish: on_merge_processes) do |row|
+              next unless row['doc']['type']&.casecmp?('Order')
+
+              User.current = Utils.lab_user
+              yield OrderDTO.new(row['doc']), OpenStruct.new(last_seq: (from || 0) + limit, current_seq: from)
+            end
+
+            from += orders.size
           end
         end
 
-        def last_seq
-          return 0 unless File.exist?(last_seq_path)
+        private
 
-          File.open(last_seq_path, File::RDONLY) do |file|
+        def read_orders(from, batch_size)
+          start_key_param = from ? "&skip=#{from}" : ''
+          url = "_all_docs?include_docs=true&limit=#{batch_size}#{start_key_param}"
+
+          Rails.logger.debug("#{CouchDbMigratorApi}: Pulling orders from LIMS CouchDB: #{url}")
+          response = bum.couch_rest :get, url
+
+          response['rows']
+        end
+      end
+
+      class MigrationWorker < Worker
+        LOG_FILE_PATH = LIMS_LOG_PATH.join('migration-last-id.dat')
+
+        attr_reader :rejections
+
+        def initialize(api_class)
+          api = api_class.new(processes: MAX_THREADS, on_merge_processes: method(:save_seq))
+          super(api)
+        end
+
+        def last_seq
+          return 0 unless File.exist?(LOG_FILE_PATH)
+
+          File.open(LOG_FILE_PATH, File::RDONLY) do |file|
             last_seq = file.read&.strip
             return last_seq.blank? ? nil : last_seq&.to_i
           end
@@ -72,24 +109,8 @@ module Lab
 
         private
 
-        def last_seq_path
-          LIMS_LOG_PATH.join('migration-last-id.dat')
-        end
-
-        def order_pmap_post_processor(last_seq)
-          lambda do |item, index, result|
-            save_last_seq(last_seq + index)
-            status, reason = result
-            next unless status == :rejected
-
-            (@rejections ||= []) << OpenStruct.new(order: OrderDTO.new(item['doc']), reason: reason)
-          end
-        end
-
-        def save_last_seq(last_seq)
-          return unless last_seq
-
-          File.open(last_seq_path, File::WRONLY | File::CREAT, 0o644) do |file|
+        def save_seq(last_seq)
+          File.open(LOG_FILE_PATH, File::WRONLY | File::CREAT, 0o644) do |file|
             Rails.logger.debug("Process ##{Parallel.worker_number}: Saving last seq: #{last_seq}")
             file.flock(File::LOCK_EX)
             file.write(last_seq.to_s)
@@ -97,39 +118,11 @@ module Lab
           end
         end
 
-        def save_rejection(order_dto, reason); end
+        def order_rejected(order_dto, reason)
+          @rejections ||= []
 
-        def read_orders(from, batch_size)
-          Enumerator.new do |enum|
-            loop do
-              start_key_param = from ? "&skip=#{from}" : ''
-              url = "_all_docs?include_docs=true&limit=#{batch_size}#{start_key_param}"
-
-              Rails.logger.debug("#{MigratorApi}: Pulling orders from LIMS CouchDB: #{url}")
-              response = bum.couch_rest :get, url
-
-              from ||= 0
-
-              break from if response['rows'].empty?
-
-              response['rows'].each do |row|
-                enum.yield(row)
-              end
-
-              from += response['rows'].size
-            end
-          end
+          @rejections << OpenStruct.new(order: order_dto, reason: reason)
         end
-      end
-
-      class MigrationWorker < Worker
-        protected
-
-        def last_seq
-          lims_api.last_seq
-        end
-
-        def update_last_seq(_last_seq); end
       end
 
       def self.save_csv(filename, rows:, headers: nil)
@@ -177,8 +170,7 @@ module Lab
       MIGRATION_LOG_PATH = LIMS_LOG_PATH.join('migration.log')
 
       def self.start_migration
-        log_dir = Rails.root.join('log/lims')
-        Dir.mkdir(log_dir) unless File.exist?(log_dir)
+        Dir.mkdir(LIMS_LOG_PATH) unless File.exist?(LIMS_LOG_PATH)
 
         logger = LoggerMultiplexor.new(Logger.new($stdout), MIGRATION_LOG_PATH)
         logger.level = :debug
@@ -186,12 +178,17 @@ module Lab
         ActiveRecord::Base.logger = logger
         # CouchBum.logger = logger
 
-        api = MigratorApi.new
-        worker = MigrationWorker.new(api)
+        api_class = case ENV.fetch('MIGRATION_SOURCE', 'couchdb').downcase
+                    when 'couchdb' then CouchDbMigratorApi
+                    when 'mysql' then Api::MysqlApi
+                    else raise "Invalid MIGRATION_SOURCE: #{ENV['MIGRATION_SOURCE']}"
+                    end
 
-        worker.pull_orders
+        worker = MigrationWorker.new(api_class)
+
+        worker.pull_orders(batch_size: 10_000)
       ensure
-        api && export_rejections(api.rejections)
+        worker && export_rejections(worker.rejections)
         export_failures
       end
     end
