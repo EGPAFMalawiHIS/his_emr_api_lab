@@ -2,7 +2,7 @@
 
 require 'cgi/util'
 
-require_relative './api'
+require_relative './api/couchdb_api'
 require_relative './exceptions'
 require_relative './order_serializer'
 require_relative './utils'
@@ -26,7 +26,7 @@ module Lab
           User.current = Utils.lab_user
 
           fout.write("Worker ##{Process.pid} started at #{Time.now}")
-          worker = new(Api.new)
+          worker = new(CouchDbApi.new)
           worker.pull_orders
           # TODO: Verify that names being pushed to LIMS are of the correct format (ie matching
           # LIMS naming conventions). Enable pushing when that is done
@@ -81,28 +81,34 @@ module Lab
 
       ##
       # Pulls orders from the LIMS queue and writes them to the local database
-      def pull_orders
+      def pull_orders(batch_size: 10_000)
         logger.info("Retrieving LIMS orders starting from #{last_seq}")
 
-        lims_api.consume_orders(from: last_seq, limit: 100) do |order_dto, context|
+        lims_api.consume_orders(from: last_seq, limit: batch_size) do |order_dto, context|
           logger.debug("Retrieved order ##{order_dto[:tracking_number]}: #{order_dto}")
 
           patient = find_patient_by_nhid(order_dto[:patient][:id])
           unless patient
             logger.debug("Discarding order: Non local patient ##{order_dto[:patient][:id]} on order ##{order_dto[:tracking_number]}")
-            next [:rejected, "Patient NPID, '#{order_dto[:patient][:id]}', didn't match any local NPIDs"]
+            order_rejected(order_dto, "Patient NPID, '#{order_dto[:patient][:id]}', didn't match any local NPIDs")
+            next
+          end
+
+          if order_dto[:tests].empty?
+            logger.debug("Discarding order: Missing tests on order ##{order_dto[:tracking_number]}")
+            order_rejected(order_dto, 'Order is missing tests')
+            next
           end
 
           diff = match_patient_demographics(patient, order_dto['patient'])
           if diff.empty?
             save_order(patient, order_dto)
+            order_saved(order_dto)
           else
             save_failed_import(order_dto, 'Demographics not matching', diff)
           end
 
           update_last_seq(context.current_seq)
-
-          [:accepted, "Patient NPID, '#{order_dto[:patient][:id]}', matched"]
         rescue DuplicateNHID
           logger.warn("Failed to import order due to duplicate patient NHID: #{order_dto[:patient][:id]}")
           save_failed_import(order_dto, "Duplicate local patient NHID: #{order_dto[:patient][:id]}")
@@ -134,6 +140,10 @@ module Lab
         end
       end
 
+      def order_saved(order_dto); end
+
+      def order_rejected(order_dto, message); end
+
       private
 
       def find_patient_by_nhid(nhid)
@@ -156,9 +166,7 @@ module Lab
                           .distinct(:patient_id)
                           .all
 
-        if patients.size > 1
-          raise DuplicateNHID, "Duplicate National Health ID: #{nhid}"
-        end
+        raise DuplicateNHID, "Duplicate National Health ID: #{nhid}" if patients.size > 1
 
         patients.first
       end
@@ -209,10 +217,11 @@ module Lab
             mapping.update(pulled_at: Time.now)
           else
             order = create_order(patient, order_dto)
-            LimsOrderMapping.create!(lims_id: order_dto[:_id],
-                                     order_id: order['id'],
-                                     pulled_at: Time.now,
-                                     revision: order_dto['_rev'])
+            mapping = LimsOrderMapping.create(lims_id: order_dto[:_id],
+                                              order_id: order['id'],
+                                              pulled_at: Time.now,
+                                              revision: order_dto['_rev'])
+            byebug unless mapping.errors.empty?
           end
 
           order
@@ -222,9 +231,7 @@ module Lab
       def create_order(patient, order_dto)
         logger.debug("Creating order ##{order_dto['_id']}")
         order = OrdersService.order_test(order_dto.to_order_service_params(patient_id: patient.patient_id))
-        unless order_dto['test_results'].empty?
-          update_results(order, order_dto['test_results'])
-        end
+        update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
 
         order
       end
@@ -233,9 +240,7 @@ module Lab
         logger.debug("Updating order ##{order_dto['_id']}")
         order = OrdersService.update_order(order_id, order_dto.to_order_service_params(patient_id: patient.patient_id)
                                                               .merge(force_update: true))
-        unless order_dto['test_results'].empty?
-          update_results(order, order_dto['test_results'])
-        end
+        update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
 
         order
       end
@@ -250,6 +255,8 @@ module Lab
             next
           end
 
+          next unless test_results['results']
+
           measures = test_results['results'].map do |indicator, value|
             measure = find_measure(order, indicator, value)
             next nil unless measure
@@ -258,7 +265,6 @@ module Lab
           end
 
           measures = measures.compact
-
           next if measures.empty?
 
           creator = format_result_entered_by(test_results['result_entered_by'])

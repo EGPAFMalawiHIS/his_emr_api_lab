@@ -52,21 +52,22 @@ module Lab
       end
 
       def self.parse_date(str_date, fallback_date = nil)
-        if str_date.blank? && fallback_date.blank?
-          raise "Can't parse blank date"
-        end
+        str_date = str_date&.to_s
+
+        raise "Can't parse blank date" if str_date.blank? && fallback_date.blank?
 
         return parse_date(fallback_date) if str_date.blank?
 
         str_date = str_date.gsub(/^00/, '20').gsub(/^180/, '20')
 
-        if str_date.match?(/\d{4}-\d{2}-\d{2}/)
+        case str_date
+        when /\d{4}-\d{2}-\d{2}/
           str_date
-        elsif str_date.match?(/\d{2}-\d{2}-\d{2}/)
+        when /\d{2}-\d{2}-\d{2}/
           Date.strptime(str_date, '%d-%m-%Y').strftime('%Y-%m-%d')
-        elsif str_date.match?(/(\d{4}\d{2}\d{2})\d+/)
+        when /(\d{4}\d{2}\d{2})\d+/
           Date.strptime(str_date, '%Y%m%d').strftime('%Y-%m-%d')
-        elsif str_date.match?(%r{\d{2}/\d{2}/\d{4}})
+        when %r{\d{2}/\d{2}/\d{4}}
           str_date.to_date.to_s
         else
           Rails.logger.warn("Invalid date: #{str_date}")

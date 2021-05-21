@@ -69,9 +69,7 @@ module Lab
       end
 
       def start_date
-        if self['date_created'].blank?
-          raise LimsException, 'Order missing created date'
-        end
+        raise LimsException, 'Order missing created date' if self['date_created'].blank?
 
         Utils.parse_date(self['date_created'])
       end

@@ -87,9 +87,7 @@ module Lab
       end
 
       def validate_measure_params(params)
-        if params[:value].blank?
-          raise InvalidParameterError, 'measures.value is required'
-        end
+        raise InvalidParameterError, 'measures.value is required' if params[:value].blank?
 
         if params[:indicator]&.[](:concept_id).blank?
           raise InvalidParameterError, 'measures.indicator.concept_id is required'

@@ -29,6 +29,12 @@ module Lab
           YAML.load_file(find_config_path('application.yml'))
         end
 
+        ##
+        # Returns LIMS' database.yml configuration file
+        def database
+          YAML.load_file(find_config_path('database.yml'))
+        end
+
         private
 
         ##
