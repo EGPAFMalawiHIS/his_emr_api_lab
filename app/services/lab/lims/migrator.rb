@@ -44,7 +44,7 @@ require_relative 'utils'
 module Lab
   module Lims
     module Migrator
-      MAX_THREADS = ENV.fetch('MIGRATION_WORKERS', 1).to_i
+      MAX_THREADS = ENV.fetch('MIGRATION_WORKERS', 6).to_i
 
       class CouchDbMigratorApi < Api::CouchDbApi
         def initialize(*args, processes: 1, on_merge_processes: nil, **kwargs)
