@@ -7,6 +7,11 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [0.0.15] - 2021-05-21
+### Added
+
+- LIMS data migration from MySQL database
+
 ## [0.0.14] - 2021-05-10
 
 ### Fixed
