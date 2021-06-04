@@ -7,6 +7,13 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [1.0.0] - 2021-06-04
+
+### Fixed
+
+- Missing test status trail and orderer in LIMS DTO
+- Disabled push to LIMS queue
+
 ## [0.0.15] - 2021-05-21
 ### Added
 
