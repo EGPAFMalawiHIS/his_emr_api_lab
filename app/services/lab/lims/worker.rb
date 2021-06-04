@@ -26,11 +26,11 @@ module Lab
           User.current = Utils.lab_user
 
           fout.write("Worker ##{Process.pid} started at #{Time.now}")
-          worker = new(CouchDbApi.new)
+          worker = new(Api::CouchDbApi.new)
           worker.pull_orders
           # TODO: Verify that names being pushed to LIMS are of the correct format (ie matching
           # LIMS naming conventions). Enable pushing when that is done
-          # worker.push_orders
+          worker.push_orders
         end
       end
 

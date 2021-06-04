@@ -24,6 +24,8 @@ module Lab
             sample_type: format_sample_type(serialized_order.specimen.name),
             sample_status: format_sample_status(serialized_order.specimen.name),
             sample_statuses: format_sample_status_trail(order),
+            test_statuses: format_test_status_trail(order),
+            who_order_test: format_orderer(order),
             districy: current_district, # yes districy [sic]...
             priority: serialized_order.reason_for_test.name,
             date_created: serialized_order.order_date,
@@ -75,9 +77,7 @@ module Lab
         end
 
         def format_sample_status_trail(order)
-          if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
-            return []
-          end
+          return [] if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
 
           user = User.find(order.discontinued_by || order.creator)
           drawn_by = PersonName.find_by_person_id(user.user_id)
@@ -94,6 +94,31 @@ module Lab
               }
             }
           ]
+        end
+
+        def format_test_status_trail(order)
+          order.tests.each_with_object({}) do |test, trail|
+            test_name = ConceptName.find_by_concept_id!(test.value_coded).name
+            test_name = 'Viral load' if test_name.casecmp?('HIV Viral Load')
+
+            current_test_trail = trail[test_name] = {}
+
+            current_test_trail[test.obs_datetime.strftime('%Y%m%d%H%M%S')] = {
+              status: 'Drawn',
+              updated_by: find_user(test.creator)
+            }
+
+            next unless test.result
+
+            current_test_trail[test.obs_datetime.strftime('%Y%m%d%H%M%S')] = {
+              status: 'Verified',
+              updated_by: find_user(test.result.creator)
+            }
+          end
+        end
+
+        def format_orderer(order)
+          find_user(order.creator)
         end
 
         def format_test_results(order)
@@ -133,6 +158,20 @@ module Lab
 
         def current_facility_name
           current_health_center.name
+        end
+
+        def find_user(user_id)
+          user = User.find(user_id)
+          person_name = PersonName.find_by(person_id: user.person_id)
+          phone_number = PersonAttribute.find_by(type: PersonAttributeType.where(name: 'Cell phone number'),
+                                                 person_id: user.person_id)
+
+          {
+            first_name: person_name&.given_name,
+            last_name: person_name&.family_name,
+            phone_number: phone_number&.value,
+            id: user.username
+          }
         end
       end
     end
