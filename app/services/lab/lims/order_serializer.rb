@@ -18,7 +18,7 @@ module Lab
             tracking_number: serialized_order.accession_number,
             sending_facility: current_facility_name,
             receiving_facility: serialized_order.target_lab,
-            tests: serialized_order.tests.collect(&:name),
+            tests: serialized_order.tests.map { |test| format_test_name(test.name) },
             patient: format_patient(serialized_order.patient_id),
             order_location: format_order_location(serialized_order.encounter_id),
             sample_type: format_sample_type(serialized_order.specimen.name),
@@ -27,7 +27,7 @@ module Lab
             test_statuses: format_test_status_trail(order),
             who_order_test: format_orderer(order),
             districy: current_district, # yes districy [sic]...
-            priority: serialized_order.reason_for_test.name,
+            priority: format_sample_priority(serialized_order.reason_for_test.name),
             date_created: serialized_order.order_date,
             test_results: format_test_results(serialized_order),
             type: 'Order'
@@ -69,7 +69,7 @@ module Lab
         end
 
         def format_sample_type(name)
-          name.casecmp?('Unknown') ? 'not_specified' : name
+          name.casecmp?('Unknown') ? 'not_specified' : name.titleize
         end
 
         def format_sample_status(name)
@@ -98,8 +98,7 @@ module Lab
 
         def format_test_status_trail(order)
           order.tests.each_with_object({}) do |test, trail|
-            test_name = ConceptName.find_by_concept_id!(test.value_coded).name
-            test_name = 'Viral load' if test_name.casecmp?('HIV Viral Load')
+            test_name = format_test_name(ConceptName.find_by_concept_id!(test.value_coded).name)
 
             current_test_trail = trail[test_name] = {}
 
@@ -125,14 +124,30 @@ module Lab
           order.tests&.each_with_object({}) do |test, results|
             next unless test.result
 
-            results[test.name] = {
+            results[format_test_name(test.name)] = {
               results: test.result.each_with_object({}) do |measure, measures|
-                measures[measure.indicator.name] = { result_value: "#{measure.value_modifier}#{measure.value}" }
+                measures[format_test_name(measure.indicator.name)] = {
+                  result_value: "#{measure.value_modifier}#{measure.value}"
+                }
               end,
               result_date: test.result.first&.date,
               result_entered_by: {}
             }
           end
+        end
+
+        def format_test_name(test_name)
+          return 'Viral Load' if test_name.casecmp?('HIV Viral load')
+
+          return 'TB' if test_name.name.casecmp?('TB Program')
+
+          test_name.titleize
+        end
+
+        def format_sample_priority(priority)
+          return 'Routine' if priority&.casecmp?('Medical examination, routine')
+
+          priority&.titleize
         end
 
         def current_health_center
