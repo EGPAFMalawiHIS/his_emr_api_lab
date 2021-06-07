@@ -7,6 +7,8 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [1.0.1] - 2021-06-07
+
 ### Fixed
 
 - Mapping of various names to LIMS (eg HIV Viral Load -> Viral Load and Medical Examination, routine to Routine)
