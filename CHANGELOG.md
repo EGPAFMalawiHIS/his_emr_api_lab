@@ -7,6 +7,10 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### Fixed
+
+- Crash on attempt to Push anything that's not viral load to LIMS
+
 ## [1.0.1] - 2021-06-07
 
 ### Fixed

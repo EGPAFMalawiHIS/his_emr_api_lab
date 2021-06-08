@@ -139,7 +139,7 @@ module Lab
         def format_test_name(test_name)
           return 'Viral Load' if test_name.casecmp?('HIV Viral load')
 
-          return 'TB' if test_name.name.casecmp?('TB Program')
+          return 'TB' if test_name.casecmp?('TB Program')
 
           test_name.titleize
         end
