@@ -313,7 +313,7 @@ module Lab
       end
 
       def guess_result_datatype(result)
-        return 'numeric' if result.strip.match?(/^[+-]?(\d+(\.\d+)|\.\d+)?$/)
+        return 'numeric' if result.strip.match?(/^[+-]?((\d+(\.\d+)?)|\.\d+)$/)
 
         'text'
       end

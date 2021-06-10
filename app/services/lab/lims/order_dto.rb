@@ -83,9 +83,9 @@ module Lab
 
       # Translates a LIMS sample priority to a concept_id
       def reason_for_test
-        return unknown_concept.concept_id unless self['sample_priority']
+        return unknown_concept.concept_id unless self['priority']
 
-        ConceptName.find_by_name!(self['sample_priority']).concept_id
+        ConceptName.find_by_name!(self['priority']).concept_id
       end
 
       def lab_program
