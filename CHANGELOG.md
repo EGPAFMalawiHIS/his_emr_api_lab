@@ -7,6 +7,7 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [1.0.3] - 2021-06-10
 ### Fixed
 
 - Result type detection in LIMS worker
