@@ -209,7 +209,7 @@ module Lab
         raise MissingAccessionNumber if order_dto[:tracking_number].blank?
 
         logger.info("Importing LIMS order ##{order_dto[:tracking_number]}")
-        mapping = LimsOrderMapping.find_by(lims_id: order_dto[:_id])
+        mapping = find_order_mapping_by_lims_id(order_dto[:_id])
 
         ActiveRecord::Base.transaction do
           if mapping
@@ -221,7 +221,6 @@ module Lab
                                               order_id: order['id'],
                                               pulled_at: Time.now,
                                               revision: order_dto['_rev'])
-            byebug unless mapping.errors.empty?
           end
 
           order
@@ -338,6 +337,16 @@ module Lab
 
       def last_seq_path
         LIMS_LOG_PATH.join('last_seq.dat')
+      end
+
+      def find_order_mapping_by_lims_id(lims_id)
+        mapping = Lab::LimsOrderMapping.find_by(lims_id: lims_id)
+        return nil unless mapping
+
+        return mapping if Lab::LabOrder.where(order_id: mapping.order_id).exists?
+
+        mapping.destroy
+        nil
       end
     end
   end

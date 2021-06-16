@@ -7,6 +7,10 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### Fixed
+
+- Crash on pull of updates of locally voided orders
+
 ## [1.0.3] - 2021-06-10
 ### Fixed
 
