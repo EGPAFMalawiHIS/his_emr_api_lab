@@ -7,6 +7,12 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [1.0.5] - 2021-06-23
+
+### Fixed
+
+- Crash of umbrella Rails applications that mount this engine
+
 ## [1.0.4] - 2021-06-16
 
 ### Fixed
