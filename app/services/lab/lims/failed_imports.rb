@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative './api'
 require_relative './order_dto'
 
 module Lab
