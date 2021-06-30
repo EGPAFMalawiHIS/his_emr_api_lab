@@ -12,9 +12,9 @@ module Lab
         include Utils
 
         def serialize_order(order)
-          serialized_order = Utils.structify(Lab::LabOrderSerializer.serialize_order(order))
+          serialized_order = Lims::Utils.structify(Lab::LabOrderSerializer.serialize_order(order))
 
-          OrderDTO.new(
+          Lims::OrderDTO.new(
             tracking_number: serialized_order.accession_number,
             sending_facility: current_facility_name,
             receiving_facility: serialized_order.target_lab,
@@ -77,7 +77,9 @@ module Lab
         end
 
         def format_sample_status_trail(order)
-          return [] if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
+          if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
+            return []
+          end
 
           user = User.find(order.discontinued_by || order.creator)
           drawn_by = PersonName.find_by_person_id(user.user_id)
