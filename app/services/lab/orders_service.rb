@@ -78,7 +78,7 @@ module Lab
         order.update!(concept_id: specimen_id,
                       discontinued: true,
                       discontinued_by: User.current.user_id,
-                      discontinued_date: params[:date]&.to_date || Date.today,
+                      discontinued_date: params[:date]&.to_date || Time.now,
                       discontinued_reason_non_coded: 'Sample drawn/updated')
         Lab::LabOrderSerializer.serialize_order(order)
       end
