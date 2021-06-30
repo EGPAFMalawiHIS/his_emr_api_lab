@@ -124,7 +124,10 @@ module Lab
 
         def format_test_results(order)
           order.tests&.each_with_object({}) do |test, results|
-            next unless test.result
+            next if test.result.nil? || test.result.empty?
+
+            test_creator = User.find(Observation.find(test.result.first.id).creator)
+            test_creator_name = PersonName.find_by_person_id(test_creator.person_id)
 
             results[format_test_name(test.name)] = {
               results: test.result.each_with_object({}) do |measure, measures|
@@ -133,7 +136,11 @@ module Lab
                 }
               end,
               result_date: test.result.first&.date,
-              result_entered_by: {}
+              result_entered_by: {
+                first_name: test_creator_name&.given_name,
+                last_name: test_creator_name&.family_name,
+                id: test_creator.username
+              }
             }
           end
         end

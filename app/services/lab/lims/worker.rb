@@ -313,7 +313,7 @@ module Lab
         match = value&.match(/^(>|=|<|<=|>=)(.*)$/)
         return nil, value, guess_result_datatype(value) unless match
 
-        [match[1], match[2], guess_result_datatype(match[2])]
+        [match[1], match[2].strip, guess_result_datatype(match[2])]
       end
 
       def guess_result_datatype(result)
@@ -365,7 +365,10 @@ module Lab
                                             .first
                                             .last_updated
 
-        Lab::LabOrder.where('discontinued_date > ?', last_updated).limit(batch_size)
+        Lab::LabOrder.left_joins(:results)
+                     .where('orders.discontinued_date > :last_updated
+                             OR obs.date_created > :last_updated',
+                            last_updated: last_updated)
       end
     end
   end

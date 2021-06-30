@@ -22,6 +22,8 @@ class Lab::Lims::Api::RestApi
       end
     end
 
+    update_order_results(order_dto)
+
     data = JSON.parse(response.body)['data']
 
     ActiveSupport::HashWithIndifferentAccess.new(
@@ -36,13 +38,14 @@ class Lab::Lims::Api::RestApi
       RestClient.post(expand_uri('update_order'), make_update_params(order_dto), headers)
     end
 
+    update_order_results(order_dto)
+
     { tracking_number: order_dto[:tracking_number] }
   end
 
   def consume_orders(*_args, patient_id: nil, **_kwargs)
     Rails.logger.info('Looking for orders without results...')
     orders = Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
-                                     .select(:accession_number)
 
     orders.each do |order|
       response = in_authenticated_session do |headers|
@@ -52,7 +55,8 @@ class Lab::Lims::Api::RestApi
 
       Rails.logger.info("Result for order ##{order.accession_number} found... Parsing...")
       results = JSON.parse(response).fetch('data').fetch('results')
-      yield parse_lims_results(results, order_dto), OpenStruct.new(last_seq: 0)
+      order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
+      yield lims_results_to_order_dto(results, order_dto), OpenStruct.new(last_seq: 0)
     rescue InvalidParameters => e # LIMS responds with a 401 when a result is not found :(
       Rails.logger.error("Failed to fetch results for ##{order.accession_number}: #{e.message}")
     end
@@ -262,14 +266,55 @@ class Lab::Lims::Api::RestApi
   # Make a copy of the order_dto with the results from LIMS parsed
   # and appended to it.
   def lims_results_to_order_dto(results, order_dto)
-    order_dto = order_dto.dup
+    order_dto.merge(
+      '_id' => order_dto[:tracking_number],
+      '_rev' => 0,
+      'test_results' => results.each_with_object({}) do |result, formatted_results|
+        test_name, measures = result
+        result_date = measures.delete('result_date')
 
-    order_dto[:test_results] = results.each_with_object({}) do |result, formatted_results|
-      test_name, measures = result
-      result_date = measures.delete('result_date')
-      formatted_results[test_name] = { results: measures, result_date: result_date, result_entered_by: {} }
+        formatted_results[test_name] = {
+          results: measures.each_with_object({}) do |measure, processed_measures|
+            processed_measures[measure[0]] = { 'result_value' => measure[1] }
+          end,
+          result_date: result_date,
+          result_entered_by: {}
+        }
+      end
+    )
+  end
+
+  def update_order_results(order_dto)
+    if order_dto['test_results'].nil? || order_dto['test_results'].empty?
+      return nil
     end
 
-    order_dto
+    order_dto['test_results'].each do |test_name, results|
+      in_authenticated_session do |headers|
+        params = make_update_test_params(order_dto['tracking_number'], test_name, results)
+
+        RestClient.post(expand_uri('update_test'), params, headers)
+      end
+    end
+  end
+
+  def make_update_test_params(tracking_number, test_name, results)
+    {
+      tracking_number: tracking_number,
+      test_name: test_name,
+      result_date: results['result_date'],
+      time_updated: results['result_date'],
+      who_updated: {
+        first_name: results[:result_entered_by][:first_name],
+        last_name: results[:result_entered_by][:last_name],
+        id_number: results[:result_entered_by][:id]
+      },
+      test_status: 'Drawn',
+      results: results['results'].each_with_object({}) do |measure, formatted_results|
+        measure_name, measure_value = measure
+
+        formatted_results[measure_name] = measure_value['result_value']
+      end
+    }
   end
 end
