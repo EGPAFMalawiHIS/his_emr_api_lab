@@ -369,6 +369,7 @@ module Lab
                      .where('orders.discontinued_date > :last_updated
                              OR obs.date_created > :last_updated',
                             last_updated: last_updated)
+                     .group('orders.order_id')
       end
     end
   end
