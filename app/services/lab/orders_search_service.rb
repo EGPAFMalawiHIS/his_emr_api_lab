@@ -10,7 +10,7 @@ module Lab
         # a notification system for lab order updates. We are limited to polling
         # for updates on a per order basis.
         if filters[:patient_id]
-          Lab::UpdatePatientOrdersJob.perform_later(patient_id: filters[:patient_id])
+          Lab::UpdatePatientOrdersJob.perform_later(filters[:patient_id])
         end
 
         extra_filters = pop_filters(filters, :date, :end_date, :status)
