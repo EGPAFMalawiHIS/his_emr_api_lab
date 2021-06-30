@@ -26,10 +26,8 @@ module Lab
           User.current = Utils.lab_user
 
           fout.write("Worker ##{Process.pid} started at #{Time.now}")
-          worker = new(Api::CouchDbApi.new)
+          worker = Worker.new(Api::RestApi.new)
           worker.pull_orders
-          # TODO: Verify that names being pushed to LIMS are of the correct format (ie matching
-          # LIMS naming conventions). Enable pushing when that is done
           worker.push_orders
         end
       end
@@ -38,18 +36,19 @@ module Lab
         @lims_api = lims_api
       end
 
-      def push_orders(batch_size: 100)
+      def push_orders(batch_size: 1000)
         loop do
           logger.info('Fetching new orders...')
-          orders = LabOrder.where.not(order_id: LimsOrderMapping.all.select(:order_id))
-                           .limit(batch_size)
+          orders = orders_pending_sync(batch_size).all
+          orders.each { |order| push_order(order) }
 
+          # Doing this after .each above to stop ActiveRecord from executing
+          # an extra request to the database (ActiveRecord's lazy evaluation
+          # sometimes leads to unnecessary database hits for checking counts).
           if orders.empty?
-            logger.info('No new orders available; exiting...')
+            logger.info('Finished processing orders; exiting...')
             break
           end
-
-          orders.each { |order| push_order(order) }
         end
       end
 
@@ -81,10 +80,10 @@ module Lab
 
       ##
       # Pulls orders from the LIMS queue and writes them to the local database
-      def pull_orders(batch_size: 10_000)
+      def pull_orders(batch_size: 10_000, **kwargs)
         logger.info("Retrieving LIMS orders starting from #{last_seq}")
 
-        lims_api.consume_orders(from: last_seq, limit: batch_size) do |order_dto, context|
+        lims_api.consume_orders(from: last_seq, limit: batch_size, **kwargs) do |order_dto, context|
           logger.debug("Retrieved order ##{order_dto[:tracking_number]}: #{order_dto}")
 
           patient = find_patient_by_nhid(order_dto[:patient][:id])
@@ -166,7 +165,9 @@ module Lab
                           .distinct(:patient_id)
                           .all
 
-        raise DuplicateNHID, "Duplicate National Health ID: #{nhid}" if patients.size > 1
+        if patients.size > 1
+          raise DuplicateNHID, "Duplicate National Health ID: #{nhid}"
+        end
 
         patients.first
       end
@@ -230,7 +231,9 @@ module Lab
       def create_order(patient, order_dto)
         logger.debug("Creating order ##{order_dto['_id']}")
         order = OrdersService.order_test(order_dto.to_order_service_params(patient_id: patient.patient_id))
-        update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
+        unless order_dto['test_results'].empty?
+          update_results(order, order_dto['test_results'])
+        end
 
         order
       end
@@ -239,7 +242,9 @@ module Lab
         logger.debug("Updating order ##{order_dto['_id']}")
         order = OrdersService.update_order(order_id, order_dto.to_order_service_params(patient_id: patient.patient_id)
                                                               .merge(force_update: true))
-        update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
+        unless order_dto['test_results'].empty?
+          update_results(order, order_dto['test_results'])
+        end
 
         order
       end
@@ -343,10 +348,24 @@ module Lab
         mapping = Lab::LimsOrderMapping.find_by(lims_id: lims_id)
         return nil unless mapping
 
-        return mapping if Lab::LabOrder.where(order_id: mapping.order_id).exists?
+        if Lab::LabOrder.where(order_id: mapping.order_id).exists?
+          return mapping
+        end
 
         mapping.destroy
         nil
+      end
+
+      def orders_pending_sync(batch_size)
+        orders = LabOrder.where.not(order_id: LimsOrderMapping.all.select(:order_id))
+                         .limit(batch_size)
+        return orders if orders.count >= 1
+
+        last_updated = Lab::LimsOrderMapping.select('MAX(updated_at) AS last_updated')
+                                            .first
+                                            .last_updated
+
+        Lab::LabOrder.where('discontinued_date > ?', last_updated).limit(batch_size)
       end
     end
   end
