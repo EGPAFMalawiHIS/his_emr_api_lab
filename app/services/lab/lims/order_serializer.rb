@@ -69,7 +69,11 @@ module Lab
         end
 
         def format_sample_type(name)
-          name.casecmp?('Unknown') ? 'not_specified' : name.titleize
+          return 'not_specified' if name.casecmp?('Unknown')
+
+          return 'CSF' if name.casecmp?('Cerebrospinal Fluid')
+
+          name.titleize
         end
 
         def format_sample_status(name)
