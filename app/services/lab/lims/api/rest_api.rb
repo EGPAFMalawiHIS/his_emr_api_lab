@@ -27,7 +27,7 @@ class Lab::Lims::Api::RestApi
     data = JSON.parse(response.body)['data']
 
     ActiveSupport::HashWithIndifferentAccess.new(
-      id: data['couch_id'] || data['tracking_number'],
+      id: data['tracking_number'],
       rev: 0,
       tracking_number: data['tracking_number']
     )
