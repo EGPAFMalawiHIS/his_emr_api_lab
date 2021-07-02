@@ -53,7 +53,7 @@ module Lab
       end
 
       def push_order_by_id(order_id)
-        order = LabOrder.find(order_id)
+        order = LabOrder.unscoped.find(order_id)
         push_order(order)
       end
 
@@ -66,10 +66,16 @@ module Lab
         mapping = LimsOrderMapping.find_by(order_id: order.order_id)
 
         ActiveRecord::Base.transaction do
-          if mapping
+          if mapping && order.voided
+            Rails.logger.info("Deleting order ##{order_dto['accession_number']} from LIMS")
+            lims_api.delete_order(mapping.lims_id, order_dto)
+            mapping.destroy
+          elsif mapping
+            Rails.logger.info("Updating order ##{order_dto['accession_number']} in LIMS")
             lims_api.update_order(mapping.lims_id, order_dto)
             mapping.update(pushed_at: Time.now)
           else
+            Rails.logger.info("Creating order ##{order_dto['accession_number']} in LIMS")
             update = lims_api.create_order(order_dto)
             LimsOrderMapping.create!(order: order, lims_id: update['id'], revision: update['rev'], pushed_at: Time.now)
           end
@@ -357,10 +363,20 @@ module Lab
       end
 
       def orders_pending_sync(batch_size)
-        orders = LabOrder.where.not(order_id: LimsOrderMapping.all.select(:order_id))
-                         .limit(batch_size)
-        return orders if orders.count >= 1
+        return new_orders.limit(batch_size) if new_orders.exists?
 
+        return voided_orders.limit(batch_size) if voided_orders.exists?
+
+        updated_orders.limit(batch_size)
+      end
+
+      def new_orders
+        Rails.logger.debug('Looking for new orders that need to be created in LIMS...')
+        Lab::LabOrder.where.not(order_id: LimsOrderMapping.all.select(:order_id))
+      end
+
+      def updated_orders
+        Rails.logger.debug('Looking for recently updated orders that need to be pushed to LIMS...')
         last_updated = Lab::LimsOrderMapping.select('MAX(updated_at) AS last_updated')
                                             .first
                                             .last_updated
@@ -370,6 +386,14 @@ module Lab
                              OR obs.date_created > :last_updated',
                             last_updated: last_updated)
                      .group('orders.order_id')
+      end
+
+      def voided_orders
+        Rails.logger.debug('Looking for voided orders that are being tracked by LIMS...')
+        Lab::LabOrder.unscoped
+                     .where(order_type: OrderType.where(name: Lab::Metadata::ORDER_TYPE_NAME),
+                            order_id: LimsOrderMapping.all.select(:order_id),
+                            voided: 1)
       end
     end
   end

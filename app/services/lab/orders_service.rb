@@ -92,8 +92,10 @@ module Lab
         order.target_lab&.void(reason)
 
         order.tests.each { |test| test.void(reason) }
+        voided = order.void(reason)
+        Lab::VoidOrderJob.perform_later(order_id)
 
-        order.void(reason)
+        voided
       end
 
       private

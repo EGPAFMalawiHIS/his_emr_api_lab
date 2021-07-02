@@ -13,7 +13,7 @@ class Lab::Lims::Api::RestApi
 
   def create_order(order_dto)
     response = in_authenticated_session do |headers|
-      Rails.logger.debug("Pushing order ##{order_dto[:tracking_number]} to LIMS")
+      Rails.logger.info("Pushing order ##{order_dto[:tracking_number]} to LIMS")
 
       if order_dto['sample_type'].casecmp?('not_specified')
         RestClient.post(expand_uri('request_order', api_version: 'v2'), make_create_params(order_dto), headers)
@@ -59,6 +59,19 @@ class Lab::Lims::Api::RestApi
       yield lims_results_to_order_dto(results, order_dto), OpenStruct.new(last_seq: 0)
     rescue InvalidParameters => e # LIMS responds with a 401 when a result is not found :(
       Rails.logger.error("Failed to fetch results for ##{order.accession_number}: #{e.message}")
+    end
+  end
+
+  def delete_order(_id, order_dto)
+    tracking_number = order_dto.fetch('tracking_number')
+
+    order_dto['tests'].each do |test|
+      Rails.logger.info("Voiding test '#{test}' (#{tracking_number}) in LIMS")
+      in_authenticated_session do |headers|
+        date_voided, voided_status = find_test_status(order_dto, test, 'Voided')
+        params = make_void_test_params(tracking_number, test, voided_status['updated_by'], date_voided)
+        RestClient.post(expand_uri('update_test'), params, headers)
+      end
     end
   end
 
@@ -290,6 +303,7 @@ class Lab::Lims::Api::RestApi
     end
 
     order_dto['test_results'].each do |test_name, results|
+      Rails.logger.info("Pushing result for order ##{order_dto['tracking_number']}")
       in_authenticated_session do |headers|
         params = make_update_test_params(order_dto['tracking_number'], test_name, results)
 
@@ -298,7 +312,7 @@ class Lab::Lims::Api::RestApi
     end
   end
 
-  def make_update_test_params(tracking_number, test_name, results)
+  def make_update_test_params(tracking_number, test_name, results, test_status = 'Drawn')
     {
       tracking_number: tracking_number,
       test_name: test_name,
@@ -309,12 +323,42 @@ class Lab::Lims::Api::RestApi
         last_name: results[:result_entered_by][:last_name],
         id_number: results[:result_entered_by][:id]
       },
-      test_status: 'Drawn',
-      results: results['results'].each_with_object({}) do |measure, formatted_results|
+      test_status: test_status,
+      results: results['results']&.each_with_object({}) do |measure, formatted_results|
         measure_name, measure_value = measure
 
         formatted_results[measure_name] = measure_value['result_value']
       end
+    }
+  end
+
+  def find_test_status(order_dto, target_test, target_status)
+    order_dto['test_statuses'].each do |test, statuses|
+      next unless test.casecmp?(target_test)
+
+      statuses.each do |date, status|
+        next unless status['status'].casecmp?(target_status)
+
+        return [Date.strptime(date, '%Y%m%d%H%M%S'), status]
+      end
+    end
+
+    nil
+  end
+
+  def make_void_test_params(tracking_number, test_name, voided_by, void_date = nil)
+    void_date ||= Time.now
+
+    {
+      tracking_number: tracking_number,
+      test_name: test_name,
+      time_updated: void_date,
+      who_updated: {
+        first_name: voided_by[:first_name],
+        last_name: voided_by[:last_name],
+        id_number: voided_by[:id]
+      },
+      test_status: 'voided'
     }
   end
 end
