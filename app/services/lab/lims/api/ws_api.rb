@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'SocketIO'
+require 'socket.io-client-simple'
 
 module Lab
   module Lims
@@ -8,10 +8,9 @@ module Lab
       ##
       # Retrieve results from LIMS only through a websocket
       class WsApi
-        def initialize(config: nil)
-          @config = config || load_config
+        def initialize(config)
+          @config = config
           @results_queue = []
-          @socket_disconnected = false
           @socket = initialize_socket
         end
 
@@ -35,38 +34,56 @@ module Lab
 
         private
 
-        def load_config
-          {}
+        def initialize_socket
+          Rails.logger.debug('Establishing connection to socket...')
+          socket = SocketIO::Client::Simple.connect(socket_url)
+          socket.on(:connect, &method(:on_socket_connect))
+          socket.on(:disconnect, &method(:on_socket_disconnect))
+          socket.on(:results, &method(:on_results_received))
         end
 
-        def initialize_socket
-          SocketIO.connect('http://localhost:3011') do
-            before_start do
-              on_event('results') do
-                Rails.logger.debug("Received results #{results}")
-                @results_queue.push(results)
-              end
-            end
-          end
+        def socket_url
+          @config.fetch('url')
+        end
 
-          # socket.on(:connect) do
-          #   Rails.logger.debug('Connection to LIMS results socket established...')
-          #   @socket_disconnected = false
-          # end
+        def on_socket_connect
+          Rails.logger.debug('Connection to LIMS results socket established...')
+        end
 
-          # socket.on(:disconnect) do
-          #   Rails.logger.debug('Connection to LIMS results socket lost...')
-          #   @socket_disconnected = true
-          # end
+        def on_socket_disconnect
+          Rails.logger.debug('Connection to LIMS results socket lost...')
+          @socket = initialize_socket
+        end
+
+        def on_results_received(result)
+          Rails.logger.debug("Received result from LIMS: #{result}")
+          tracking_number = result['tracking_number']
+
+          Rails.logger.debug("Queueing result for order ##{tracking_number}")
+          @results_queue.push(result)
+        end
+
+        def order_exists?(tracking_number)
+          Rails.logger.debug("Looking for order for result ##{tracking_number}")
+          orders = OrdersSearchService.find_orders_without_results
+                                      .where(accession_number: tracking_number)
+          # The following ensures that the order was previously pushed to LIMS
+          # or was received from LIMS
+          Lab::LimsOrderMapping.where.not(order: orders).exists?
         end
 
         def fetch_results
-          results = @results_queue.shift
-          return results if results
+          loop do
+            results = @results_queue.shift
+            return nil unless results
 
-          raise 'LIMS socket disconnected' if @socket_disconnected
+            unless order_exists?(results['tracking_number'])
+              Rails.logger.debug("Ignoring result for order ##{tracking_number}")
+              next
+            end
 
-          nil
+            return results
+          end
         end
 
         def find_order(lims_id)
