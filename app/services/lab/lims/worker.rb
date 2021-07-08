@@ -52,7 +52,8 @@ module Lab
             break
           end
 
-          fout.write("Locked by process ##{Process.ppid} at #{Time.now}")
+          fout.write("Locked by process ##{Process.pid} under process group ##{Process.ppid} at #{Time.now}")
+          fout.flush
           yield
         end
       end
