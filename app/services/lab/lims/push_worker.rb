@@ -15,7 +15,7 @@ module Lab
 
       def push_orders(batch_size: 1000, wait: false)
         loop do
-          logger.info('Fetching new orders...')
+          logger.info('Looking for new orders to push to LIMS...')
           orders = orders_pending_sync(batch_size).all
           orders.each { |order| push_order(order) }
 
@@ -27,7 +27,7 @@ module Lab
             break
           end
 
-          sleep(SECONDS_TO_WAIT_FOR_ORDERS)
+          sleep(Lab::Lims::Config.updates_poll_frequency)
         end
       end
 

@@ -24,7 +24,7 @@ module Lab
           api = Lims::Api::RestApi.new(config: Lab::Lims::Config.rest_api)
           worker = PushWorker.new(api)
 
-          worker.push_orders
+          worker.push_orders(wait: true)
         end
       end
 

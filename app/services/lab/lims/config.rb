@@ -42,6 +42,10 @@ module Lab
           }
         end
 
+        def updates_poll_frequency
+          5 # Seconds
+        end
+
         ##
         # Returns LIMS' application.yml configuration file
         def application
