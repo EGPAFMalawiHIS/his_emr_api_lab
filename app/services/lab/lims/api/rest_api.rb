@@ -7,8 +7,8 @@ class Lab::Lims::Api::RestApi
 
   class InvalidParameters < LimsApiError; end
 
-  def initialize(config: nil)
-    @config = config || load_config
+  def initialize(config)
+    @config = config
   end
 
   def create_order(order_dto)
@@ -253,26 +253,6 @@ class Lab::Lims::Api::RestApi
     orderer = order_dto[:who_order_test]
 
     "#{orderer[:first_name]} #{orderer[:last_name]}"
-  end
-
-  CONFIG_PATH = Rails.root.join('config', 'application.yml')
-
-  def load_config
-    raise 'LIMS configuration missing' unless File.exist?(CONFIG_PATH)
-
-    yaml = YAML.load_file(CONFIG_PATH)
-
-    config_param = lambda do |param, fallback = nil|
-      yaml.fetch(param) { fallback || raise("Missing config param: #{param}") }
-    end
-
-    {
-      protocol: config_param['lims_protocol', 'http'],
-      host: config_param['lims_host'],
-      port: config_param['lims_port'],
-      username: config_param['lims_username'],
-      password: config_param['lims_password']
-    }
   end
 
   ##
