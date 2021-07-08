@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative './config'
 require_relative './order_dto'
 require_relative './utils'
 
@@ -115,7 +116,7 @@ module Lab
               updated_by: find_user(test.creator)
             }
 
-            if test.voided
+            unless test.voided.zero?
               current_test_trail[test.date_voided.strftime('%Y%m%d%H%M%S')] = {
                 status: 'Voided',
                 updated_by: find_user(test.voided_by)
@@ -187,7 +188,7 @@ module Lab
           return district if district
 
           GlobalProperty.create(property: 'current_health_center_district',
-                                property_value: Config.application['district'],
+                                property_value: Lims::Config.application['district'],
                                 uuid: SecureRandom.uuid)
 
           Config.application['district']

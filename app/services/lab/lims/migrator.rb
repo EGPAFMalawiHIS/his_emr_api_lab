@@ -30,7 +30,7 @@ require 'lab/lims_order_mapping'
 require 'lab/lims_failed_import'
 
 require_relative './config'
-require_relative './worker'
+require_relative './pull_worker'
 require_relative '../orders_service'
 require_relative '../results_service'
 require_relative '../tests_service'
@@ -88,7 +88,7 @@ module Lab
         end
       end
 
-      class MigrationWorker < Worker
+      class MigrationWorker < PullWorker
         LOG_FILE_PATH = LIMS_LOG_PATH.join('migration-last-id.dat')
 
         attr_reader :rejections
@@ -185,7 +185,6 @@ module Lab
                     end
 
         worker = MigrationWorker.new(api_class)
-
         worker.pull_orders(batch_size: 10_000)
       ensure
         worker && export_rejections(worker.rejections)
