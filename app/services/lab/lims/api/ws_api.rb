@@ -19,7 +19,7 @@ module Lab
             results = fetch_results
             unless results
               Rails.logger.debug('No results available... Waiting for results...')
-              sleep(5)
+              sleep(Lab::Lims::Config.updates_poll_frequency)
               next
             end
 
