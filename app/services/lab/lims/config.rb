@@ -43,7 +43,7 @@ module Lab
         end
 
         def updates_poll_frequency
-          5 # Seconds
+          30 # Seconds
         end
 
         ##
