@@ -4,8 +4,8 @@ require 'rails_helper'
 
 require_relative './dummy_lims_api'
 
-RSpec.describe Lab::Lims::Worker do
-  subject { Lab::Lims::Worker.new(lims_api) }
+RSpec.describe Lab::Lims::PushWorker do
+  subject { Lab::Lims::PushWorker.new(lims_api) }
 
   let(:lims_api) { DummyLimsApi.new }
   let(:order) { create_order(create(:patient), add_result: true) }
