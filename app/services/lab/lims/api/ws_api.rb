@@ -11,7 +11,7 @@ module Lab
         def initialize(config)
           @config = config
           @results_queue = []
-          @socket = initialize_socket
+          @socket = nil
         end
 
         def consume_orders(**_kwargs)
@@ -52,7 +52,7 @@ module Lab
 
         def on_socket_disconnect
           Rails.logger.debug('Connection to LIMS results socket lost...')
-          @socket = initialize_socket
+          @socket = nil
         end
 
         def on_results_received(result)
@@ -74,6 +74,8 @@ module Lab
 
         def fetch_results
           loop do
+            @socket ||= initialize_socket
+
             results = @results_queue.shift
             return nil unless results
 
@@ -97,18 +99,18 @@ module Lab
             .merge(
               id: order.accession_number,
               test_results: {
-                result['test_name'] => {
+                results['test_name'] => {
                   results: results['results'].each_with_object({}) do |measure, formatted_measures|
                     measure_name, measure_value = measure
 
                     formatted_measures[measure_name] = { result_value: measure_value }
-                  end
-                },
-                result_date: results['date_updated'],
-                result_entered_by: {
-                  first_name: results['who_updated']['first_name'],
-                  last_name: results['who_updated']['last_name'],
-                  id: results['who_updated']['id_number']
+                  end,
+                  result_date: results['date_updated'],
+                  result_entered_by: {
+                    first_name: results['who_updated']['first_name'],
+                    last_name: results['who_updated']['last_name'],
+                    id: results['who_updated']['id_number']
+                  }
                 }
               }
             )
