@@ -7,6 +7,9 @@ module Lab
     ##
     # Various helper methods for modules in the Lims namespaces...
     module Utils
+      LIMS_LOG_PATH = Rails.root.join('log', 'lims')
+      FileUtils.mkdir_p(LIMS_LOG_PATH) unless File.exist?(LIMS_LOG_PATH)
+
       def logger
         Rails.logger
       end
@@ -54,7 +57,9 @@ module Lab
       def self.parse_date(str_date, fallback_date = nil)
         str_date = str_date&.to_s
 
-        raise "Can't parse blank date" if str_date.blank? && fallback_date.blank?
+        if str_date.blank? && fallback_date.blank?
+          raise "Can't parse blank date"
+        end
 
         return parse_date(fallback_date) if str_date.blank?
 

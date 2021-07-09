@@ -4,9 +4,6 @@ require 'logger_multiplexor'
 
 module Lab
   module Lims
-    LIMS_LOG_PATH = Rails.root.join('log', 'lims')
-    FileUtils.mkdir_p(LIMS_LOG_PATH) unless File.exist?(LIMS_LOG_PATH)
-
     ##
     # Pull/Push orders from/to the LIMS queue (Oops meant CouchDB).
     module Worker
@@ -65,7 +62,7 @@ module Lab
       end
 
       def self.log_path(filename)
-        LIMS_LOG_PATH.join(filename)
+        Lab::Lims::Utils::LIMS_LOG_PATH.join(filename)
       end
 
       def self.realtime_updates_enabled?
