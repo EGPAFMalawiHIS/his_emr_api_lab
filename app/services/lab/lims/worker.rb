@@ -15,13 +15,14 @@ module Lab
 
         fork(&method(:start_push_worker))
         fork(&method(:start_pull_worker))
+        fork(&method(:start_realtime_pull_worker)) if realtime_updates_enabled?
 
         Process.waitall
       end
 
       def self.start_push_worker
         start_worker('push_worker') do
-          api = Lims::Api::RestApi.new(config: Lab::Lims::Config.rest_api)
+          api = Lims::Api::RestApi.new(Lab::Lims::Config.rest_api)
           worker = PushWorker.new(api)
 
           worker.push_orders(wait: true)
@@ -30,13 +31,18 @@ module Lab
 
       def self.start_pull_worker
         start_worker('pull_worker') do
-          api = if realtime_updates_enabled?
-                  Lims::Api::WsApi.new(Lab::Lims::Config.updates_socket)
-                else
-                  Lims::Api::RestApi.new(Lab::Lims::Config.rest_api)
-                end
-
+          api = Lims::Api::RestApi.new(Lab::Lims::Config.rest_api)
           worker = PullWorker.new(api)
+
+          worker.pull_orders
+        end
+      end
+
+      def self.start_realtime_pull_worker
+        start_worker('realtime_pull_worker') do
+          api = Lims::Api::WsApi.new(Lab::Lims::Config.updates_socket)
+          worker = PullWorker.new(api)
+
           worker.pull_orders
         end
       end
