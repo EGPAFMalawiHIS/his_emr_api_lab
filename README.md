@@ -43,9 +43,28 @@ Finally run:
 $ bundle exec rails lab:install
 ```
 
+## Configuration
+
+This module in most cases should work without any configuration, however to enable
+certain features some configuration may be required. Visit the
+[configuration](./docs/configuration.md) page to learn how to configure the
+application.
+
 ## Contributing
 
-Contribution directions go here.
+Fork this application create a branch for the contribution you want to make,
+push your changes to the branch and then issue a pull request. You may want
+to create a new first on our repository, so that your pull request references
+this issue.
+
+If you are fixing a bug, it will be nice to add a unit test that exposes
+the bug. Although this is not a requirement in most cases.
+
+Be sure to follow [this](https://github.com/rubocop/ruby-style-guide) Ruby
+style guide. We don't necessarily look for strict adherence to the guidelines
+but too much a departure from it is frowned upon. For example, you will be forgiven
+for writing a method with 15 to 20 lines if you clearly justify why you couldn't
+break that method into multiple smaller methods.
 
 ## License
 

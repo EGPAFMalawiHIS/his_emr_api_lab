@@ -7,6 +7,11 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### Added
+
+- Realtime results updates from LIMS
+- LIMS REST API integration
+
 ## [1.0.5] - 2021-06-23
 
 ### Fixed
