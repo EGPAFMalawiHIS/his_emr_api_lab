@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative './config'
 require_relative './order_dto'
 require_relative './utils'
 
@@ -12,9 +13,9 @@ module Lab
         include Utils
 
         def serialize_order(order)
-          serialized_order = Utils.structify(Lab::LabOrderSerializer.serialize_order(order))
+          serialized_order = Lims::Utils.structify(Lab::LabOrderSerializer.serialize_order(order))
 
-          OrderDTO.new(
+          Lims::OrderDTO.new(
             tracking_number: serialized_order.accession_number,
             sending_facility: current_facility_name,
             receiving_facility: serialized_order.target_lab,
@@ -69,7 +70,11 @@ module Lab
         end
 
         def format_sample_type(name)
-          name.casecmp?('Unknown') ? 'not_specified' : name.titleize
+          return 'not_specified' if name.casecmp?('Unknown')
+
+          return 'CSF' if name.casecmp?('Cerebrospinal Fluid')
+
+          name.titleize
         end
 
         def format_sample_status(name)
@@ -77,7 +82,9 @@ module Lab
         end
 
         def format_sample_status_trail(order)
-          return [] if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
+          if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
+            return []
+          end
 
           user = User.find(order.discontinued_by || order.creator)
           drawn_by = PersonName.find_by_person_id(user.user_id)
@@ -97,7 +104,9 @@ module Lab
         end
 
         def format_test_status_trail(order)
-          order.tests.each_with_object({}) do |test, trail|
+          tests = order.voided.zero? ? order.tests : Lab::LabOrderSerializer.voided_tests(order)
+
+          tests.each_with_object({}) do |test, trail|
             test_name = format_test_name(ConceptName.find_by_concept_id!(test.value_coded).name)
 
             current_test_trail = trail[test_name] = {}
@@ -106,6 +115,13 @@ module Lab
               status: 'Drawn',
               updated_by: find_user(test.creator)
             }
+
+            unless test.voided.zero?
+              current_test_trail[test.date_voided.strftime('%Y%m%d%H%M%S')] = {
+                status: 'Voided',
+                updated_by: find_user(test.voided_by)
+              }
+            end
 
             next unless test.result
 
@@ -122,7 +138,10 @@ module Lab
 
         def format_test_results(order)
           order.tests&.each_with_object({}) do |test, results|
-            next unless test.result
+            next if test.result.nil? || test.result.empty?
+
+            test_creator = User.find(Observation.find(test.result.first.id).creator)
+            test_creator_name = PersonName.find_by_person_id(test_creator.person_id)
 
             results[format_test_name(test.name)] = {
               results: test.result.each_with_object({}) do |measure, measures|
@@ -131,7 +150,11 @@ module Lab
                 }
               end,
               result_date: test.result.first&.date,
-              result_entered_by: {}
+              result_entered_by: {
+                first_name: test_creator_name&.given_name,
+                last_name: test_creator_name&.family_name,
+                id: test_creator.username
+              }
             }
           end
         end
@@ -165,7 +188,7 @@ module Lab
           return district if district
 
           GlobalProperty.create(property: 'current_health_center_district',
-                                property_value: Config.application['district'],
+                                property_value: Lims::Config.application['district'],
                                 uuid: SecureRandom.uuid)
 
           Config.application['district']

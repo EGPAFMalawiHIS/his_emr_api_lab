@@ -3,7 +3,7 @@
 module Lab
   module LabOrderSerializer
     def self.serialize_order(order, tests: nil, requesting_clinician: nil, reason_for_test: nil, target_lab: nil)
-      tests ||= order.tests
+      tests ||= order.voided == 1 ? voided_tests(order) : order.tests
       requesting_clinician ||= order.requesting_clinician
       reason_for_test ||= order.reason_for_test
       target_lab ||= order.target_lab
@@ -44,6 +44,12 @@ module Lab
       return concept_id unless concept_id
 
       ConceptName.select(:name).find_by_concept_id(concept_id)&.name
+    end
+
+    def self.voided_tests(order)
+      concept = ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
+                           .select(:concept_id)
+      LabTest.unscoped.where(concept: concept, order: order, voided: true)
     end
   end
 end

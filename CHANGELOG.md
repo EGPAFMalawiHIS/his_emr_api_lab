@@ -7,6 +7,28 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### Added
+
+- Realtime results updates from LIMS
+- LIMS REST API integration
+
+## [1.0.5] - 2021-06-23
+
+### Fixed
+
+- Crash of umbrella Rails applications that mount this engine
+
+## [1.0.4] - 2021-06-16
+
+### Fixed
+
+- Crash on pull of updates of locally voided orders
+
+## [1.0.3] - 2021-06-10
+### Fixed
+
+- Result type detection in LIMS worker
+
 ## [1.0.2] - 2021-06-08
 
 ### Fixed
