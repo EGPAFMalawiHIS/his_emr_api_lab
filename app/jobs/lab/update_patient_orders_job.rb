@@ -12,8 +12,8 @@ module Lab
       User.current = Lab::Lims::Utils.lab_user
       Location.current = Location.find_by_name('ART clinic')
 
-      lims_api = Lab::Lims::Api::RestApi.new
-      worker = Lab::Lims::Worker.new(lims_api)
+      lims_api = Lab::Lims::Api::RestApi.new(Lab::Lims::Config.rest_api)
+      worker = Lab::Lims::PullWorker.new(lims_api)
       worker.pull_orders(patient_id: patient_id)
     end
   end
