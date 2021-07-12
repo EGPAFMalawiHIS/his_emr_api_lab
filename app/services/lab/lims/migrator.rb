@@ -29,8 +29,11 @@ require 'lab/lab_test'
 require 'lab/lims_order_mapping'
 require 'lab/lims_failed_import'
 
+require_relative './api/couchdb_api'
 require_relative './config'
-require_relative './worker'
+require_relative './pull_worker'
+require_relative './utils'
+
 require_relative '../orders_service'
 require_relative '../results_service'
 require_relative '../tests_service'
@@ -46,7 +49,7 @@ module Lab
     module Migrator
       MAX_THREADS = ENV.fetch('MIGRATION_WORKERS', 6).to_i
 
-      class CouchDbMigratorApi < Api::CouchDbApi
+      class CouchDbMigratorApi < Lab::Lims::Api::CouchDbApi
         def initialize(*args, processes: 1, on_merge_processes: nil, **kwargs)
           super(*args, **kwargs)
 
@@ -88,8 +91,8 @@ module Lab
         end
       end
 
-      class MigrationWorker < Worker
-        LOG_FILE_PATH = LIMS_LOG_PATH.join('migration-last-id.dat')
+      class MigrationWorker < PullWorker
+        LOG_FILE_PATH = Utils::LIMS_LOG_PATH.join('migration-last-id.dat')
 
         attr_reader :rejections
 
@@ -132,7 +135,8 @@ module Lab
         end
       end
 
-      MIGRATION_REJECTIONS_CSV_PATH = LIMS_LOG_PATH.join('migration-rejections.csv')
+      # NOTE: LIMS_LOG_PATH below is defined in worker.rb
+      MIGRATION_REJECTIONS_CSV_PATH = Utils::LIMS_LOG_PATH.join('migration-rejections.csv')
 
       def self.export_rejections(rejections)
         headers = ['doc_id', 'Accession number', 'NHID', 'First name', 'Last name', 'Reason']
@@ -150,7 +154,7 @@ module Lab
         save_csv(MIGRATION_REJECTIONS_CSV_PATH, headers: headers, rows: rows)
       end
 
-      MIGRATION_FAILURES_CSV_PATH = LIMS_LOG_PATH.join('migration-failures.csv')
+      MIGRATION_FAILURES_CSV_PATH = Utils::LIMS_LOG_PATH.join('migration-failures.csv')
 
       def self.export_failures
         headers = ['doc_id', 'Accession number', 'NHID', 'Reason', 'Difference']
@@ -167,10 +171,10 @@ module Lab
         save_csv(MIGRATION_FAILURES_CSV_PATH, headers: headers, rows: rows)
       end
 
-      MIGRATION_LOG_PATH = LIMS_LOG_PATH.join('migration.log')
+      MIGRATION_LOG_PATH = Utils::LIMS_LOG_PATH.join('migration.log')
 
       def self.start_migration
-        Dir.mkdir(LIMS_LOG_PATH) unless File.exist?(LIMS_LOG_PATH)
+        Dir.mkdir(Utils::LIMS_LOG_PATH) unless File.exist?(Utils::LIMS_LOG_PATH)
 
         logger = LoggerMultiplexor.new(Logger.new($stdout), MIGRATION_LOG_PATH)
         logger.level = :debug
@@ -185,7 +189,6 @@ module Lab
                     end
 
         worker = MigrationWorker.new(api_class)
-
         worker.pull_orders(batch_size: 10_000)
       ensure
         worker && export_rejections(worker.rejections)

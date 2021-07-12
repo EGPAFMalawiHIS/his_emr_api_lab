@@ -5,6 +5,14 @@ module Lab
   module OrdersSearchService
     class << self
       def find_orders(filters)
+        # A bit of hack-ish solution to have a patient's orders updated upon
+        # scanning of a patient. Done in this way to deal with LIMS' lack of
+        # a notification system for lab order updates. We are limited to polling
+        # for updates on a per order basis.
+        if filters[:patient_id]
+          Lab::UpdatePatientOrdersJob.perform_later(filters[:patient_id])
+        end
+
         extra_filters = pop_filters(filters, :date, :end_date, :status)
 
         orders = Lab::LabOrder.prefetch_relationships
@@ -15,6 +23,14 @@ module Lab
         orders = filter_orders_by_date(orders, extra_filters)
 
         orders.map { |order| Lab::LabOrderSerializer.serialize_order(order) }
+      end
+
+      def find_orders_without_results(patient_id: nil)
+        query = Lab::LabOrder.where
+                             .not(order_id: Lab::LabResult.all.select(:order_id))
+        query = query.where(patient_id: patient_id) if patient_id
+
+        query
       end
 
       def filter_orders_by_date(orders, date: nil, end_date: nil)
@@ -53,6 +69,8 @@ module Lab
           popped_params[filter.to_sym] = params.delete(filter)
         end
       end
+
+      def fetch_results(order); end
     end
   end
 end
