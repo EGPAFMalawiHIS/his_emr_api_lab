@@ -7,6 +7,8 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [1.1.1] - 2021-07-12
+
 ### Fixed
 
 - Crash in update patient orders background job (ArgumentError - Wrong number of arguments...)
