@@ -44,10 +44,7 @@ class Lab::Lims::Api::RestApi
   end
 
   def consume_orders(*_args, patient_id: nil, **_kwargs)
-    Rails.logger.info('Looking for orders without results...')
-    orders = Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
-
-    orders.each do |order|
+    orders_pending_updates.each do |order|
       response = in_authenticated_session do |headers|
         Rails.logger.info("Fetching results for order ##{order.accession_number}")
         RestClient.get(expand_uri("query_results_by_tracking_number/#{order.accession_number}"), headers)
@@ -105,8 +102,8 @@ class Lab::Lims::Api::RestApi
     self.authentication_token = nil
     retry if (retries -= 1).positive?
   rescue RestClient::ExceptionWithResponse => e
-    Rails.logger.error("LIMS Error: #{e.response.code} - #{e.response.body}")
-    raise e unless e.response.code == 401
+    Rails.logger.error("LIMS Error: #{e.response&.code} - #{e.response&.body}")
+    raise e unless e.response&.code == 401
 
     self.authentication_token = nil
     retry if (retries -= 1).positive?
@@ -340,5 +337,38 @@ class Lab::Lims::Api::RestApi
       },
       test_status: 'voided'
     }
+  end
+
+  def orders_pending_updates
+    Rails.logger.info('Looking for orders that need to be updated...')
+    orders = {}
+
+    orders_without_specimen.each { |order| orders[order.order_id] = order }
+    orders_without_results.each { |order| orders[order.order_id] = order }
+    orders_without_reason.each { |order| orders[order.order_id] = order }
+
+    orders.values
+  end
+
+  def orders_without_specimen
+    Rails.logger.debug('Looking for orders without a specimen')
+    unknown_specimen = ConceptName.where(name: Lab::Metadata::UNKNOWN_SPECIMEN)
+                                  .select(:concept_id)
+    Lab::LabOrder.where(concept_id: unknown_specimen)
+  end
+
+  def orders_without_results
+    Rails.logger.debug('Looking for orders without a result')
+    Lab::OrdersSearchService.find_orders_without_results
+  end
+
+  def orders_without_reason
+    Rails.logger.debug('Looking for orders without a reason for test')
+    reason_for_test = ConceptName.where(name: Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME)
+                                 .select(:concept_id)
+    reasons = Observation.where(concept_id: reason_for_test)
+                         .where.not(order_id: nil)
+
+    Lab::LabOrder.where.not(order_id: reasons).limit(1000)
   end
 end
