@@ -7,6 +7,8 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [1.1.2] - 2021-07-15
+
 ### Added
 
 - Pulling of updates for orders that are missing a reason for starting
