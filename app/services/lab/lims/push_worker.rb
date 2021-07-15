@@ -56,7 +56,8 @@ module Lab
           else
             Rails.logger.info("Creating order ##{order_dto['accession_number']} in LIMS")
             update = lims_api.create_order(order_dto)
-            Lab::LimsOrderMapping.create!(order: order, lims_id: update['id'], revision: update['rev'], pushed_at: Time.now)
+            Lab::LimsOrderMapping.create!(order: order, lims_id: update['id'], revision: update['rev'],
+                                          pushed_at: Time.now)
           end
         end
 
