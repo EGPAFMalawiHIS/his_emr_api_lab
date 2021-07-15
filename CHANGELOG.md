@@ -7,6 +7,14 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### Added
+
+- Pulling of updates for orders that are missing a reason for starting
+
+### Fixed
+
+- Slow query for pulling patient orders requiring updates
+
 ## [1.1.1] - 2021-07-12
 
 ### Fixed

@@ -26,8 +26,10 @@ module Lab
       end
 
       def find_orders_without_results(patient_id: nil)
-        query = Lab::LabOrder.where
-                             .not(order_id: Lab::LabResult.all.select(:order_id))
+        results_query = Lab::LabResult.all
+        results_query = results_query.where(person_id: patient_id) if patient_id
+
+        query = Lab::LabOrder.where.not(order_id: results_query.select(:order_id))
         query = query.where(patient_id: patient_id) if patient_id
 
         query

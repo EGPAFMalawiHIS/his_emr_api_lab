@@ -176,7 +176,7 @@ module Lab
       def update_order(patient, order_id, order_dto)
         logger.debug("Updating order ##{order_dto['_id']}")
         order = OrdersService.update_order(order_id, order_dto.to_order_service_params(patient_id: patient.patient_id)
-                                                              .merge(force_update: true))
+                                                              .merge(force_update: 'true'))
         unless order_dto['test_results'].empty?
           update_results(order, order_dto['test_results'])
         end
@@ -194,7 +194,7 @@ module Lab
             next
           end
 
-          next unless test_results['results']
+          next if test.result || test_results['results'].blank?
 
           measures = test_results['results'].map do |indicator, value|
             measure = find_measure(order, indicator, value)
