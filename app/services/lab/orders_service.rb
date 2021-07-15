@@ -71,15 +71,24 @@ module Lab
         end
 
         order = Lab::LabOrder.find(order_id)
-        unless order.concept_id == unknown_concept_id || params[:force_update]&.to_s&.casecmp?('true')
-          raise ::UnprocessableEntityError
+        if order.concept_id != unknown_concept_id && !params[:force_update]&.casecmp?('true')
+          raise ::UnprocessableEntityError, "Can't change order specimen once set"
         end
 
-        order.update!(concept_id: specimen_id,
-                      discontinued: true,
-                      discontinued_by: User.current.user_id,
-                      discontinued_date: params[:date]&.to_date || Time.now,
-                      discontinued_reason_non_coded: 'Sample drawn/updated')
+        if specimen_id.to_i != order.concept_id
+          Rails.logger.debug("Updating order ##{order.order_id}")
+          order.update!(concept_id: specimen_id,
+                        discontinued: true,
+                        discontinued_by: User.current.user_id,
+                        discontinued_date: params[:date]&.to_date || Time.now,
+                        discontinued_reason_non_coded: 'Sample drawn/updated')
+        end
+
+        if params.key?(:reason_for_test_id)
+          Rails.logger.debug("Updating reason for test on order ##{order.order_id}")
+          update_reason_for_test(order, params[:reason_for_test_id])
+        end
+
         Lab::LabOrderSerializer.serialize_order(order)
       end
 
@@ -159,7 +168,7 @@ module Lab
           order,
           Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME,
           params[:date],
-          value_coded: params['reason_for_test_id']
+          value_coded: params[:reason_for_test_id]
         )
       end
 
@@ -191,6 +200,21 @@ module Lab
 
       def unknown_concept_id
         ConceptName.find_by_name!('Unknown').concept_id
+      end
+
+      def update_reason_for_test(order, concept_id)
+        if concept_id.blank?
+          raise InvalidParameterError, "Reason for test can't be blank"
+        end
+
+        return if order.reason_for_test&.value_coded == concept_id
+
+        unless order.reason_for_test&.value_coded.nil?
+          raise InvalidParameterError, "Can't change reason for test once set"
+        end
+
+        order.reason_for_test.delete
+        add_reason_for_test(order, date: order.start_date, reason_for_test_id: concept_id)
       end
     end
   end

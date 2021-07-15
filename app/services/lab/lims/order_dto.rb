@@ -22,7 +22,7 @@ module Lab
           date: start_date,
           target_lab: facility_name(self['receiving_facility']),
           order_location: facility_name(self['sending_facility']),
-          reason_for_test: reason_for_test
+          reason_for_test_id: reason_for_test
         )
       end
 
@@ -69,7 +69,9 @@ module Lab
       end
 
       def start_date
-        raise LimsException, 'Order missing created date' if self['date_created'].blank?
+        if self['date_created'].blank?
+          raise LimsException, 'Order missing created date'
+        end
 
         Utils.parse_date(self['date_created'])
       end
@@ -85,7 +87,12 @@ module Lab
       def reason_for_test
         return unknown_concept.concept_id unless self['priority']
 
-        ConceptName.find_by_name!(self['priority']).concept_id
+        name = case self['priority']
+               when %r{Reapet / Missing}i then 'Repeat / Missing'
+               else self['priority']
+               end
+
+        ConceptName.find_by_name!(name).concept_id
       end
 
       def lab_program
