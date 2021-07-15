@@ -22,14 +22,13 @@ class Lab::Lims::Api::RestApi
       end
     end
 
-    update_order_results(order_dto)
-
-    data = JSON.parse(response.body)['data']
+    data = JSON.parse(response.body)
+    update_order_results(order_dto) unless data['message'].casecmp?('Order already available')
 
     ActiveSupport::HashWithIndifferentAccess.new(
-      id: data['tracking_number'],
+      id: order_dto.fetch(:_id, order_dto[:tracking_number]),
       rev: 0,
-      tracking_number: data['tracking_number']
+      tracking_number: order_dto[:tracking_number]
     )
   end
 
@@ -118,7 +117,8 @@ class Lab::Lims::Api::RestApi
     password = config.fetch(:password)
 
     Rails.logger.debug("Authenticating with LIMS as: #{username}")
-    response = RestClient.get(expand_uri("re_authenticate/#{username}/#{password}"), headers: { 'Content-type' => 'application/json' })
+    response = RestClient.get(expand_uri("re_authenticate/#{username}/#{password}"),
+                              headers: { 'Content-type' => 'application/json' })
     response_body = JSON.parse(response.body)
 
     if response_body['status'] == 401
@@ -154,9 +154,7 @@ class Lab::Lims::Api::RestApi
 
     Rails.logger.error("Lims Api Error: #{response.body}")
 
-    if body['status'] != 401
-      raise LimsApiError, "#{body['status']} - #{body['message']}"
-    end
+    raise LimsApiError, "#{body['status']} - #{body['message']}" if body['status'] != 401
 
     if body['message'].match?(/token expired/i)
       raise AuthenticationTokenExpired, "Authentication token expired: #{body['message']}"
@@ -307,9 +305,7 @@ class Lab::Lims::Api::RestApi
   end
 
   def update_order_results(order_dto)
-    if order_dto['test_results'].nil? || order_dto['test_results'].empty?
-      return nil
-    end
+    return nil if order_dto['test_results'].nil? || order_dto['test_results'].empty?
 
     order_dto['test_results'].each do |test_name, results|
       Rails.logger.info("Pushing result for order ##{order_dto['tracking_number']}")
