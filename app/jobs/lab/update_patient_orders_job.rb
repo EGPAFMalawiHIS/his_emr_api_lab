@@ -12,9 +12,22 @@ module Lab
       User.current = Lab::Lims::Utils.lab_user
       Location.current = Location.find_by_name('ART clinic')
 
-      lims_api = Lab::Lims::Api::RestApi.new(Lab::Lims::Config.rest_api)
-      worker = Lab::Lims::PullWorker.new(lims_api)
-      worker.pull_orders(patient_id: patient_id)
+      lockfile = Rails.root.join('tmp', "update-patient-orders-#{patient_id}.lock")
+
+      done = File.open(lockfile, File::RDWR | File::CREAT) do |lock|
+        unless lock.flock(File::LOCK_NB | File::LOCK_EX)
+          Rails.logger.info('Another update patient job is already running...')
+          break false
+        end
+
+        lims_api = Lab::Lims::Api::RestApi.new(Lab::Lims::Config.rest_api)
+        worker = Lab::Lims::PullWorker.new(lims_api)
+        worker.pull_orders(patient_id: patient_id)
+
+        true
+      end
+
+      File.unlink(lockfile) if done
     end
   end
 end
