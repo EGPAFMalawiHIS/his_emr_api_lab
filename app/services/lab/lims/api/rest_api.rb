@@ -44,18 +44,22 @@ class Lab::Lims::Api::RestApi
   end
 
   def consume_orders(*_args, patient_id: nil, **_kwargs)
-    orders_pending_updates.each do |order|
-      response = in_authenticated_session do |headers|
-        Rails.logger.info("Fetching results for order ##{order.accession_number}")
-        RestClient.get(expand_uri("query_results_by_tracking_number/#{order.accession_number}"), headers)
+    orders_pending_updates(patient_id).each do |order|
+      order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
+
+      if order_dto['priority'].nil? || order_dto['sample_type'].casecmp?('not_specified')
+        patch_order_dto_with_lims_order!(order_dto, find_lims_order(order.accession_number))
       end
 
-      Rails.logger.info("Result for order ##{order.accession_number} found... Parsing...")
-      results = JSON.parse(response).fetch('data').fetch('results')
-      order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
-      yield lims_results_to_order_dto(results, order_dto), OpenStruct.new(last_seq: 0)
-    rescue InvalidParameters => e # LIMS responds with a 401 when a result is not found :(
-      Rails.logger.error("Failed to fetch results for ##{order.accession_number}: #{e.message}")
+      if order_dto['test_results'].empty?
+        begin
+          patch_order_dto_with_lims_results!(order_dto, find_lims_results(order.accession_number))
+        rescue InvalidParameters => e # LIMS responds with a 401 when a result is not found :(
+          Rails.logger.error("Failed to fetch results for ##{order.accession_number}: #{e.message}")
+        end
+      end
+
+      yield order_dto, OpenStruct.new(last_seq: 0)
     end
   end
 
@@ -252,11 +256,31 @@ class Lab::Lims::Api::RestApi
     "#{orderer[:first_name]} #{orderer[:last_name]}"
   end
 
+  def find_lims_order(tracking_number)
+    response = in_authenticated_session do |headers|
+      Rails.logger.info("Fetching order ##{tracking_number}")
+      RestClient.get(expand_uri("query_order_by_tracking_number/#{tracking_number}"), headers)
+    end
+
+    Rails.logger.info("Order ##{tracking_number} found... Parsing...")
+    JSON.parse(response).fetch('data')
+  end
+
+  def find_lims_results(tracking_number)
+    response = in_authenticated_session do |headers|
+      Rails.logger.info("Fetching results for order ##{tracking_number}")
+      RestClient.get(expand_uri("query_results_by_tracking_number/#{tracking_number}"), headers)
+    end
+
+    Rails.logger.info("Result for order ##{tracking_number} found... Parsing...")
+    JSON.parse(response).fetch('data').fetch('results')
+  end
+
   ##
   # Make a copy of the order_dto with the results from LIMS parsed
   # and appended to it.
-  def lims_results_to_order_dto(results, order_dto)
-    order_dto.merge(
+  def patch_order_dto_with_lims_results!(order_dto, results)
+    order_dto.merge!(
       '_id' => order_dto[:tracking_number],
       '_rev' => 0,
       'test_results' => results.each_with_object({}) do |result, formatted_results|
@@ -271,6 +295,14 @@ class Lab::Lims::Api::RestApi
           result_entered_by: {}
         }
       end
+    )
+  end
+
+  def patch_order_dto_with_lims_order!(order_dto, lims_order)
+    order_dto.merge!(
+      'sample_type' => lims_order['other']['sample_type'],
+      'sample_status' => lims_order['other']['specimen_status'],
+      'priority' => lims_order['other']['priority']
     )
   end
 
@@ -339,36 +371,39 @@ class Lab::Lims::Api::RestApi
     }
   end
 
-  def orders_pending_updates
+  def orders_pending_updates(patient_id = nil)
     Rails.logger.info('Looking for orders that need to be updated...')
     orders = {}
 
-    orders_without_specimen.each { |order| orders[order.order_id] = order }
-    orders_without_results.each { |order| orders[order.order_id] = order }
-    orders_without_reason.each { |order| orders[order.order_id] = order }
+    orders_without_specimen(patient_id).each { |order| orders[order.order_id] = order }
+    orders_without_results(patient_id).each { |order| orders[order.order_id] = order }
+    orders_without_reason(patient_id).each { |order| orders[order.order_id] = order }
 
     orders.values
   end
 
-  def orders_without_specimen
+  def orders_without_specimen(patient_id = nil)
     Rails.logger.debug('Looking for orders without a specimen')
     unknown_specimen = ConceptName.where(name: Lab::Metadata::UNKNOWN_SPECIMEN)
                                   .select(:concept_id)
-    Lab::LabOrder.where(concept_id: unknown_specimen)
+    orders = Lab::LabOrder.where(concept_id: unknown_specimen)
+    orders = orders.where(patient_id: patient_id) if patient_id
+
+    orders
   end
 
-  def orders_without_results
+  def orders_without_results(patient_id = nil)
     Rails.logger.debug('Looking for orders without a result')
-    Lab::OrdersSearchService.find_orders_without_results
+    Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
   end
 
-  def orders_without_reason
+  def orders_without_reason(patient_id = nil)
     Rails.logger.debug('Looking for orders without a reason for test')
-    reason_for_test = ConceptName.where(name: Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME)
-                                 .select(:concept_id)
-    reasons = Observation.where(concept_id: reason_for_test)
-                         .where.not(order_id: nil)
+    orders = Lab::LabOrder.joins(:reason_for_test)
+                          .merge(Observation.where(value_coded: nil, value_text: nil))
+                          .limit(1000)
+    orders = orders.where(patient_id: patient_id) if patient_id
 
-    Lab::LabOrder.where.not(order_id: reasons).limit(1000)
+    orders
   end
 end
