@@ -7,6 +7,9 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+
+## [1.1.3] - 2021-07-19
+
 ### Added
 
 - Configuration flag for setting the LIMS api to use for pushing/pulling of data
