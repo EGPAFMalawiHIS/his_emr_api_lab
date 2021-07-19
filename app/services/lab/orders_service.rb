@@ -66,9 +66,7 @@ module Lab
 
       def update_order(order_id, params)
         specimen_id = params.dig(:specimen, :concept_id)
-        unless specimen_id
-          raise ::InvalidParameterError, 'Specimen concept_id is required'
-        end
+        raise ::InvalidParameterError, 'Specimen concept_id is required' unless specimen_id
 
         order = Lab::LabOrder.find(order_id)
         if order.concept_id != unknown_concept_id && !params[:force_update]&.casecmp?('true')
@@ -84,7 +82,7 @@ module Lab
                         discontinued_reason_non_coded: 'Sample drawn/updated')
         end
 
-        if params.key?(:reason_for_test_id)
+        if params[:reason_for_test_id]
           Rails.logger.debug("Updating reason for test on order ##{order.order_id}")
           update_reason_for_test(order, params[:reason_for_test_id])
         end
@@ -116,13 +114,9 @@ module Lab
       # a 'Lab' encounter is created using the provided program_id and
       # patient_id.
       def find_encounter(order_params)
-        if order_params[:encounter_id]
-          return Encounter.find(order_params[:encounter_id])
-        end
+        return Encounter.find(order_params[:encounter_id]) if order_params[:encounter_id]
 
-        unless order_params[:patient_id]
-          raise InvalidParameterError, 'encounter_id or patient_id required'
-        end
+        raise InvalidParameterError, 'encounter_id or patient_id required' unless order_params[:patient_id]
 
         program_id = order_params[:program_id] || Program.find_by_name!(Lab::Metadata::LAB_PROGRAM_NAME).program_id
 
@@ -203,17 +197,13 @@ module Lab
       end
 
       def update_reason_for_test(order, concept_id)
-        if concept_id.blank?
-          raise InvalidParameterError, "Reason for test can't be blank"
-        end
+        raise InvalidParameterError, "Reason for test can't be blank" if concept_id.blank?
 
         return if order.reason_for_test&.value_coded == concept_id
 
-        unless order.reason_for_test&.value_coded.nil?
-          raise InvalidParameterError, "Can't change reason for test once set"
-        end
+        raise InvalidParameterError, "Can't change reason for test once set" if order.reason_for_test&.value_coded
 
-        order.reason_for_test.delete
+        order.reason_for_test&.delete
         add_reason_for_test(order, date: order.start_date, reason_for_test_id: concept_id)
       end
     end

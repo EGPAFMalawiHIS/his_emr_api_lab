@@ -2,6 +2,8 @@
 
 require 'logger_multiplexor'
 
+require_relative './api/couchdb_api'
+
 module Lab
   module Lims
     ##
@@ -19,8 +21,7 @@ module Lab
 
       def self.start_push_worker
         start_worker('push_worker') do
-          api = Lims::Api::RestApi.new(Lab::Lims::Config.rest_api)
-          worker = PushWorker.new(api)
+          worker = PushWorker.new(lims_api)
 
           worker.push_orders # (wait: true)
         end
@@ -28,8 +29,7 @@ module Lab
 
       def self.start_pull_worker
         start_worker('pull_worker') do
-          api = Lims::Api::RestApi.new(Lab::Lims::Config.rest_api)
-          worker = PullWorker.new(api)
+          worker = PullWorker.new(lims_api)
 
           worker.pull_orders
         end
@@ -37,8 +37,7 @@ module Lab
 
       def self.start_realtime_pull_worker
         start_worker('realtime_pull_worker') do
-          api = Lims::Api::WsApi.new(Lab::Lims::Config.updates_socket)
-          worker = PullWorker.new(api)
+          worker = PullWorker.new(Lims::Api::WsApi.new(Lab::Lims::Config.updates_socket))
 
           worker.pull_orders
         end
@@ -70,6 +69,14 @@ module Lab
       rescue Lab::Lims::Config::ConfigNotFound => e
         Rails.logger.warn("Check for realtime updates failed: #{e.message}")
         false
+      end
+
+      def self.lims_api
+        case Lims::Config.preferred_api
+        when /couchdb/i then Api::CouchDbApi.new(config: Lab::Lims::Config.couchdb)
+        when /rest/i then Api::RestApi.new(Lab::Lims::Config.rest_api)
+        else raise "Invalid LIMS API in application.yml, expected 'rest' or 'couchdb'"
+        end
       end
     end
   end

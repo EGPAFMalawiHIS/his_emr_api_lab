@@ -69,9 +69,7 @@ module Lab
       end
 
       def start_date
-        if self['date_created'].blank?
-          raise LimsException, 'Order missing created date'
-        end
+        raise LimsException, 'Order missing created date' if self['date_created'].blank?
 
         Utils.parse_date(self['date_created'])
       end
@@ -85,7 +83,7 @@ module Lab
 
       # Translates a LIMS sample priority to a concept_id
       def reason_for_test
-        return unknown_concept.concept_id unless self['priority']
+        return nil unless self['priority']
 
         name = case self['priority']
                when %r{Reapet / Missing}i then 'Repeat / Missing'

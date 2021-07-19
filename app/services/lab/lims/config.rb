@@ -11,15 +11,19 @@ module Lab
       class ConfigNotFound < RuntimeError; end
 
       class << self
+        def preferred_api
+          emr_api_application('lims_api', 'couchdb')
+        end
+
         ##
         # Returns LIMS' couchdb configuration file for the current environment (Rails.env)
         def couchdb
           config_path = begin
-                          find_config_path('couchdb.yml')
-                        rescue ConfigNotFound => e
-                          Rails.logger.error("Failed to find default LIMS couchdb config: #{e.message}")
-                          find_config_path('couchdb-lims.yml') # This can be placed in HIS-EMR-API/config
-                        end
+            find_config_path('couchdb.yml')
+          rescue ConfigNotFound => e
+            Rails.logger.error("Failed to find default LIMS couchdb config: #{e.message}")
+            find_config_path('couchdb-lims.yml') # This can be placed in HIS-EMR-API/config
+          end
 
           Rails.logger.debug("Using LIMS couchdb config: #{config_path}")
 
@@ -64,9 +68,7 @@ module Lab
           @emr_api_application ||= YAML.load_file(Rails.root.join('config', 'application.yml'))
 
           @emr_api_application.fetch(param) do
-            unless fallback
-              raise ConfigNotFound, "Missing config param: #{param}"
-            end
+            raise ConfigNotFound, "Missing config param: #{param}" unless fallback
 
             fallback
           end
@@ -83,9 +85,7 @@ module Lab
             Rails.root.parent.join("nlims_controller/config/#{filename}")
           ]
 
-          if filename == 'couchdb.yml'
-            paths = [Rails.root.join('config/lims-couchdb.yml'), *paths]
-          end
+          paths = [Rails.root.join('config/lims-couchdb.yml'), *paths] if filename == 'couchdb.yml'
 
           paths.each do |path|
             Rails.logger.debug("Looking for LIMS couchdb config at: #{path}")

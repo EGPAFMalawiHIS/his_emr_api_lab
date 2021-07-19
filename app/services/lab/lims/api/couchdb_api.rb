@@ -38,6 +38,9 @@ module Lab
         end
 
         def create_order(order)
+          order = order.dup
+          order.delete('_id')
+
           bum.couch_rest :post, '/', order
         end
 
