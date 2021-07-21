@@ -64,7 +64,7 @@ module Lab
             first_name: name&.given_name,
             last_name: name&.family_name,
             id: national_id&.identifier,
-            phone_number: phone_number&.value,
+            phone_number: phone_number&.value || 'Unknown',
             gender: person.gender,
             email: nil
           }
@@ -83,9 +83,7 @@ module Lab
         end
 
         def format_sample_status_trail(order)
-          if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
-            return []
-          end
+          return [] if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
 
           user = User.find(order.discontinued_by || order.creator)
           drawn_by = PersonName.find_by_person_id(user.user_id)
