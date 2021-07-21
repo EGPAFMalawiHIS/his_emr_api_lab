@@ -59,6 +59,9 @@ class Lab::Lims::Api::RestApi
       end
 
       yield order_dto, OpenStruct.new(last_seq: 0)
+    rescue LimsApiError => e
+      Rails.logger.error("Failed to fetch updates for ##{order.accession_number}: #{e.class} - #{e.message}")
+      sleep(1)
     end
   end
 
