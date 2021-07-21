@@ -7,6 +7,12 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [1.1.4] - 2021-07-21
+
+### Added
+
+- Fallback to unknown for missing phone numbers when pushing to LIMS
+- Retry on error when pushing orders to LIMS
 
 ## [1.1.3] - 2021-07-19
 
