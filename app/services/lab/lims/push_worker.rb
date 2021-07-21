@@ -17,7 +17,12 @@ module Lab
         loop do
           logger.info('Looking for new orders to push to LIMS...')
           orders = orders_pending_sync(batch_size).all
-          orders.each { |order| push_order(order) }
+          orders.each do |order|
+            push_order(order)
+          rescue GatewayError => e
+            logger.error("Failed to push order ##{order.accession_number}: #{e.class} - #{e.message}")
+            sleep(Lab::Lims::Config.updates_poll_frequency)
+          end
 
           # Doing this after .each above to stop ActiveRecord from executing
           # an extra request to the database (ActiveRecord's lazy evaluation
