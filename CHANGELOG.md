@@ -7,6 +7,8 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [1.1.5] - 2021-07-21
+
 ### Fixed
 
 - Crash on 401 error from LIMS in pull_worker
