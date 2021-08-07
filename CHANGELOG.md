@@ -7,6 +7,10 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### Fixed
+
+- Crash in LIMS pull worker when using rest_api
+
 ## [1.1.5] - 2021-07-21
 
 ### Fixed
