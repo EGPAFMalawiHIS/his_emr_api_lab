@@ -32,7 +32,7 @@ module Lab
       def specimen_type_id
         lims_specimen_name = self['sample_type']&.strip&.downcase
 
-        if %w[specimen_not_collected not_assigned not_specified].include?(lims_specimen_name)
+        if lims_specimen_name.nil? || %w[specimen_not_collected not_assigned not_specified].include?(lims_specimen_name)
           return ConceptName.select(:concept_id).find_by_name!('Unknown').concept_id
         end
 

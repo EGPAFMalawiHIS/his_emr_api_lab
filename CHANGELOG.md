@@ -7,6 +7,11 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+
+### Fixed
+
+- Crash in LIMS pull worker when pulling orders with specimen set null (normally when missig specimen is 'not_assigned')
+
 ## [1.1.6] - 2021-08-07
 
 ### Fixed
