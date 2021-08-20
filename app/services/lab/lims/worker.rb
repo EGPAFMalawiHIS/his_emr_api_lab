@@ -45,7 +45,7 @@ module Lab
 
       def self.start_worker(worker_name)
         Rails.logger = LoggerMultiplexor.new(log_path("#{worker_name}.log"), $stdout)
-        ActiveRecord::Base.logger = Rails.logger
+        # ActiveRecord::Base.logger = Rails.logger
         Rails.logger.level = :debug
 
         File.open(log_path("#{worker_name}.lock"), File::RDWR | File::CREAT, 0o644) do |fout|

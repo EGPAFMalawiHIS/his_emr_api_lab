@@ -7,6 +7,10 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### Fixed
+
+- Duplicating of local orders when using rest_api
+
 ## [1.1.7] - 2021-08-09
 
 ### Fixed

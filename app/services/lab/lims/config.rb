@@ -12,7 +12,7 @@ module Lab
 
       class << self
         def preferred_api
-          emr_api_application('lims_api', 'couchdb')
+          emr_api_application('lims_api')
         end
 
         ##
