@@ -60,6 +60,7 @@ module Lab
             mapping.update(pushed_at: Time.now)
           elsif order_dto[:_id] && Lab::LimsOrderMapping.where(lims_id: order_dto[:_id]).exists?
             Rails.logger.warn("Duplicate accession number found: #{order_dto[:_id]}, skipping order...")
+            order.void('Duplicate order') unless order.discontinued
             nil
           else
             Rails.logger.info("Creating order ##{order_dto['accession_number']} in LIMS")
@@ -85,6 +86,7 @@ module Lab
       def new_orders
         Rails.logger.debug('Looking for new orders that need to be created in LIMS...')
         Lab::LabOrder.where.not(order_id: Lab::LimsOrderMapping.all.select(:order_id))
+                     .order(date_created: :desc)
       end
 
       def updated_orders
@@ -98,6 +100,7 @@ module Lab
                              OR obs.date_created > :last_updated',
                             last_updated: last_updated)
                      .group('orders.order_id')
+                     .order(discontinued_date: :desc, date_created: :desc)
       end
 
       def voided_orders
@@ -106,6 +109,7 @@ module Lab
                      .where(order_type: OrderType.where(name: Lab::Metadata::ORDER_TYPE_NAME),
                             order_id: Lab::LimsOrderMapping.all.select(:order_id),
                             voided: 1)
+                     .order(date_voided: :desc)
       end
     end
   end
