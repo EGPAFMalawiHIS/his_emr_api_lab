@@ -7,6 +7,10 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [v1.1.9] - 2021-08-23
+
+- Crash in LIMS worker on attempt to push duplicate order
+
 ## [v1.1.8] - 2021-08-20
 
 ### Fixed

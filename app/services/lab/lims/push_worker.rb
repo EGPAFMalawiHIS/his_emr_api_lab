@@ -58,6 +58,9 @@ module Lab
             Rails.logger.info("Updating order ##{order_dto['accession_number']} in LIMS")
             lims_api.update_order(mapping.lims_id, order_dto)
             mapping.update(pushed_at: Time.now)
+          elsif order_dto[:_id] && Lab::LimsOrderMapping.where(lims_id: order_dto[:_id]).exists?
+            Rails.logger.warn("Duplicate accession number found: #{order_dto[:_id]}, skipping order...")
+            nil
           else
             Rails.logger.info("Creating order ##{order_dto['accession_number']} in LIMS")
             update = lims_api.create_order(order_dto)
