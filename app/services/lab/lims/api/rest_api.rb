@@ -44,9 +44,6 @@ class Lab::Lims::Api::RestApi
 
   def consume_orders(*_args, patient_id: nil, **_kwargs)
     orders_pending_updates(patient_id).each do |order|
-      mapping = Lab::LimsOrderMapping.find_by(order_id: order.order_id)
-      next if mapping.nil? || check_and_fix_duplicate!(mapping, order)
-
       order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
 
       if order_dto['priority'].nil? || order_dto['sample_type'].casecmp?('not_specified')
@@ -389,6 +386,7 @@ class Lab::Lims::Api::RestApi
     unknown_specimen = ConceptName.where(name: Lab::Metadata::UNKNOWN_SPECIMEN)
                                   .select(:concept_id)
     orders = Lab::LabOrder.where(concept_id: unknown_specimen)
+                          .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
     orders = orders.where(patient_id: patient_id) if patient_id
 
     orders
@@ -397,6 +395,7 @@ class Lab::Lims::Api::RestApi
   def orders_without_results(patient_id = nil)
     Rails.logger.debug('Looking for orders without a result')
     Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
+                            .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
   end
 
   def orders_without_reason(patient_id = nil)
@@ -404,28 +403,9 @@ class Lab::Lims::Api::RestApi
     orders = Lab::LabOrder.joins(:reason_for_test)
                           .merge(Observation.where(value_coded: nil, value_text: nil))
                           .limit(1000)
+                          .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
     orders = orders.where(patient_id: patient_id) if patient_id
 
     orders
-  end
-
-  # Checks for duplicates previously created due to this proving orders that have
-  # not been pushed to LIMS as orders awaiting updates.
-  def check_and_fix_duplicate!(mapping, order)
-    duplicate_orders = Lab::LabOrder.where(accession_number: mapping.lims_id)
-                                    .where.not(order_id: mapping.order_id)
-    return false if duplicate_orders.size.zero?
-
-    unless order.discontinued
-      order.void('Duplicate created due to bug in HIS-EMR-API-Lab v1.1.7')
-      mapping.destroy
-      return true
-    end
-
-    duplicate_orders.each do |duplicate_order|
-      duplicate_order.void("Has duplicate that contains updates ##{order.order_id}: Duplicate was created by bug in HIS-EMR-API-Lab v1.1.7")
-    end
-
-    true
   end
 end

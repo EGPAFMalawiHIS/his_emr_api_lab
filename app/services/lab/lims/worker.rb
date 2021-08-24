@@ -13,8 +13,8 @@ module Lab
         User.current = Utils.lab_user
 
         fork(&method(:start_push_worker))
-        fork(&method(:start_pull_worker))
-        fork(&method(:start_realtime_pull_worker)) if realtime_updates_enabled?
+        # fork(&method(:start_pull_worker))
+        # fork(&method(:start_realtime_pull_worker)) if realtime_updates_enabled?
 
         Process.waitall
       end
@@ -43,9 +43,12 @@ module Lab
         end
       end
 
+      LOG_FILES_TO_KEEP = 5
+      LOG_FILE_SIZE = 500.megabytes
+
       def self.start_worker(worker_name)
-        Rails.logger = LoggerMultiplexor.new(log_path("#{worker_name}.log"), $stdout)
-        # ActiveRecord::Base.logger = Rails.logger
+        Rails.logger = LoggerMultiplexor.new(file_logger(worker_name), $stdout)
+        ActiveRecord::Base.logger = Rails.logger
         Rails.logger.level = :debug
 
         File.open(log_path("#{worker_name}.lock"), File::RDWR | File::CREAT, 0o644) do |fout|
@@ -58,6 +61,10 @@ module Lab
           fout.flush
           yield
         end
+      end
+
+      def self.file_logger(worker_name)
+        Logger.new(log_path("#{worker_name}.log"), LOG_FILES_TO_KEEP, LOG_FILE_SIZE)
       end
 
       def self.log_path(filename)

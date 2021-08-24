@@ -17,21 +17,17 @@ module Lab
         loop do
           logger.info('Looking for new orders to push to LIMS...')
           orders = orders_pending_sync(batch_size).all
+
+          logger.debug("Found #{orders.size} orders...")
           orders.each do |order|
             push_order(order)
           rescue GatewayError => e
             logger.error("Failed to push order ##{order.accession_number}: #{e.class} - #{e.message}")
-            sleep(Lab::Lims::Config.updates_poll_frequency)
           end
 
-          # Doing this after .each above to stop ActiveRecord from executing
-          # an extra request to the database (ActiveRecord's lazy evaluation
-          # sometimes leads to unnecessary database hits for checking counts).
-          if orders.empty? && !wait
-            logger.info('Finished processing orders; exiting...')
-            break
-          end
+          break unless wait
 
+          logger.info('Waiting for orders...')
           sleep(Lab::Lims::Config.updates_poll_frequency)
         end
       end
@@ -51,19 +47,20 @@ module Lab
 
         ActiveRecord::Base.transaction do
           if mapping && !order.voided.zero?
-            Rails.logger.info("Deleting order ##{order_dto['accession_number']} from LIMS")
+            Rails.logger.info("Deleting order ##{order_dto[:accession_number]} from LIMS")
             lims_api.delete_order(mapping.lims_id, order_dto)
             mapping.destroy
           elsif mapping
-            Rails.logger.info("Updating order ##{order_dto['accession_number']} in LIMS")
+            Rails.logger.info("Updating order ##{order_dto[:accession_number]} in LIMS")
             lims_api.update_order(mapping.lims_id, order_dto)
             mapping.update(pushed_at: Time.now)
           elsif order_dto[:_id] && Lab::LimsOrderMapping.where(lims_id: order_dto[:_id]).exists?
+            # HACK: v1.1.7 had a bug where duplicates of recently created orders where being created by
+            # the pull worker. This here detects those duplicates and voids them.
             Rails.logger.warn("Duplicate accession number found: #{order_dto[:_id]}, skipping order...")
-            order.void('Duplicate order') unless order.discontinued
-            nil
+            fix_duplicates!(order)
           else
-            Rails.logger.info("Creating order ##{order_dto['accession_number']} in LIMS")
+            Rails.logger.info("Creating order ##{order_dto[:accession_number]} in LIMS")
             update = lims_api.create_order(order_dto)
             Lab::LimsOrderMapping.create!(order: order, lims_id: update['id'], revision: update['rev'],
                                           pushed_at: Time.now)
@@ -110,6 +107,33 @@ module Lab
                             order_id: Lab::LimsOrderMapping.all.select(:order_id),
                             voided: 1)
                      .order(date_voided: :desc)
+      end
+
+      ##
+      # HACK: Checks for duplicates previously created by version 1.1.7 pull worker bug due to this proving orders
+      # that have not been pushed to LIMS as orders awaiting updates.
+      def fix_duplicates!(order)
+        return order.void('Duplicate created by bug in HIS-EMR-API-Lab v1.1.7') unless order_has_specimen?(order)
+
+        duplicate_order = Lab::LabOrder.where(accession_number: order.accession_number)
+                                       .where.not(order_id: order.order_id)
+                                       .first
+        return unless duplicate_order
+
+        if !order_has_results?(order) && (order_has_results?(duplicate_order) || order_has_specimen?(duplicate_order))
+          order.void('DUplicate created by bug in HIS-EMR-API-Lab v1.1.7')
+        else
+          duplicate_order.void('Duplicate created by bug in HIS-EMR-API-Lab v1.1.7')
+          Lab::LimsOrderMapping.find_by_lims_id(order.accession_number)&.destroy
+        end
+      end
+
+      def order_has_results?(order)
+        order.results.exists?
+      end
+
+      def order_has_specimen?(order)
+        order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
       end
     end
   end
