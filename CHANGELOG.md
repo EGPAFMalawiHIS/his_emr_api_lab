@@ -7,7 +7,8 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
-## [v1.1.10] - 2021-08-23
+## [v1.1.11] - 2021-08-24
+## [v1.1.10] - 2021-08-23 - Yanked, was super buggy, superseded by the above
 
 ### Added
 
