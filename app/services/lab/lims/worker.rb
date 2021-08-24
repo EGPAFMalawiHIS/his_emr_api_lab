@@ -13,8 +13,8 @@ module Lab
         User.current = Utils.lab_user
 
         fork(&method(:start_push_worker))
-        # fork(&method(:start_pull_worker))
-        # fork(&method(:start_realtime_pull_worker)) if realtime_updates_enabled?
+        fork(&method(:start_pull_worker))
+        fork(&method(:start_realtime_pull_worker)) if realtime_updates_enabled?
 
         Process.waitall
       end
