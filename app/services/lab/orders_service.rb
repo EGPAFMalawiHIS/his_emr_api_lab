@@ -169,6 +169,8 @@ module Lab
       ##
       # Attach the lab where the test is going to get carried out.
       def add_target_lab(order, params)
+        return nil unless params['target_lab']
+
         create_order_observation(
           order,
           Lab::Metadata::TARGET_LAB_CONCEPT_NAME,

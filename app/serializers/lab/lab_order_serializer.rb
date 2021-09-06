@@ -6,7 +6,7 @@ module Lab
       tests ||= order.voided == 1 ? voided_tests(order) : order.tests
       requesting_clinician ||= order.requesting_clinician
       reason_for_test ||= order.reason_for_test
-      target_lab ||= order.target_lab
+      target_lab = target_lab || order.target_lab || Location.current_health_center.name
 
       ActiveSupport::HashWithIndifferentAccess.new(
         {

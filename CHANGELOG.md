@@ -7,6 +7,13 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+## [v1.1.13] - 2021-09-06
+
+### Fixed
+
+- Crash in push_worker when pushing orders missing a target lab
+
+
 ## [v1.1.12] - 2021-08-24
 ## [v1.1.10] - 2021-08-23 - Yanked, was super buggy, superseded by the above
 
