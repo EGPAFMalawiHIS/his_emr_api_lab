@@ -2,6 +2,8 @@
 
 module Lab
   module Lims
+    ##
+    # Pushes all local orders to a LIMS Api object.
     class PushWorker
       attr_reader :lims_api
 
@@ -33,7 +35,9 @@ module Lab
       end
 
       def push_order_by_id(order_id)
-        order = Lab::LabOrder.unscoped.find(order_id)
+        order = Lab::LabOrder.joins(order_type: { name: 'Lab' })
+                             .unscoped
+                             .find(order_id)
         push_order(order)
       end
 

@@ -48,6 +48,10 @@ RSpec.configure do |config|
 
   config.before(:each) do
     User.current = create(:user)
+    GlobalProperty.create(
+      property: 'current_health_center_id',
+      property_value: create(:location, city_village: Faker::Address.city).location_id
+    )
   end
 
   # The settings below are suggested to provide a good initial experience

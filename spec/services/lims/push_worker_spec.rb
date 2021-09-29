@@ -12,6 +12,7 @@ RSpec.describe Lab::Lims::PushWorker do
 
   before(:each) do
     @location = create(:location, parent: create(:location))
+    GlobalProperty.find_by(property: 'current_health_center_id')&.delete
     create(:global_property, property: 'current_health_center_id', property_value: @location.location_id)
     create(:concept_name, name: 'Unknown')
   end

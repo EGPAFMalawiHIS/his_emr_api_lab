@@ -2,6 +2,8 @@
 
 module Lab
   module Lims
+    ##
+    # Pulls orders from a Lims API object and saves them to the local database.
     class PullWorker
       attr_reader :lims_api
 
@@ -100,9 +102,7 @@ module Lab
                           .distinct(:patient_id)
                           .all
 
-        if patients.size > 1
-          raise DuplicateNHID, "Duplicate National Health ID: #{nhid}"
-        end
+        raise DuplicateNHID, "Duplicate National Health ID: #{nhid}" if patients.size > 1
 
         patients.first
       end
@@ -166,9 +166,7 @@ module Lab
       def create_order(patient, order_dto)
         logger.debug("Creating order ##{order_dto['_id']}")
         order = OrdersService.order_test(order_dto.to_order_service_params(patient_id: patient.patient_id))
-        unless order_dto['test_results'].empty?
-          update_results(order, order_dto['test_results'])
-        end
+        update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
 
         order
       end
@@ -177,9 +175,7 @@ module Lab
         logger.debug("Updating order ##{order_dto['_id']}")
         order = OrdersService.update_order(order_id, order_dto.to_order_service_params(patient_id: patient.patient_id)
                                                               .merge(force_update: 'true'))
-        unless order_dto['test_results'].empty?
-          update_results(order, order_dto['test_results'])
-        end
+        update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
 
         order
       end
@@ -283,9 +279,7 @@ module Lab
         mapping = Lab::LimsOrderMapping.find_by(lims_id: lims_id)
         return nil unless mapping
 
-        if Lab::LabOrder.where(order_id: mapping.order_id).exists?
-          return mapping
-        end
+        return mapping if Lab::LabOrder.where(order_id: mapping.order_id).exists?
 
         mapping.destroy
         nil

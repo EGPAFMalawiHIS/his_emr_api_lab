@@ -46,9 +46,20 @@ require_relative 'utils'
 
 module Lab
   module Lims
+    ##
+    # Tools for performing a bulk import of data from LIMS' databases to local OpenMRS database.
+    #
+    # Migration sources supported:
+    #   - MySQL
+    #   - CouchDB
+    #
+    # The sources above can be changed by setting the environment various MIGRATION_SOURCE to
+    # either mysql or couchdb.
     module Migrator
       MAX_THREADS = ENV.fetch('MIGRATION_WORKERS', 6).to_i
 
+      ##
+      # A Lab::Lims::Api object that supports crawling of a LIMS CouchDB instance.
       class CouchDbMigratorApi < Lab::Lims::Api::CouchDbApi
         def initialize(*args, processes: 1, on_merge_processes: nil, **kwargs)
           super(*args, **kwargs)
@@ -91,6 +102,12 @@ module Lab
         end
       end
 
+      ##
+      # Extends the PullWorker to provide pause/resume capabilities.
+      #
+      # Migrations can be take a long time to complete, in cases where something
+      # went wrong you wouldn't to start all over. This worker thus saves
+      # progress and allows for the process to continue from whether it stopped.
       class MigrationWorker < PullWorker
         LOG_FILE_PATH = Utils::LIMS_LOG_PATH.join('migration-last-id.dat')
 
