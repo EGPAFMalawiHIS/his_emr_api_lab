@@ -79,11 +79,7 @@ module Lab
       end
 
       def self.lims_api
-        case Lims::Config.preferred_api
-        when /couchdb/i then Api::CouchDbApi.new(config: Lab::Lims::Config.couchdb)
-        when /rest/i then Api::RestApi.new(Lab::Lims::Config.rest_api)
-        else raise "Invalid LIMS API in application.yml, expected 'rest' or 'couchdb'"
-        end
+        Lab::Lims::ApiFactory.create_api
       end
     end
   end

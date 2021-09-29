@@ -20,8 +20,7 @@ module Lab
           break false
         end
 
-        lims_api = Lab::Lims::Api::RestApi.new(Lab::Lims::Config.rest_api)
-        worker = Lab::Lims::PullWorker.new(lims_api)
+        worker = Lab::Lims::PullWorker.new(Lab::Lims::ApiFactory.create_api)
         worker.pull_orders(patient_id: patient_id)
 
         true
