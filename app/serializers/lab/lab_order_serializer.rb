@@ -6,7 +6,7 @@ module Lab
       tests ||= order.voided == 1 ? voided_tests(order) : order.tests
       requesting_clinician ||= order.requesting_clinician
       reason_for_test ||= order.reason_for_test
-      target_lab = target_lab || order.target_lab || Location.current_health_center.name
+      target_lab = target_lab&.value_text || order.target_lab&.value_text || Location.current_health_center&.name
 
       ActiveSupport::HashWithIndifferentAccess.new(
         {
@@ -21,7 +21,7 @@ module Lab
             name: concept_name(order.concept_id)
           },
           requesting_clinician: requesting_clinician&.value_text,
-          target_lab: target_lab&.value_text,
+          target_lab: target_lab,
           reason_for_test: {
             concept_id: reason_for_test&.value_coded,
             name: concept_name(reason_for_test&.value_coded)
