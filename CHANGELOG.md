@@ -7,6 +7,12 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### [v1.1.14] - 2021-09-30
+
+### Added
+
+- Near realtime pushing of order updates to LIMS
+
 ## [v1.1.13] - 2021-09-06
 
 ### Fixed
