@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    his_emr_api_lab (1.1.14)
+    his_emr_api_lab (1.1.15)
       couchrest (~> 2.0.0)
       parallel (~> 1.20.1)
       rails (~> 5.2.4, >= 5.2.4.3)
