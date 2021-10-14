@@ -44,7 +44,7 @@ module Lab
     scope :drawn, -> { where.not(concept_id: ConceptName.where(name: 'Unknown').select(:concept_id)) }
     scope :not_drawn, -> { where(concept_id: ConceptName.where(name: 'Unknown').select(:concept_id)) }
 
-    after_save :queue_lims_push
+    after_commit :queue_lims_push
 
     def self.prefetch_relationships
       includes(:reason_for_test,
