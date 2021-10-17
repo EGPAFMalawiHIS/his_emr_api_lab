@@ -44,19 +44,11 @@ module Lab
     scope :drawn, -> { where.not(concept_id: ConceptName.where(name: 'Unknown').select(:concept_id)) }
     scope :not_drawn, -> { where(concept_id: ConceptName.where(name: 'Unknown').select(:concept_id)) }
 
-    after_commit :queue_lims_push
-
     def self.prefetch_relationships
       includes(:reason_for_test,
                :requesting_clinician,
                :target_lab,
                tests: [:result])
-    end
-
-    private
-
-    def queue_lims_push
-      Lab::PushOrderJob.perform_later(order_id)
     end
   end
 end

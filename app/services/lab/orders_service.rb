@@ -100,7 +100,6 @@ module Lab
 
         order.tests.each { |test| test.void(reason) }
         voided = order.void(reason)
-        Lab::VoidOrderJob.perform_later(order_id)
 
         voided
       end

@@ -5,14 +5,6 @@ module Lab
   module OrdersSearchService
     class << self
       def find_orders(filters)
-        # A bit of hack-ish solution to have a patient's orders updated upon
-        # scanning of a patient. Done in this way to deal with LIMS' lack of
-        # a notification system for lab order updates. We are limited to polling
-        # for updates on a per order basis.
-        if filters[:patient_id]
-          Lab::UpdatePatientOrdersJob.perform_later(filters[:patient_id])
-        end
-
         extra_filters = pop_filters(filters, :date, :end_date, :status)
 
         orders = Lab::LabOrder.prefetch_relationships
@@ -39,13 +31,9 @@ module Lab
         date = date&.to_date
         end_date = end_date&.to_date
 
-        if date && end_date
-          return orders.where('start_date BETWEEN ? AND ?', date, end_date + 1.day)
-        end
+        return orders.where('start_date BETWEEN ? AND ?', date, end_date + 1.day) if date && end_date
 
-        if date
-          return orders.where('start_date BETWEEN ? AND ?', date, date + 1.day)
-        end
+        return orders.where('start_date BETWEEN ? AND ?', date, date + 1.day) if date
 
         return orders.where('start_date < ?', end_date + 1.day) if end_date
 

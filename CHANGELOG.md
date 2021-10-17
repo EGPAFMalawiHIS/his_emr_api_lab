@@ -7,6 +7,10 @@ Versioning follows Semantic versioning which is documented [here](https://semver
 
 ## Unreleased
 
+### Fixed
+
+- Hanging of OrderService#create_order and other methods when run outside of a rails request
+
 ## [v1.1.15] - 2021-10-14
 
 ### Fixed

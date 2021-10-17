@@ -14,7 +14,8 @@ class Lab::TestsController < ::ApplicationController
     order_id, test_concepts = test_params.require(%i[order_id tests])
     date = test_params[:date] || Date.today
 
-    tests = service.create_tests(Order.find(order_id), date, test_concepts)
+    tests = service.create_tests(Lab::LabOrder.find(order_id), date, test_concepts)
+    Lab::PushOrderJob.perform_later(order_id)
 
     render json: tests, status: :created
   end
