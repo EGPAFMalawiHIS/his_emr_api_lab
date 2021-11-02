@@ -395,7 +395,7 @@ class Lab::Lims::Api::RestApi
   def orders_without_results(patient_id = nil)
     Rails.logger.debug('Looking for orders without a result')
     Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
-                            .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
+                            .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id).where("pulled_at IS NULL"))
   end
 
   def orders_without_reason(patient_id = nil)
