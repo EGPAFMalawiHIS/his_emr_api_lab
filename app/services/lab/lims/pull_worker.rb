@@ -45,7 +45,7 @@ module Lab
           end
 
           update_last_seq(context.current_seq)
-        rescue DuplicateNHID
+        rescue Lab::Lims::DuplicateNHID
           logger.warn("Failed to import order due to duplicate patient NHID: #{order_dto[:patient][:id]}")
           save_failed_import(order_dto, "Duplicate local patient NHID: #{order_dto[:patient][:id]}")
         rescue MissingAccessionNumber
@@ -102,7 +102,7 @@ module Lab
                           .distinct(:patient_id)
                           .all
 
-        raise DuplicateNHID, "Duplicate National Health ID: #{nhid}" if patients.size > 1
+        raise Lab::Lims::DuplicateNHID, "Duplicate National Health ID: #{nhid}" if patients.size > 1
 
         patients.first
       end
@@ -182,14 +182,14 @@ module Lab
 
       def update_results(order, lims_results)
         logger.debug("Updating results for order ##{order[:accession_number]}: #{lims_results}")
-
+        
         lims_results.each do |test_name, test_results|
           test = find_test(order['id'], test_name)
           unless test
             logger.warn("Couldn't find test, #{test_name}, in order ##{order[:id]}")
             next
           end
-
+          
           next if test.result || test_results['results'].blank?
 
           measures = test_results['results'].map do |indicator, value|
@@ -198,7 +198,7 @@ module Lab
 
             measure
           end
-
+          
           measures = measures.compact
           next if measures.empty?
 

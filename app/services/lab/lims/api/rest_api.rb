@@ -377,7 +377,7 @@ class Lab::Lims::Api::RestApi
     orders_without_specimen(patient_id).each { |order| orders[order.order_id] = order }
     orders_without_results(patient_id).each { |order| orders[order.order_id] = order }
     orders_without_reason(patient_id).each { |order| orders[order.order_id] = order }
-
+    
     orders.values
   end
 
@@ -394,8 +394,10 @@ class Lab::Lims::Api::RestApi
 
   def orders_without_results(patient_id = nil)
     Rails.logger.debug('Looking for orders without a result')
+    # Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
+    #                         .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id).where("pulled_at IS NULL"))
     Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
-                            .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id).where("pulled_at IS NULL"))
+                             .where(order_id: Lab::LimsOrderMapping.select(:order_id))
   end
 
   def orders_without_reason(patient_id = nil)
