@@ -98,7 +98,7 @@ module Lab
 
         Lab::LabOrder.left_joins(:results)
                      .where('orders.discontinued_date > :last_updated
-                             OR obs.date_created > :last_updated',
+                             OR obs.date_created > orders.date_created',
                             last_updated: last_updated)
                      .group('orders.order_id')
                      .order(discontinued_date: :desc, date_created: :desc)
