@@ -57,7 +57,11 @@ module Lab
           elsif mapping
             Rails.logger.info("Updating order ##{order_dto[:accession_number]} in LIMS")
             lims_api.update_order(mapping.lims_id, order_dto)
-            mapping.update(pushed_at: Time.now)
+            if order_dto['test_results'].nil? || order_dto['test_results'].empty?
+              mapping.update(pushed_at: Time.now)             
+            else
+              mapping.update(pushed_at: Time.now, result_push_status: true)  
+           end
           elsif order_dto[:_id] && Lab::LimsOrderMapping.where(lims_id: order_dto[:_id]).exists?
             # HACK: v1.1.7 had a bug where duplicates of recently created orders where being created by
             # the pull worker. This here detects those duplicates and voids them.
@@ -67,7 +71,7 @@ module Lab
             Rails.logger.info("Creating order ##{order_dto[:accession_number]} in LIMS")
             update = lims_api.create_order(order_dto)
             Lab::LimsOrderMapping.create!(order: order, lims_id: update['id'], revision: update['rev'],
-                                          pushed_at: Time.now)
+                                          pushed_at: Time.now, result_push_status: false)
           end
         end
 
@@ -97,8 +101,9 @@ module Lab
                                             .last_updated
 
         Lab::LabOrder.left_joins(:results)
+                     .joins(:mapping)
                      .where('orders.discontinued_date > :last_updated
-                             OR obs.date_created > orders.date_created',
+                             OR obs.date_created > orders.date_created AND lab_lims_order_mappings.result_push_status = 0',
                             last_updated: last_updated)
                      .group('orders.order_id')
                      .order(discontinued_date: :desc, date_created: :desc)

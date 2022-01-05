@@ -35,6 +35,10 @@ module Lab
             class_name: 'Observation',
             foreign_key: :order_id
 
+    has_one :mapping,
+            class_name: '::Lab::LimsOrderMapping',
+            foreign_key: :order_id
+
     default_scope do
       joins(:order_type)
         .merge(OrderType.where(name: Lab::Metadata::ORDER_TYPE_NAME))
