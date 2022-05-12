@@ -72,7 +72,7 @@ module Lab
 
         def find_current_regimen(patient_id)
           regimen_data = ActiveRecord::Base.connection.select_one <<~SQL
-            SELECT patient_current_regimen(#{patient_id}, DATE('#{@end_date.to_date}')) regimen;
+            SELECT patient_current_regimen(#{patient_id}, DATE('#{@end_date.to_date}')) regimen
           SQL
           return nil if regimen_data.blank?
 
@@ -84,6 +84,15 @@ module Lab
                            .merge(PatientIdentifierType.where(name: 'ARV Number'))
                            .where(patient_id: patient_id)
                            .first&.identifier
+        end
+
+        def find_art_start_date(patient_id)
+          start_date = ActiveRecord::Base.connection.select_one <<~SQL
+            SELECT date_antiretrovirals_started(#{patient_id}, current_date()) AS earliest_date
+          SQL
+          return nil if start_date.blank?
+
+          start_date['earliest_date']
         end
 
         def format_sample_type(name)
