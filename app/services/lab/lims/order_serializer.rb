@@ -70,6 +70,15 @@ module Lab
           }
         end
 
+        def find_current_regimen(patient_id)
+          regimen_data = ActiveRecord::Base.connection.select_one <<~SQL
+            SELECT patient_current_regimen(#{patient_id}, DATE('#{@end_date.to_date}')) regimen;
+          SQL
+          return nil if regimen_data.blank?
+
+          regimen_data['regimen']
+        end
+
         def format_sample_type(name)
           return 'not_specified' if name.casecmp?('Unknown')
 
