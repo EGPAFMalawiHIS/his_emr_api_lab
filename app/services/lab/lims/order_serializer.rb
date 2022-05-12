@@ -79,6 +79,13 @@ module Lab
           regimen_data['regimen']
         end
 
+        def find_arv_number(patient_id)
+          PatientIdentifier.joins(:type)
+                           .merge(PatientIdentifierType.where(name: 'ARV Number'))
+                           .where(patient_id: patient_id)
+                           .first&.identifier
+        end
+
         def format_sample_type(name)
           return 'not_specified' if name.casecmp?('Unknown')
 
