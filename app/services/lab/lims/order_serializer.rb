@@ -75,7 +75,7 @@ module Lab
 
         def find_current_regimen(patient_id)
           regimen_data = ActiveRecord::Base.connection.select_one <<~SQL
-            SELECT patient_current_regimen(#{patient_id}, DATE('#{@end_date.to_date}')) regimen
+            SELECT patient_current_regimen(#{patient_id}, current_date()) regimen
           SQL
           return nil if regimen_data.blank?
 
