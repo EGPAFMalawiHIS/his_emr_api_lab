@@ -14,7 +14,7 @@ module Lab
     end
 
     def update
-      specimen = params.require(:specimen).permit(:concept_id)
+      specimen = params.require(:specimen).slice(:concept_id)
       order = OrdersService.update_order(params[:id], specimen: specimen, force_update: params[:force_update])
       Lab::PushOrderJob.perform_later(order.fetch(:order_id))
 
@@ -22,7 +22,7 @@ module Lab
     end
 
     def index
-      filters = params.permit(%i[patient_id accession_number date status])
+      filters = params.slice(:patient_id, :accession_number, :date, :status)
 
       Lab::UpdatePatientOrdersJob.perform_later(filters[:patient_id]) if filters[:patient_id]
       render json: OrdersSearchService.find_orders(filters)
