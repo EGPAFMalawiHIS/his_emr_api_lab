@@ -11,8 +11,8 @@ module Lab
                               .where(filters)
                               .order(start_date: :desc)
 
-        orders = filter_orders_by_status(orders, pop_filters(extra_filters, :status))
-        orders = filter_orders_by_date(orders, extra_filters)
+        orders = filter_orders_by_status(orders, **pop_filters(extra_filters, :status))
+        orders = filter_orders_by_date(orders, **extra_filters)
 
         orders.map { |order| Lab::LabOrderSerializer.serialize_order(order) }
       end
