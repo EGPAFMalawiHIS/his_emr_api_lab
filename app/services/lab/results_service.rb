@@ -15,7 +15,10 @@ module Lab
       #     - measures: An array of measures. A measure is an object of the following structure
       #         - indicator: An object that has a concept_id field (concept_id of the indicator)
       #         - value_type: An enum that's limited to 'numeric', 'boolean', 'text', and 'coded'
-      def create_results(test_id, params)
+      #   result_enter_by: A string that specifies who created the result
+      def create_results(test_id, params, result_enter_by = 'LIMS')
+        serializer = {}
+        results_obs = {}
         ActiveRecord::Base.transaction do
           test = Lab::LabTest.find(test_id)
           encounter = find_encounter(test, encounter_id: params[:encounter_id],
@@ -24,12 +27,33 @@ module Lab
 
           results_obs = create_results_obs(encounter, test, params[:date], params[:comments])
           params[:measures].map { |measure| add_measure_to_results(results_obs, measure, params[:date]) }
+          OrderExtension.create!(creator: User.current, value: result_enter_by, order_id: results_obs.order_id,
+                                 date_created: Time.now)
 
-          Lab::ResultSerializer.serialize(results_obs)
+          serializer = Lab::ResultSerializer.serialize(results_obs)
         end
+        NotificationService.new.create_notification(result_enter_by, prepare_notification_message(results_obs, serializer, result_enter_by))
+        Rails.logger.info("Lab::ResultsService: Result created for test #{test_id} #{serializer}")
+        serializer
       end
 
       private
+
+      def prepare_notification_message(result, values, result_enter_by)
+        { Type: result_enter_by,
+          'Test type': ConceptName.find_by(concept_id: result.test.value_coded)&.name,
+          'Accession number': Order.find(result.order_id)&.accession_number,
+          'ARV-Number': find_arv_number(result.person_id),
+          PatientID: result.person_id,
+          Result: values }.as_json
+      end
+
+      def find_arv_number(patient_id)
+        PatientIdentifier.joins(:type)
+                         .merge(PatientIdentifierType.where(name: 'ARV Number'))
+                         .where(patient_id: patient_id)
+                         .first&.identifier
+      end
 
       def find_encounter(test, encounter_id: nil, date: nil, provider_id: nil)
         return Encounter.find(encounter_id) if encounter_id
@@ -64,6 +88,7 @@ module Lab
                                         obs_group_id: test.obs_id)
         return unless result
 
+        OrderExtension.find_by(order_id: result.order_id)&.void("Updated/overwritten by #{User.current.username}")
         result.measures.map { |child_obs| child_obs.void("Updated/overwritten by #{User.current.username}") }
         result.void("Updated/overwritten by #{User.current.username}")
       end
