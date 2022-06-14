@@ -46,7 +46,7 @@ module Lab
           'Accession number': order&.accession_number,
           'ARV-Number': find_arv_number(result.person_id),
           PatientID: result.person_id,
-          OrderedBy: order&.provider&.person&.name,
+          'Ordered By': order&.provider&.person&.name,
           Result: values }.as_json
       end
 
