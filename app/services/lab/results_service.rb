@@ -40,11 +40,13 @@ module Lab
       private
 
       def prepare_notification_message(result, values, result_enter_by)
+        order = Order.find(result.order_id)
         { Type: result_enter_by,
           'Test type': ConceptName.find_by(concept_id: result.test.value_coded)&.name,
-          'Accession number': Order.find(result.order_id)&.accession_number,
+          'Accession number': order&.accession_number,
           'ARV-Number': find_arv_number(result.person_id),
           PatientID: result.person_id,
+          OrderedBy: order&.provider&.person&.name,
           Result: values }.as_json
       end
 
