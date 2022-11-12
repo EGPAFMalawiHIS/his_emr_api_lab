@@ -27,6 +27,13 @@ module Lab
         end
       end
 
+      def self.start_acknowledgement_worker
+        start_worker('acknowledgement_worker') do
+          worker = AcknowledgementWorker.new(lims_api)
+          worker.push_acknowledgement
+        end
+      end
+
       def self.start_pull_worker
         start_worker('pull_worker') do
           worker = PullWorker.new(lims_api)
