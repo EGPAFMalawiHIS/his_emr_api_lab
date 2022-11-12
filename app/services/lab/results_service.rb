@@ -32,22 +32,30 @@ module Lab
 
           serializer = Lab::ResultSerializer.serialize(results_obs)
         end
-        NotificationService.new.create_notification(result_enter_by, prepare_notification_message(results_obs, serializer, result_enter_by))
+        process_acknowledgement(results_obs, result_enter_by)
+        precess_notification_message(results_obs, serializer, result_enter_by)
         Rails.logger.info("Lab::ResultsService: Result created for test #{test_id} #{serializer}")
         serializer
       end
 
       private
 
-      def prepare_notification_message(result, values, result_enter_by)
+      def precess_notification_message(result, values, result_enter_by)
         order = Order.find(result.order_id)
-        { Type: result_enter_by,
-          'Test type': ConceptName.find_by(concept_id: result.test.value_coded)&.name,
-          'Accession number': order&.accession_number,
-          'ARV-Number': find_arv_number(result.person_id),
-          PatientID: result.person_id,
-          'Ordered By': order&.provider&.person&.name,
-          Result: values }.as_json
+        data = { Type: result_enter_by,
+                 'Test type': ConceptName.find_by(concept_id: result.test.value_coded)&.name,
+                 'Accession number': order&.accession_number,
+                 'ARV-Number': find_arv_number(result.person_id),
+                 PatientID: result.person_id,
+                 'Ordered By': order&.provider&.person&.name,
+                 Result: values }.as_json
+        NotificationService.new.create_notification(result_enter_by, data) 
+      end
+
+      def process_acknowledgement(results, results_enter_by)
+        Lab::AcknowledgementService.create_acknowledgement({ order_id: results.order_id, test: results.test.value_coded,
+                                                             date_received: results.obs_datetime,
+                                                             entered_by: results_enter_by })
       end
 
       def find_arv_number(patient_id)

@@ -14,14 +14,14 @@ module Lab
             tracking_number: Lab::LabOrder.find(serialized_acknowledgement.order_id).accession_number,
             test_name: ::ConceptName.find(serialized_acknowledgement.test).name,
             date_acknowledged: format_date(serialized_acknowledgement.date_acknowledged),
-            acknowledgment_type: serialized_acknowledgement.acknowledgment_type
+            acknowledgment_type: serialized_acknowledgement.acknowledgement_type
           }
         end
 
         private
 
         def format_date(date)
-          date.strftime('%Y-%m-%d %H:%M:%S')
+          date.strftime('%Y%m%d %H:%M:%S')
         end
       end
     end
