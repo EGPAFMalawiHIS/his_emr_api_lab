@@ -32,6 +32,13 @@ class Lab::Lims::Api::RestApi
     )
   end
 
+  def acknowledge(acknowledgement_dto)
+    response = in_authenticated_session do |headers|
+      RestClient.post(expand_uri('/acknowledge/test/results/recipient'), make_update_params(acknowledgement_dto), headers)
+    end
+    JSON.parse(response)
+  end
+
   def update_order(_id, order_dto)
     in_authenticated_session do |headers|
       RestClient.post(expand_uri('update_order'), make_update_params(order_dto), headers)
