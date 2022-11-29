@@ -33,9 +33,11 @@ class Lab::Lims::Api::RestApi
   end
 
   def acknowledge(acknowledgement_dto)
+    Rails.logger.info("Acknowledging order ##{acknowledgement_dto} in LIMS")
     response = in_authenticated_session do |headers|
-      RestClient.post(expand_uri('/acknowledge/test/results/recipient'), make_update_params(acknowledgement_dto), headers)
+      RestClient.post(expand_uri('/acknowledge/test/results/recipient'), acknowledgement_dto, headers)
     end
+    Rails.logger.info("Acknowledged order ##{acknowledgement_dto} in LIMS. Response: #{response}")
     JSON.parse(response)
   end
 
@@ -388,7 +390,7 @@ class Lab::Lims::Api::RestApi
     orders_without_specimen(patient_id).each { |order| orders[order.order_id] = order }
     orders_without_results(patient_id).each { |order| orders[order.order_id] = order }
     orders_without_reason(patient_id).each { |order| orders[order.order_id] = order }
-    
+
     orders.values
   end
 

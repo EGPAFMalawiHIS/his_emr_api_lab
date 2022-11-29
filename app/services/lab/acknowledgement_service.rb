@@ -16,8 +16,8 @@ module Lab
                                .limit(batch_size)
       end
 
-      def push_acknowledgement(acknowledgement)
-        logger.info("Pushing acknowledgement ##{acknowledgement.order_id}")
+      def push_acknowledgement(acknowledgement, lims_api)
+        Rails.logger.info("Pushing acknowledgement ##{acknowledgement.order_id}")
 
         acknowledgement_dto = Lab::Lims::AcknowledgementSerializer.serialize_acknowledgement(acknowledgement)
         mapping = Lab::LimsOrderMapping.find_by(order_id: acknowledgement.order_id)
@@ -25,7 +25,8 @@ module Lab
         ActiveRecord::Base.transaction do
           if mapping
             Rails.logger.info("Updating acknowledgement ##{acknowledgement_dto[:tracking_number]} in LIMS")
-            response = lims_api.acknowledge(mapping.lims_id, acknowledgement_dto)
+            response = lims_api.acknowledge(acknowledgement_dto)
+            Rails.logger.info("Info #{response}")
             if response['status'] == 200 || response['message'] == 'results already delivered for test name given'
               acknowledgement.pushed = true
               acknowledgement.date_pushed = Time.now
