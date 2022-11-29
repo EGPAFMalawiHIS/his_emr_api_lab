@@ -54,7 +54,7 @@ module Lab
 
       def process_acknowledgement(results, results_enter_by)
         Lab::AcknowledgementService.create_acknowledgement({ order_id: results.order_id, test: results.test.value_coded,
-                                                             date_received: results.obs_datetime,
+                                                             date_received: Time.now,
                                                              entered_by: results_enter_by })
       end
 
