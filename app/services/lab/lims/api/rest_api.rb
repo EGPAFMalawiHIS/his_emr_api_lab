@@ -191,7 +191,7 @@ class Lab::Lims::Api::RestApi
       arv_number: order_dto.fetch(:patient).fetch(:arv_number),
       art_regimen: order_dto.fetch(:patient).fetch(:art_regimen),
       art_start_date: order_dto.fetch(:patient).fetch(:art_start_date),
-      dob: order_dto.fetch(:patient).fetch(:dob),
+      date_of_birth: order_dto.fetch(:patient).fetch(:dob),
       national_patient_id: order_dto.fetch(:patient).fetch(:id),
       requesting_clinician: requesting_clinician(order_dto),
       sample_type: order_dto.fetch(:sample_type),
