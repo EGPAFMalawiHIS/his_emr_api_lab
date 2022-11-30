@@ -67,6 +67,7 @@ module Lab
             arv_number: find_arv_number(patient_id),
             art_regimen: find_current_regimen(patient_id),
             art_start_date: find_art_start_date(patient_id),
+            dob: person.birthdate,
             phone_number: phone_number&.value || 'Unknown',
             gender: person.gender,
             email: nil
