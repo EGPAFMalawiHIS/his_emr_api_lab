@@ -21,7 +21,7 @@ module Lab
         private
 
         def format_date(date)
-          date.strftime('%Y%m%d %H:%M:%S')
+          date.strftime('%Y-%m-%d %H:%M:%S')
         end
       end
     end
