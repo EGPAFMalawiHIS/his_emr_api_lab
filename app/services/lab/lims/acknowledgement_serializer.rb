@@ -12,7 +12,7 @@ module Lab
           serialized_acknowledgement = Lims::Utils.structify(acknowledgement)
           {
             tracking_number: Lab::LabOrder.find(serialized_acknowledgement.order_id).accession_number,
-            test: ::ConceptName.where(concept_id: serialized_acknowledgement.test, concept_name_type: nil).first.name,
+            test: ::ConceptName.where(concept_id: serialized_acknowledgement.test).first.name,
             date_acknowledged: format_date(serialized_acknowledgement.date_received),
             recipient_type: serialized_acknowledgement.acknowledgement_type
           }
