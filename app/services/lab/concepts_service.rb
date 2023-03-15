@@ -8,7 +8,7 @@ module Lab
       test_types = test_types.filter_members(name: name) if name
 
       unless specimen_type
-        return test_types.joins('INNER JOIN concept_name ON concept_set.concept_id = concept_name.concept_id')
+        return test_types.joins('INNER JOIN concept_name ON concept_set.concept_id = concept_name.concept_id AND concept_name.voided = 0 AND concept_name.locale_preferred = 1')
                          .select('concept_name.name, concept_name.concept_id')
                          .group('concept_name.concept_id')
       end
