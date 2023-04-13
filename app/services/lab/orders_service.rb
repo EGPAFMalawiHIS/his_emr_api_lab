@@ -104,6 +104,10 @@ module Lab
         voided
       end
 
+      def check_tracking_number(tracking_number)
+        accession_number_exists?(tracking_number) || nlims_accession_number_exists?(tracking_number)
+      end
+
       private
 
       ##
