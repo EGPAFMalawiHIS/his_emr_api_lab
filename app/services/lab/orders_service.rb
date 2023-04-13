@@ -52,6 +52,10 @@ module Lab
       def order_test(order_params)
         Order.transaction do
           encounter = find_encounter(order_params)
+          if order_params[:accession_number].present? && check_tracking_number(order_params[:accession_number])
+            raise 'Accession number already exists'
+          end
+
           order = create_order(encounter, order_params)
 
           Lab::TestsService.create_tests(order, order_params[:date], order_params[:tests])
