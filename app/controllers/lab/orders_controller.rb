@@ -28,6 +28,12 @@ module Lab
       render json: OrdersSearchService.find_orders(filters)
     end
 
+    def verify_tracking_number
+      tracking_number = params.require(:tracking_number)
+      result = OrdersService.nlims_accession_number_exists?(tracking_number) || OrdersService.accession_number_exists?(tracking_number)
+      render json: { exists: result }, status: :ok
+    end
+
     def destroy
       OrdersService.void_order(params[:id], params[:reason])
       Lab::VoidOrderJob.perform_later(params[:id])
