@@ -29,9 +29,8 @@ module Lab
     end
 
     def verify_tracking_number
-      tracking_number = params.require(:tracking_number)
-      result = OrdersService.nlims_accession_number_exists?(tracking_number) || OrdersService.accession_number_exists?(tracking_number)
-      render json: { exists: result }, status: :ok
+      tracking_number = params.require(:accession_number)
+      render json: { exists: OrdersService.check_tracking_number(tracking_number) }, status: :ok
     end
 
     def destroy
