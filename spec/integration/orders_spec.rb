@@ -341,4 +341,30 @@ describe 'orders' do
       end
     end
   end
+
+  path '/api/v1/lab/accession_number' do
+    get 'Verify accession number' do
+      tags 'Orders'
+      description 'Verify if an accession number is valid and exists'
+      produces 'application/json'
+      consumes 'application/json'
+      parameter name: :accession_number, in: :query, type: :string, required: true
+      security [api_key: []]
+
+      let(:Authorization) { 'dummy' }
+      let(:accession_number) { '12345' }
+
+      response 200, 'Success' do
+        schema type: :object, properties: {
+          exists: { type: :boolean }
+        }
+
+        run_test! do |response|
+          response = JSON.parse(response.body)
+
+          expect(response['exists']).to be false
+        end
+      end
+    end
+  end
 end
