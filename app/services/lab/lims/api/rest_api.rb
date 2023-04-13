@@ -87,6 +87,10 @@ class Lab::Lims::Api::RestApi
     end
   end
 
+  def verify_tracking_number(tracking_number)
+    find_lims_order(tracking_number)
+  end
+
   private
 
   attr_reader :config

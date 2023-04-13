@@ -141,6 +141,19 @@ module Lab
         )
       end
 
+      def accession_number_exists?(accession_number)
+        Lab::LabOrder.where(accession_number: accession_number).exists?
+      end
+
+      def nlims_accession_number_exists?(accession_number)
+        config = YAML.load_file('config/application.yml')
+        return false unless config['lims_api']
+
+        # fetch from the rest api and check if it exists
+        lims_api = Lab::Lims::ApiFactory.create_api
+        lims_api.verify_tracking_number(accession_number).present?
+      end
+
       ##
       # Attach the requesting clinician to an order
       def add_requesting_clinician(order, params)
