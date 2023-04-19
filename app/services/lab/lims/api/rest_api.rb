@@ -89,6 +89,9 @@ class Lab::Lims::Api::RestApi
 
   def verify_tracking_number(tracking_number)
     find_lims_order(tracking_number)
+  rescue InvalidParameters => e
+    Rails.logger.error("Failed to verify tracking number #{tracking_number}: #{e.message}")
+    false
   end
 
   private
