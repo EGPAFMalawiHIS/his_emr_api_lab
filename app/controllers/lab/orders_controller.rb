@@ -2,6 +2,9 @@
 
 module Lab
   class OrdersController < ApplicationController
+    skip_before_action :authenticate, only: %i[order_status order_result]
+    before_action :authenticate_request, only: %i[order_status order_result]
+
     def create
       order_params_list = params.require(:orders)
       orders = order_params_list.map do |order_params|
@@ -38,6 +41,48 @@ module Lab
       Lab::VoidOrderJob.perform_later(params[:id])
 
       render status: :no_content
+    end
+
+    def order_status
+      order_params = params.permit(:tracking_number, :status, :status_time)
+      OrdersService.update_order_status(order_params)
+      render json: { message: "Status for order #{order_params['tracking_number']} successfully updated"}, status: :ok
+    end
+
+    def order_result
+      order_params = params.permite(:data)
+      OrdersService.update_order_result(order_params[:data])
+      render json: { message: 'Results processed successfully' }, status: :ok
+    end
+
+    private
+
+    def authenticate_request
+      header = request.headers['Authorization']
+      content = header.split(' ')
+      auth_scheme = content.first
+      unless header
+        errors = ['Authorization token required']
+        render json: { errors: errors }, status: :unauthorized
+        return false
+      end
+      unless auth_scheme == 'Bearer'
+        errors = ['Authorization token bearer scheme required']
+        render json: { errors: errors }, status: :unauthorized
+        return false
+      end
+  
+      process_token(content.last)
+    end
+
+    def process_token(token)
+      browser = Browser.new(request.user_agent)
+      decoded = Lab::JsonWebTokenService.decode(token, request.remote_ip + browser.name + browser.version)
+      user(decoded)
+    end
+
+    def user(decoded)
+      User.current = User.find decoded[:user_id]
     end
   end
 end

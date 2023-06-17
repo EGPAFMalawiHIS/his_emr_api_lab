@@ -112,6 +112,27 @@ module Lab
         accession_number_exists?(tracking_number) || nlims_accession_number_exists?(tracking_number)
       end
 
+      def update_order_status(order_params)
+        # find the order
+        order = Lab::LabOrder.find_by_accession_number(order_params['tracking_number'])
+        status = order_params['status']
+        concept = ConceptName.find_by_name Lab::Metadata.LAB_ORDER_STATUS_CONCEPT_NAME
+        Observation.create!(
+          person_id: order.patient_id,
+          encounter_id: order.encounter_id,
+          concept_id: concept.concept_id,
+          order_id: order.id,
+          obs_datetime: order_params['status_time'] || Time.now,
+          value_text: status,
+          creator: User.current.id
+        )
+      end
+
+      def update_order_result(order_params)
+        order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
+        Lab::Lims::PullWorker.new(nil).process_order(order_dto)
+      end
+
       private
 
       ##

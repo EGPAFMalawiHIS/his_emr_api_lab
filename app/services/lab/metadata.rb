@@ -10,6 +10,7 @@ module Lab
     TEST_RESULT_CONCEPT_NAME = 'Lab test result'
     TEST_RESULT_INDICATOR_CONCEPT_NAME = 'Lab test result indicator'
     TEST_TYPE_CONCEPT_NAME = 'Test type'
+    LAB_ORDER_STATUS_CONCEPT_NAME = 'lab order status'
     UNKNOWN_SPECIMEN = 'Unknown'
 
     # Encounter
