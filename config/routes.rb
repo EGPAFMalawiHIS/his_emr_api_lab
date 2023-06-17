@@ -15,4 +15,9 @@ Lab::Engine.routes.draw do
   resources :test_result_indicators, only: %i[index], path: 'api/v1/lab/test_result_indicators'
   resources :test_types, only: %i[index], path: 'api/v1/lab/test_types'
   resources :reasons_for_test, only: %i[index], path: 'api/v1/lab/reasons_for_test'
+  resources :users, only: %i[create], path: 'api/v1/lab/users' do
+    collection do
+      post :login
+    end
+  end
 end
