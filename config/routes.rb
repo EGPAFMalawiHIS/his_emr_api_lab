@@ -3,8 +3,8 @@
 Lab::Engine.routes.draw do
   resources :orders, path: 'api/v1/lab/orders' do
     collection do
-      post order_status
-      post order_result
+      post :order_status
+      post :order_result
     end
   end
   resources :tests, path: 'api/v1/lab/tests', except: %i[update] do # ?pending=true to select tests without results?

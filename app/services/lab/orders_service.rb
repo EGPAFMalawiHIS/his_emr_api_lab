@@ -132,7 +132,8 @@ module Lab
 
       def update_order_result(order_params)
         order = find_order(order_params['tracking_number'])
-        order_dto = Lab::Lims::OrderSerializer.serialize_order(order_params)
+        order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
+        patch_order_dto_with_lims_results!(order_dto, order_params['results'])
         Lab::Lims::PullWorker.new(nil).process_order(order_dto)
       end
 
