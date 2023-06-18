@@ -114,7 +114,7 @@ module Lab
 
       def update_order_status(order_params)
         # find the order
-        order = Lab::LabOrder.find_by_accession_number(order_params['tracking_number'])
+        order = find_order(order_params['tracking_number'])
         concept = ConceptName.find_by_name Lab::Metadata::LAB_ORDER_STATUS_CONCEPT_NAME
         ActiveRecord::Base.transaction do
           void_order_status(order, concept)
@@ -131,11 +131,35 @@ module Lab
       end
 
       def update_order_result(order_params)
+        order = find_order(order_params['tracking_number'])
         order_dto = Lab::Lims::OrderSerializer.serialize_order(order_params)
         Lab::Lims::PullWorker.new(nil).process_order(order_dto)
       end
 
       private
+
+      def find_order(tracking_number)
+        Lab::LabOrder.find_by_accession_number(tracking_number)
+      end
+
+      def patch_order_dto_with_lims_results!(order_dto, results)
+        order_dto.merge!(
+          '_id' => order_dto[:tracking_number],
+          '_rev' => 0,
+          'test_results' => results.each_with_object({}) do |result, formatted_results|
+            test_name, measures = result
+            result_date = measures.delete('result_date')
+    
+            formatted_results[test_name] = {
+              results: measures.each_with_object({}) do |measure, processed_measures|
+                processed_measures[measure[0]] = { 'result_value' => measure[1] }
+              end,
+              result_date: result_date,
+              result_entered_by: {}
+            }
+          end
+        )
+      end
 
       ##
       # Extract an encounter from the given parameters.
