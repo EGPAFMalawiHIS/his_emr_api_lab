@@ -254,7 +254,7 @@ module Lab
 
       def void_order_status(order, concept)
         Observation.where(order_id: order.id, concept_id: concept.concept_id).each do |obs|
-          obs.void!('New Status Received from LIMS')	
+          obs.void('New Status Received from LIMS')	
         end
       end
     end
