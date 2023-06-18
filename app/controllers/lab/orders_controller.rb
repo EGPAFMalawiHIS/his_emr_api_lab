@@ -50,7 +50,8 @@ module Lab
     end
 
     def order_result
-      order_params = params[:data]
+      params.permit!
+      order_params = params[:data].to_h
       OrdersService.update_order_result(order_params)
       render json: { message: 'Results processed successfully' }, status: :ok
     end

@@ -23,7 +23,26 @@ module Lab
         lims_api.consume_orders(from: last_seq, limit: batch_size, **kwargs) do |order_dto, context|
           logger.debug("Retrieved order ##{order_dto[:tracking_number]}: #{order_dto}")
 
-          process_order(order_dto)
+          patient = find_patient_by_nhid(order_dto[:patient][:id])
+          unless patient
+            logger.debug("Discarding order: Non local patient ##{order_dto[:patient][:id]} on order ##{order_dto[:tracking_number]}")
+            order_rejected(order_dto, "Patient NPID, '#{order_dto[:patient][:id]}', didn't match any local NPIDs")
+            next
+          end
+
+          if order_dto[:tests].empty?
+            logger.debug("Discarding order: Missing tests on order ##{order_dto[:tracking_number]}")
+            order_rejected(order_dto, 'Order is missing tests')
+            next
+          end
+
+          diff = match_patient_demographics(patient, order_dto['patient'])
+          if diff.empty?
+            save_order(patient, order_dto)
+            order_saved(order_dto)
+          else
+            save_failed_import(order_dto, 'Demographics not matching', diff)
+          end
 
           update_last_seq(context.current_seq)
         rescue Lab::Lims::DuplicateNHID
@@ -43,13 +62,13 @@ module Lab
         unless patient
           logger.debug("Discarding order: Non local patient ##{order_dto[:patient][:id]} on order ##{order_dto[:tracking_number]}")
           order_rejected(order_dto, "Patient NPID, '#{order_dto[:patient][:id]}', didn't match any local NPIDs")
-          next
+          return
         end
 
         if order_dto[:tests].empty?
           logger.debug("Discarding order: Missing tests on order ##{order_dto[:tracking_number]}")
           order_rejected(order_dto, 'Order is missing tests')
-          next
+          return
         end
 
         diff = match_patient_demographics(patient, order_dto['patient'])
