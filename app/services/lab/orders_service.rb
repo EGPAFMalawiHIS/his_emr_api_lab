@@ -131,7 +131,7 @@ module Lab
       end
 
       def update_order_result(order_params)
-        order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
+        order_dto = Lab::Lims::OrderSerializer.serialize_order(order_params)
         Lab::Lims::PullWorker.new(nil).process_order(order_dto)
       end
 
