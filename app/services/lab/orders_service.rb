@@ -116,7 +116,7 @@ module Lab
         # find the order
         order = Lab::LabOrder.find_by_accession_number(order_params['tracking_number'])
         status = order_params['status']
-        concept = ConceptName.find_by_name Lab::Metadata.LAB_ORDER_STATUS_CONCEPT_NAME
+        concept = ConceptName.find_by_name Lab::Metadata::LAB_ORDER_STATUS_CONCEPT_NAME
         Observation.create!(
           person_id: order.patient_id,
           encounter_id: order.encounter_id,
