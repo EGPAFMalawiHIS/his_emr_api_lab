@@ -214,9 +214,11 @@ module Lab
           end
 
           next if test.result || test_results['results'].blank?
-
+          
+          result_date = Time.now
           measures = test_results['results'].map do |indicator, value|
             measure = find_measure(order, indicator, value)
+            result_date = value['result_date'] || result_date
             next nil unless measure
 
             measure
@@ -227,11 +229,10 @@ module Lab
 
           creator = format_result_entered_by(test_results['result_entered_by'])
 
-          ResultsService.create_results(test.id, { provider_id: User.current.person_id,
-                                                   date: Utils.parse_date(test_results['date_result_entered'],
-                                                                          order[:order_date].to_s),
-                                                   comments: "LIMS import: Entered by: #{creator}",
-                                                   measures: measures })
+          ResultsService.create_results(test.id,  { provider_id: User.current.person_id,
+                                                    date: Utils.parse_date(test_results['date_result_entered'], result_date),
+                                                    comments: "LIMS import: Entered by: #{creator}",
+                                                    measures: measures } )
         end
       end
 
