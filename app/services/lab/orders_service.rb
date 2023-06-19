@@ -103,9 +103,7 @@ module Lab
         order.target_lab&.void(reason)
 
         order.tests.each { |test| test.void(reason) }
-        voided = order.void(reason)
-
-        voided
+        order.void(reason)
       end
 
       def check_tracking_number(tracking_number)
@@ -128,6 +126,7 @@ module Lab
             creator: User.current.id
           )
         end
+        create_rejection_notification(order_params) if order_params['status'] == 'test-rejected'
       end
 
       def update_order_result(order_params)
@@ -138,6 +137,26 @@ module Lab
       end
 
       private
+
+      def create_rejection_notification(order_params)
+        order = find_order order_params['tracking_number']
+        data = { 'type': 'LIMS',
+                 'accession_number': order&.accession_number,
+                 'order_date': order&.start_date,
+                 'arv_number': find_arv_number(order.patient_id),
+                 'patient_id': result.person_id,
+                 'ordered_by': order&.provider&.person&.name,
+                 'rejection_reason': order_params['comments']
+                }.as_json
+        NotificationService.new.create_notification('LIMS', data)
+      end
+
+      def find_arv_number(patient_id)
+        PatientIdentifier.joins(:type)
+                         .merge(PatientIdentifierType.where(name: 'ARV Number'))
+                         .where(patient_id: patient_id)
+                         .first&.identifier
+      end
 
       def find_order(tracking_number)
         Lab::LabOrder.find_by_accession_number(tracking_number)
@@ -150,7 +169,7 @@ module Lab
           'test_results' => results.each_with_object({}) do |result, formatted_results|
             test_name, measures = result
             result_date = measures.delete('result_date')
-    
+
             formatted_results[test_name] = {
               results: measures.each_with_object({}) do |measure, processed_measures|
                 processed_measures[measure[0]] = { 'result_value' => measure[1] }
@@ -279,7 +298,7 @@ module Lab
 
       def void_order_status(order, concept)
         Observation.where(order_id: order.id, concept_id: concept.concept_id).each do |obs|
-          obs.void('New Status Received from LIMS')	
+          obs.void('New Status Received from LIMS')
         end
       end
     end
