@@ -11,7 +11,7 @@ module Lab
                                                   :value_modifier,
                                                   { indicator: [:concept_id] }] }])
 
-      result = Lab::ResultsService.create_results(params[:test_id], result_params)
+      result = Lab::ResultsService.create_results(params[:test_id], result_params, 'user entered')
 
       render json: result, status: :created
     end

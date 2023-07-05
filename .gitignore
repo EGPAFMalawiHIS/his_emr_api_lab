@@ -12,3 +12,4 @@ spec/dummy/tmp/
 .vscode/
 /*.gem
 Gemfile.lock
+.ruby-version

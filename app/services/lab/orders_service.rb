@@ -52,6 +52,10 @@ module Lab
       def order_test(order_params)
         Order.transaction do
           encounter = find_encounter(order_params)
+          if order_params[:accession_number].present? && check_tracking_number(order_params[:accession_number])
+            raise 'Accession number already exists'
+          end
+
           order = create_order(encounter, order_params)
 
           Lab::TestsService.create_tests(order, order_params[:date], order_params[:tests])
@@ -104,6 +108,10 @@ module Lab
         voided
       end
 
+      def check_tracking_number(tracking_number)
+        accession_number_exists?(tracking_number) || nlims_accession_number_exists?(tracking_number)
+      end
+
       private
 
       ##
@@ -136,9 +144,22 @@ module Lab
           patient_id: encounter.patient_id,
           start_date: params[:date]&.to_date || Date.today,
           auto_expire_date: params[:end_date],
-          accession_number: params[:accession_number] || next_accession_number,
+          accession_number: params[:accession_number] || next_accession_number(params[:date]&.to_date || Date.today),
           orderer: User.current&.user_id
         )
+      end
+
+      def accession_number_exists?(accession_number)
+        Lab::LabOrder.where(accession_number: accession_number).exists?
+      end
+
+      def nlims_accession_number_exists?(accession_number)
+        config = YAML.load_file('config/application.yml')
+        return false unless config['lims_api']
+
+        # fetch from the rest api and check if it exists
+        lims_api = Lab::Lims::ApiFactory.create_api
+        lims_api.verify_tracking_number(accession_number).present?
       end
 
       ##

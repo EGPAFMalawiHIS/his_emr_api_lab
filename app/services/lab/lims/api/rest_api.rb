@@ -32,6 +32,15 @@ class Lab::Lims::Api::RestApi
     )
   end
 
+  def acknowledge(acknowledgement_dto)
+    Rails.logger.info("Acknowledging order ##{acknowledgement_dto} in LIMS")
+    response = in_authenticated_session do |headers|
+      RestClient.post(expand_uri('/acknowledge/test/results/recipient'), acknowledgement_dto, headers)
+    end
+    Rails.logger.info("Acknowledged order ##{acknowledgement_dto} in LIMS. Response: #{response}")
+    JSON.parse(response)
+  end
+
   def update_order(_id, order_dto)
     in_authenticated_session do |headers|
       RestClient.post(expand_uri('update_order'), make_update_params(order_dto), headers)
@@ -76,6 +85,13 @@ class Lab::Lims::Api::RestApi
         RestClient.post(expand_uri('update_test'), params, headers)
       end
     end
+  end
+
+  def verify_tracking_number(tracking_number)
+    find_lims_order(tracking_number)
+  rescue InvalidParameters => e
+    Rails.logger.error("Failed to verify tracking number #{tracking_number}: #{e.message}")
+    false
   end
 
   private
@@ -188,6 +204,10 @@ class Lab::Lims::Api::RestApi
       last_name: order_dto.fetch(:patient).fetch(:last_name),
       phone_number: order_dto.fetch(:patient).fetch(:phone_number),
       gender: order_dto.fetch(:patient).fetch(:gender),
+      arv_number: order_dto.fetch(:patient).fetch(:arv_number),
+      art_regimen: order_dto.fetch(:patient).fetch(:art_regimen),
+      art_start_date: order_dto.fetch(:patient).fetch(:art_start_date),
+      date_of_birth: order_dto.fetch(:patient).fetch(:dob),
       national_patient_id: order_dto.fetch(:patient).fetch(:id),
       requesting_clinician: requesting_clinician(order_dto),
       sample_type: order_dto.fetch(:sample_type),
@@ -377,7 +397,7 @@ class Lab::Lims::Api::RestApi
     orders_without_specimen(patient_id).each { |order| orders[order.order_id] = order }
     orders_without_results(patient_id).each { |order| orders[order.order_id] = order }
     orders_without_reason(patient_id).each { |order| orders[order.order_id] = order }
-    
+
     orders.values
   end
 

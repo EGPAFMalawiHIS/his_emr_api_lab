@@ -4,6 +4,12 @@ This file tracks changes to the HIS-EMR-API-Lab module. Changes are categorised
 as `Fixed`, `Added`, `Deprecated`, and `Removed`.
 Versioning follows Semantic versioning which is documented [here](https://semver.org/spec/v2.0.0.html). 
 
+## [v.1.1.21] - 2022-06-13
+
+### Added
+- ART number to the order payload (DTO)
+- Added categories for lab results
+- Sending NLIMS notifications
 
 ## Unreleased
 

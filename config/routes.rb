@@ -7,6 +7,7 @@ Lab::Engine.routes.draw do
   end
 
   get 'api/v1/lab/labels/order', to: 'labels#print_order_label'
+  get 'api/v1/lab/accession_number', to: 'orders#verify_tracking_number'
 
   # Metadata
   # TODO: Move the following to namespace /concepts

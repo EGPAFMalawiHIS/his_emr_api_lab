@@ -14,6 +14,7 @@ module Lab
 
         fork(&method(:start_push_worker))
         fork(&method(:start_pull_worker))
+        fork(&method(:start_acknowledgement_worker))
         fork(&method(:start_realtime_pull_worker)) if realtime_updates_enabled?
 
         Process.waitall
@@ -24,6 +25,13 @@ module Lab
           worker = PushWorker.new(lims_api)
 
           worker.push_orders # (wait: true)
+        end
+      end
+
+      def self.start_acknowledgement_worker
+        start_worker('acknowledgement_worker') do
+          worker = AcknowledgementWorker.new(lims_api)
+          worker.push_acknowledgement
         end
       end
 

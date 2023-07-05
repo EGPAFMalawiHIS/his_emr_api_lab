@@ -64,10 +64,39 @@ module Lab
             first_name: name&.given_name,
             last_name: name&.family_name,
             id: national_id&.identifier,
+            arv_number: find_arv_number(patient_id),
+            art_regimen: find_current_regimen(patient_id),
+            art_start_date: find_art_start_date(patient_id),
+            dob: person.birthdate,
             phone_number: phone_number&.value || 'Unknown',
             gender: person.gender,
             email: nil
           }
+        end
+
+        def find_current_regimen(patient_id)
+          regimen_data = ActiveRecord::Base.connection.select_one <<~SQL
+            SELECT patient_current_regimen(#{patient_id}, current_date()) regimen
+          SQL
+          return nil if regimen_data.blank?
+
+          regimen_data['regimen']
+        end
+
+        def find_arv_number(patient_id)
+          PatientIdentifier.joins(:type)
+                           .merge(PatientIdentifierType.where(name: 'ARV Number'))
+                           .where(patient_id: patient_id)
+                           .first&.identifier
+        end
+
+        def find_art_start_date(patient_id)
+          start_date = ActiveRecord::Base.connection.select_one <<~SQL
+            SELECT date_antiretrovirals_started(#{patient_id}, current_date()) AS earliest_date
+          SQL
+          return nil if start_date.blank?
+
+          start_date['earliest_date']
         end
 
         def format_sample_type(name)
