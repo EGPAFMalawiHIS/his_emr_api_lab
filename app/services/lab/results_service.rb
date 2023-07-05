@@ -45,6 +45,7 @@ module Lab
         data = { Type: result_enter_by,
                  'Test type': ConceptName.find_by(concept_id: result.test.value_coded)&.name,
                  'Accession number': order&.accession_number,
+                 'Orde date': order&.start_date,
                  'ARV-Number': find_arv_number(result.person_id),
                  PatientID: result.person_id,
                  'Ordered By': order&.provider&.person&.name,

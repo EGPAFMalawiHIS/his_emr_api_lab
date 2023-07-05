@@ -57,6 +57,29 @@ module Lab
         end
       end
 
+      def process_order(order_dto)
+        patient = find_patient_by_nhid(order_dto[:patient][:id])
+        unless patient
+          logger.debug("Discarding order: Non local patient ##{order_dto[:patient][:id]} on order ##{order_dto[:tracking_number]}")
+          order_rejected(order_dto, "Patient NPID, '#{order_dto[:patient][:id]}', didn't match any local NPIDs")
+          return
+        end
+
+        if order_dto[:tests].empty?
+          logger.debug("Discarding order: Missing tests on order ##{order_dto[:tracking_number]}")
+          order_rejected(order_dto, 'Order is missing tests')
+          return
+        end
+
+        diff = match_patient_demographics(patient, order_dto['patient'])
+        if diff.empty?
+          save_order(patient, order_dto)
+          order_saved(order_dto)
+        else
+          save_failed_import(order_dto, 'Demographics not matching', diff)
+        end
+      end
+
       protected
 
       def order_saved(order_dto); end
@@ -182,30 +205,32 @@ module Lab
 
       def update_results(order, lims_results)
         logger.debug("Updating results for order ##{order[:accession_number]}: #{lims_results}")
-        
+
         lims_results.each do |test_name, test_results|
           test = find_test(order['id'], test_name)
           unless test
             logger.warn("Couldn't find test, #{test_name}, in order ##{order[:id]}")
             next
           end
-          
-          next if test.result || test_results['results'].blank?
 
+          next if test.result || test_results['results'].blank?
+          
+          result_date = Time.now
           measures = test_results['results'].map do |indicator, value|
             measure = find_measure(order, indicator, value)
+            result_date = value['result_date'] || result_date
             next nil unless measure
 
             measure
           end
-          
+
           measures = measures.compact
           next if measures.empty?
 
           creator = format_result_entered_by(test_results['result_entered_by'])
 
           ResultsService.create_results(test.id,  { provider_id: User.current.person_id,
-                                                    date: Utils.parse_date(test_results['date_result_entered'], order[:order_date].to_s),
+                                                    date: Utils.parse_date(test_results['date_result_entered'], result_date),
                                                     comments: "LIMS import: Entered by: #{creator}",
                                                     measures: measures } )
         end
