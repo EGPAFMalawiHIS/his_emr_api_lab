@@ -80,6 +80,15 @@ module Lab
         order_dto
       end
 
+      def void_order_in_lims(order_id)
+        order = Lab::LabOrder.joins(order_type: { name: 'Lab' })
+        .unscoped
+        .find(order_id)
+        order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
+        Rails.logger.info("Deleting order ##{order_dto[:accession_number]} from LIMS")
+        lims_api.delete_order('', order_dto)
+      end
+
       private
 
       def orders_pending_sync(batch_size)
