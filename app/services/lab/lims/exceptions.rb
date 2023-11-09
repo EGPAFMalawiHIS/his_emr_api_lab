@@ -2,7 +2,7 @@
 
 module Lab
   module Lims
-    class Exception < StandardError; end
+    class Exceptions < StandardError; end
     class LimsException < StandardError; end
     class DuplicateNHID < LimsException; end
     class MissingAccessionNumber < LimsException; end
