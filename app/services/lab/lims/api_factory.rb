@@ -10,7 +10,7 @@ module Lab
 
         case Lab::Lims::Config.preferred_api
         when /rest/i then Lab::Lims::Api::RestApi.new(Lab::Lims::Config.rest_api)
-        when /couchdb/ then Lab::Lims::Api::CouchDbApi.new(config: Lab::Lims::Config.couchdb_api)
+        when /couchdb/ then Lab::Lims::Api::CouchdbApi.new(config: Lab::Lims::Config.couchdb_api)
         else raise "Invalid lims_api configuration: #{Lab::Lims::Config.preferred_api}"
         end
       end

@@ -9,7 +9,7 @@ module Lab
     module Api
       ##
       # Talk to LIMS like a boss
-      class CouchDbApi
+      class CouchdbApi
         attr_reader :bum
 
         def initialize(config: nil)
