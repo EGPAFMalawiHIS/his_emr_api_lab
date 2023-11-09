@@ -57,6 +57,29 @@ module Lab
         end
       end
 
+      def process_order(order_dto)
+        patient = find_patient_by_nhid(order_dto[:patient][:id])
+        unless patient
+          logger.debug("Discarding order: Non local patient ##{order_dto[:patient][:id]} on order ##{order_dto[:tracking_number]}")
+          order_rejected(order_dto, "Patient NPID, '#{order_dto[:patient][:id]}', didn't match any local NPIDs")
+          return
+        end
+
+        if order_dto[:tests].empty?
+          logger.debug("Discarding order: Missing tests on order ##{order_dto[:tracking_number]}")
+          order_rejected(order_dto, 'Order is missing tests')
+          return
+        end
+
+        diff = match_patient_demographics(patient, order_dto['patient'])
+        if diff.empty?
+          save_order(patient, order_dto)
+          order_saved(order_dto)
+        else
+          save_failed_import(order_dto, 'Demographics not matching', diff)
+        end
+      end
+
       protected
 
       def order_saved(order_dto); end
@@ -191,9 +214,11 @@ module Lab
           end
 
           next if test.result || test_results['results'].blank?
-
+          
+          result_date = Time.now
           measures = test_results['results'].map do |indicator, value|
             measure = find_measure(order, indicator, value)
+            result_date = value['result_date'] || result_date
             next nil unless measure
 
             measure
