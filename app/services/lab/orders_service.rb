@@ -103,9 +103,7 @@ module Lab
         order.target_lab&.void(reason)
 
         order.tests.each { |test| test.void(reason) }
-        voided = order.void(reason)
-
-        voided
+        order.void(reason)
       end
 
       def check_tracking_number(tracking_number)
@@ -129,7 +127,7 @@ module Lab
 
         Encounter.create!(
           patient_id: order_params[:patient_id],
-          program_id: program_id,
+          program_id:,
           type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
           encounter_datetime: order_params[:date] || Date.today,
           provider_id: order_params[:provider_id] || User.current.person.person_id
@@ -150,7 +148,7 @@ module Lab
       end
 
       def accession_number_exists?(accession_number)
-        Lab::LabOrder.where(accession_number: accession_number).exists?
+        Lab::LabOrder.where(accession_number:).exists?
       end
 
       def nlims_accession_number_exists?(accession_number)
@@ -199,14 +197,14 @@ module Lab
         )
       end
 
-      def create_order_observation(order, concept_name, date, **values)
+      def create_order_observation(order, concept_name, date, **)
         Observation.create!(
-          order: order,
+          order:,
           encounter_id: order.encounter_id,
           person_id: order.patient_id,
           concept_id: ConceptName.find_by_name!(concept_name).concept_id,
           obs_datetime: date&.to_time || Time.now,
-          **values
+          **
         )
       end
 

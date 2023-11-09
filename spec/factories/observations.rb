@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # frozen_literal_string: true
 
 FactoryBot.define do
@@ -9,8 +11,8 @@ FactoryBot.define do
 
     factory :obs_appointment do
       concept do
-        Concept.joins(:concept_names)\
-               .where('concept_name.name = ?', 'Appointment Date')\
+        Concept.joins(:concept_names) \
+               .where('concept_name.name = ?', 'Appointment Date') \
                .first
       end
       value_datetime { Time.now }

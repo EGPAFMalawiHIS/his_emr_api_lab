@@ -21,7 +21,7 @@ module Lab
             name: concept_name(order.concept_id)
           },
           requesting_clinician: requesting_clinician&.value_text,
-          target_lab: target_lab,
+          target_lab:,
           reason_for_test: {
             concept_id: reason_for_test&.value_coded,
             name: concept_name(reason_for_test&.value_coded)
@@ -49,7 +49,7 @@ module Lab
     def self.voided_tests(order)
       concept = ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                            .select(:concept_id)
-      LabTest.unscoped.where(concept: concept, order: order, voided: true)
+      LabTest.unscoped.where(concept:, order:, voided: true)
     end
   end
 end

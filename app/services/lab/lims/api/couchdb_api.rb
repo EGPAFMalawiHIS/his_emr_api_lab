@@ -30,10 +30,10 @@ module Lab
         # given block until the queue is empty or connection is terminated
         # by calling method +choke+.
         def consume_orders(from: 0, limit: 30)
-          bum.binge_changes(since: from, limit: limit, include_docs: true) do |change|
+          bum.binge_changes(since: from, limit:, include_docs: true) do |change|
             next unless change['doc']['type']&.casecmp?('Order')
 
-            yield OrderDTO.new(change['doc']), self
+            yield OrderDto.new(change['doc']), self
           end
         end
 

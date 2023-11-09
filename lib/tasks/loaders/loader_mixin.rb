@@ -21,12 +21,12 @@ module Lab
             short_name: name,
             datatype_id: CONCEPT_DATATYPE_CODED,
             class_id: CONCEPT_CLASS_TEST,
-            is_set: is_set,
+            is_set:,
             uuid: SecureRandom.uuid,
             creator: User.current.user_id,
             date_created: Time.now
           ),
-          name: name,
+          name:,
           locale: 'en',
           concept_name_type: 'FULLY_SPECIED',
           uuid: SecureRandom.uuid,
@@ -36,11 +36,11 @@ module Lab
       end
 
       def add_concept_to_set(set_concept_id:, concept_id:)
-        set = ConceptSet.find_by(concept_set: set_concept_id, concept_id: concept_id)
+        set = ConceptSet.find_by(concept_set: set_concept_id, concept_id:)
         return set if set
 
         ConceptSet.create!(concept_set: set_concept_id,
-                           concept_id: concept_id,
+                           concept_id:,
                            creator: User.current.user_id,
                            date_created: Time.now)
       end

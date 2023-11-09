@@ -5,7 +5,7 @@ module Lab
   module ConceptsService
     def self.test_types(name: nil, specimen_type: nil)
       test_types = ConceptSet.find_members_by_name(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
-      test_types = test_types.filter_members(name: name) if name
+      test_types = test_types.filter_members(name:) if name
 
       unless specimen_type
         return test_types.joins('INNER JOIN concept_name ON concept_set.concept_id = concept_name.concept_id AND concept_name.voided = 0 AND concept_name.locale_preferred = 1')
@@ -31,7 +31,7 @@ module Lab
 
     def self.specimen_types(name: nil, test_type: nil)
       specimen_types = ConceptSet.find_members_by_name(Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME)
-      specimen_types = specimen_types.filter_members(name: name) if name
+      specimen_types = specimen_types.filter_members(name:) if name
 
       unless test_type
         return specimen_types.select('concept_name.concept_id, concept_name.name')

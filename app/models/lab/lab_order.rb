@@ -6,7 +6,7 @@ module Lab
       def make_obs_concept_filter(concept_name)
         concept = ConceptName.where(name: concept_name).select(:concept_id)
 
-        -> { where(concept: concept) }
+        -> { where(concept:) }
       end
     end
 

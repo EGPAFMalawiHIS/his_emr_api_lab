@@ -15,7 +15,7 @@ module Lab
 
     def update
       specimen = params.require(:specimen).slice(:concept_id)
-      order = OrdersService.update_order(params[:id], specimen: specimen, force_update: params[:force_update])
+      order = OrdersService.update_order(params[:id], specimen:, force_update: params[:force_update])
       Lab::PushOrderJob.perform_later(order.fetch(:order_id))
 
       render json: order

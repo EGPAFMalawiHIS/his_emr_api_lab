@@ -35,7 +35,7 @@ module Lab
               value_coded: params[:concept_id]
             )
 
-            Lab::TestSerializer.serialize(test, order: order)
+            Lab::TestSerializer.serialize(test, order:)
           end
         end
       end
@@ -62,9 +62,9 @@ module Lab
       def filter_tests_by_order(tests, accession_number: nil, order_date: nil, specimen_type_id: nil)
         return tests unless accession_number || order_date || specimen_type_id
 
-        lab_orders = filter_orders(Lab::LabOrder.all, accession_number: accession_number,
-                                                      order_date: order_date,
-                                                      specimen_type_id: specimen_type_id)
+        lab_orders = filter_orders(Lab::LabOrder.all, accession_number:,
+                                                      order_date:,
+                                                      specimen_type_id:)
         tests.joins(:order).merge(lab_orders)
       end
 
@@ -74,7 +74,7 @@ module Lab
           orders = orders.where('start_date >= ? AND start_date < ?', order_date, order_date + 1.day)
         end
 
-        orders = orders.where(accession_number: accession_number) if accession_number
+        orders = orders.where(accession_number:) if accession_number
         orders = orders.where(concept_id: specimen_type_id) if specimen_type_id
 
         orders

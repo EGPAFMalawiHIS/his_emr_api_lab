@@ -89,7 +89,7 @@ module Lab
       end
 
       def short_concept_name(concept_id)
-        ConceptName.where(concept_id: concept_id)
+        ConceptName.where(concept_id:)
                    .min_by { |concept| concept.name.size }
                    &.name
       end

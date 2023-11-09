@@ -22,7 +22,7 @@ module Lab
         results_query = results_query.where(person_id: patient_id) if patient_id
 
         query = Lab::LabOrder.where.not(order_id: results_query.select(:order_id))
-        query = query.where(patient_id: patient_id) if patient_id
+        query = query.where(patient_id:) if patient_id
 
         query
       end

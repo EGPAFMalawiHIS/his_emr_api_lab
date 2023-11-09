@@ -17,10 +17,10 @@ module Lab
 
       ##
       # Pulls orders from the LIMS queue and writes them to the local database
-      def pull_orders(batch_size: 10_000, **kwargs)
+      def pull_orders(batch_size: 10_000, **)
         logger.info("Retrieving LIMS orders starting from #{last_seq}")
 
-        lims_api.consume_orders(from: last_seq, limit: batch_size, **kwargs) do |order_dto, context|
+        lims_api.consume_orders(from: last_seq, limit: batch_size, **) do |order_dto, context|
           logger.debug("Retrieved order ##{order_dto[:tracking_number]}: #{order_dto}")
 
           patient = find_patient_by_nhid(order_dto[:patient][:id])
@@ -114,7 +114,7 @@ module Lab
         person = Person.find(local_patient.id)
         person_name = PersonName.find_by_person_id(local_patient.id)
 
-        unless (person.gender.blank? && lims_patient['gender'].blank?)\
+        unless (person.gender.blank? && lims_patient['gender'].blank?) \
           || person.gender&.first&.casecmp?(lims_patient['gender']&.first)
           diff[:gender] = { local: person.gender, lims: lims_patient['gender'] }
         end
@@ -131,8 +131,8 @@ module Lab
       end
 
       def names_match?(name1, name2)
-        name1 = name1&.gsub(/'/, '')&.strip
-        name2 = name2&.gsub(/'/, '')&.strip
+        name1 = name1&.gsub("'", '')&.strip
+        name2 = name2&.gsub("'", '')&.strip
 
         return true if name1.blank? && name2.blank?
 
@@ -182,14 +182,14 @@ module Lab
 
       def update_results(order, lims_results)
         logger.debug("Updating results for order ##{order[:accession_number]}: #{lims_results}")
-        
+
         lims_results.each do |test_name, test_results|
           test = find_test(order['id'], test_name)
           unless test
             logger.warn("Couldn't find test, #{test_name}, in order ##{order[:id]}")
             next
           end
-          
+
           next if test.result || test_results['results'].blank?
 
           measures = test_results['results'].map do |indicator, value|
@@ -198,16 +198,17 @@ module Lab
 
             measure
           end
-          
+
           measures = measures.compact
           next if measures.empty?
 
           creator = format_result_entered_by(test_results['result_entered_by'])
 
-          ResultsService.create_results(test.id,  { provider_id: User.current.person_id,
-                                                    date: Utils.parse_date(test_results['date_result_entered'], order[:order_date].to_s),
-                                                    comments: "LIMS import: Entered by: #{creator}",
-                                                    measures: measures } )
+          ResultsService.create_results(test.id, { provider_id: User.current.person_id,
+                                                   date: Utils.parse_date(test_results['date_result_entered'],
+                                                                          order[:order_date].to_s),
+                                                   comments: "LIMS import: Entered by: #{creator}",
+                                                   measures: })
         end
       end
 
@@ -216,7 +217,7 @@ module Lab
         test_concept = Utils.find_concept_by_name(test_name)
         raise "Unknown test name, #{test_name}!" unless test_concept
 
-        LabTest.find_by(order_id: order_id, value_coded: test_concept.concept_id)
+        LabTest.find_by(order_id:, value_coded: test_concept.concept_id)
       end
 
       def find_measure(_order, indicator_name, value)
@@ -231,7 +232,7 @@ module Lab
 
         ActiveSupport::HashWithIndifferentAccess.new(
           indicator: { concept_id: indicator.concept_id },
-          value_type: value_type,
+          value_type:,
           value: value_type == 'numeric' ? value.to_f : value,
           value_modifier: value_modifier.blank? ? '=' : value_modifier
         )
@@ -267,7 +268,7 @@ module Lab
         LimsFailedImport.create!(lims_id: order_dto[:_id],
                                  tracking_number: order_dto[:tracking_number],
                                  patient_nhid: order_dto[:patient][:id],
-                                 reason: reason,
+                                 reason:,
                                  diff: diff&.to_json)
       end
 
@@ -276,7 +277,7 @@ module Lab
       end
 
       def find_order_mapping_by_lims_id(lims_id)
-        mapping = Lab::LimsOrderMapping.find_by(lims_id: lims_id)
+        mapping = Lab::LimsOrderMapping.find_by(lims_id:)
         return nil unless mapping
 
         return mapping if Lab::LabOrder.where(order_id: mapping.order_id).exists?
