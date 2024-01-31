@@ -25,6 +25,8 @@ module Lab
             push_order(order)
           rescue GatewayError => e
             logger.error("Failed to push order ##{order.accession_number}: #{e.class} - #{e.message}")
+          rescue StandardError => e
+            logger.error("Failed to push order ##{order.id} : #{e.class} - #{e.message}")
           end
 
           break unless wait
