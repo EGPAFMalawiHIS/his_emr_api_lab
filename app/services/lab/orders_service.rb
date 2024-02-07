@@ -206,6 +206,7 @@ module Lab
       def create_order(encounter, params)
         access_number = params[:accession_number] || next_accession_number(params[:date]&.to_date || Date.today)
         raise 'Accession Number cannot be blank' unless access_number.present?
+        raise 'Accession cannot be this short' unless access_number.length > 6
         Lab::LabOrder.create!(
           order_type: OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME),
           concept_id: params.dig(:specimen, :concept_id) || unknown_concept_id,
