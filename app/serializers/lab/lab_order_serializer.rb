@@ -26,6 +26,7 @@ module Lab
             concept_id: reason_for_test&.value_coded,
             name: concept_name(reason_for_test&.value_coded)
           },
+          delivery_mode: order&.lims_acknowledgement_status&.acknowledgement_type,
           tests: tests.map do |test|
             result_obs = test.children.first
 

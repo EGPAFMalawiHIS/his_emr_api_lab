@@ -25,6 +25,8 @@ module Lab
             push_order(order)
           rescue GatewayError => e
             logger.error("Failed to push order ##{order.accession_number}: #{e.class} - #{e.message}")
+          rescue StandardError => e
+            logger.error("Failed to push order ##{order.id}: #{order&.accession_number} : #{e.class} - #{e.message}")
           end
 
           break unless wait
@@ -91,6 +93,7 @@ module Lab
       def new_orders
         Rails.logger.debug('Looking for new orders that need to be created in LIMS...')
         Lab::LabOrder.where.not(order_id: Lab::LimsOrderMapping.all.select(:order_id))
+                     .where("accession_number IS NOT NULL AND accession_number !=''")
                      .order(date_created: :desc)
       end
 
