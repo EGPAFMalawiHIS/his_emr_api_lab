@@ -2,7 +2,7 @@
 
 require 'logger_multiplexor'
 
-require_relative './api/couchdb_api'
+require_relative 'api/couchdb_api'
 
 module Lab
   module Lims

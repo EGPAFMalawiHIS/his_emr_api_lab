@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 if Rails.env == 'test'
   require 'rswag/ui'
   require 'rswag/api'

@@ -10,7 +10,7 @@ class PatientIdentifierType < RetirableRecord
   def next_identifier(options = {})
     return nil unless name == 'National id'
 
-    new_national_id = use_moh_national_id ? new_national_id : new_v1_id
+    new_national_id = new_v1_id unless use_moh_national_id
 
     patient_identifier = PatientIdentifier.new
     patient_identifier.type = self
@@ -41,7 +41,7 @@ class PatientIdentifierType < RetirableRecord
     next_number = (last_id_number(id_prefix)[id_prefix.size..-2].to_i + 1).to_s.rjust(7, '0')
     new_national_id_no_check_digit = "#{id_prefix}#{next_number}"
     check_digit = PatientIdentifier.calculate_checkdigit(
-      new_national_id_no_check_digit[1..-1]
+      new_national_id_no_check_digit[1..]
     )
     "#{new_national_id_no_check_digit}#{check_digit}"
   end

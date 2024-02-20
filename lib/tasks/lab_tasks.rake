@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 desc 'Generate openapi/swagger documentation template in engine'
 task :swag, ['app:rswag:specs:swaggerize'] do
   source = 'spec/dummy/swagger/v1/swagger.yaml'

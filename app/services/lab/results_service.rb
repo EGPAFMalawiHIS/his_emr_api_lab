@@ -50,7 +50,7 @@ module Lab
                  PatientID: result.person_id,
                  'Ordered By': order&.provider&.person&.name,
                  Result: values }.as_json
-        NotificationService.new.create_notification(result_enter_by, data) 
+        NotificationService.new.create_notification(result_enter_by, data)
       end
 
       def process_acknowledgement(results, results_enter_by)
@@ -62,7 +62,7 @@ module Lab
       def find_arv_number(patient_id)
         PatientIdentifier.joins(:type)
                          .merge(PatientIdentifierType.where(name: 'ARV Number'))
-                         .where(patient_id: patient_id)
+                         .where(patient_id:)
                          .first&.identifier
       end
 
@@ -89,7 +89,7 @@ module Lab
           order_id: test.order_id,
           obs_group_id: test.obs_id,
           obs_datetime: date&.to_datetime || DateTime.now,
-          comments: comments
+          comments:
         )
       end
 

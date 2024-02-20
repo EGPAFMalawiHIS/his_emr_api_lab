@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateLabLimsOrderMappings < ActiveRecord::Migration[5.2]
   def change
     create_table :lab_lims_order_mappings do |t|

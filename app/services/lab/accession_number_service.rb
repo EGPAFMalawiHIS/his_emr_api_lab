@@ -24,10 +24,10 @@ module Lab
       private
 
       def find_counter(date)
-        counter = Lab::LabAccessionNumberCounter.find_by(date: date)
+        counter = Lab::LabAccessionNumberCounter.find_by(date:)
         return counter if counter
 
-        Lab::LabAccessionNumberCounter.create(date: date, value: 1)
+        Lab::LabAccessionNumberCounter.create(date:, value: 1)
       end
 
       # Checks if date does not exceed system date

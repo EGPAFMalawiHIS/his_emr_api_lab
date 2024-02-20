@@ -6,21 +6,21 @@ describe Lab::ResultsService do
   subject { Lab::ResultsService }
 
   let(:patient) { create(:patient) }
-  let(:encounter) { create(:encounter, patient: patient) }
+  let(:encounter) { create(:encounter, patient:) }
   let(:indicator) { create(:concept_name) }
   let(:order) do
     create(:order, order_type: create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME),
-                   encounter: encounter,
-                   patient: patient,
+                   encounter:,
+                   patient:,
                    start_date: Date.today,
                    accession_number: SecureRandom.uuid)
   end
   let(:test) do
-    create(:observation, encounter: encounter,
+    create(:observation, encounter:,
                          person_id: patient.patient_id,
                          concept_id: create(:concept_name, name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME).concept_id,
                          value_coded: create(:concept_name).concept_id,
-                         order: order)
+                         order:)
   end
 
   let(:params) do

@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require_relative './exceptions'
+require_relative 'exceptions'
 
 module Lab
   module Lims
     ##
     # LIMS' Data Transfer Object for orders
-    class OrderDTO < ActiveSupport::HashWithIndifferentAccess
+    class OrderDto < ActiveSupport::HashWithIndifferentAccess
       include Utils
 
       ##
@@ -15,10 +15,10 @@ module Lab
         ActiveSupport::HashWithIndifferentAccess.new(
           program_id: lab_program.program_id,
           accession_number: self['tracking_number'],
-          patient_id: patient_id,
+          patient_id:,
           specimen: { concept_id: specimen_type_id },
           tests: self['tests']&.map { |test| { concept_id: test_type_id(test) } },
-          requesting_clinician: requesting_clinician,
+          requesting_clinician:,
           date: start_date,
           target_lab: facility_name(self['receiving_facility']),
           order_location: facility_name(self['sending_facility']),

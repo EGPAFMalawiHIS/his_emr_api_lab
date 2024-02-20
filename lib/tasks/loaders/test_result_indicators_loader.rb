@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'csv'
-require_relative './loader_mixin'
+require_relative 'loader_mixin'
 
 module Lab
   module Loaders
@@ -10,11 +10,11 @@ module Lab
     module TestResultIndicatorsLoader
       class << self
         include LoaderMixin
-      
+
         def load
-          puts "------- Loading measures ------------"
+          puts '------- Loading measures ------------'
           CSV.open(data_path('test-measures.csv'), headers: :first_row) do |csv|
-            csv.each_with_object({}) do |row, test_measures|
+            csv.each_with_object({}) do |row, _test_measures|
               test_name = row['test_name']
               measure_name = row['measure_name']
 
@@ -33,7 +33,7 @@ module Lab
         def create_test_type(name)
           concept_id = find_or_create_concept(name, is_set: true).concept_id
 
-          create_concept_set(concept_set: test_type_concept_id, concept_id: concept_id)
+          create_concept_set(concept_set: test_type_concept_id, concept_id:)
         rescue StandardError => e
           raise "Failed to create test type `#{name}`: #{e}"
         end

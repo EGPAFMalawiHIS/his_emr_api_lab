@@ -11,8 +11,8 @@ module Lab
                               .where(filters)
                               .order(start_date: :desc)
 
-        orders = filter_orders_by_status(orders, pop_filters(extra_filters, :status))
-        orders = filter_orders_by_date(orders, extra_filters)
+        orders = filter_orders_by_status(orders, **pop_filters(extra_filters, :status))
+        orders = filter_orders_by_date(orders, **extra_filters)
 
         orders.map { |order| Lab::LabOrderSerializer.serialize_order(order) }
       end
@@ -22,7 +22,7 @@ module Lab
         results_query = results_query.where(person_id: patient_id) if patient_id
 
         query = Lab::LabOrder.where.not(order_id: results_query.select(:order_id))
-        query = query.where(patient_id: patient_id) if patient_id
+        query = query.where(patient_id:) if patient_id
 
         query
       end

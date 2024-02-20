@@ -13,23 +13,23 @@ module Lab
         @lab_order_type = create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME)
 
         def create_order(patient, seq, add_result:)
-          encounter = create(:encounter, patient: patient)
+          encounter = create(:encounter, patient:)
 
           order = create(:order, order_type: @lab_order_type,
-                                 encounter: encounter,
-                                 patient: patient,
+                                 encounter:,
+                                 patient:,
                                  start_date: Date.today + seq.days,
                                  accession_number: SecureRandom.uuid)
-          test = create(:observation, order: order,
-                                      encounter: encounter,
+          test = create(:observation, order:,
+                                      encounter:,
                                       person_id: patient.patient_id,
                                       concept_id: @test_type_concept.concept_id,
                                       value_coded: create(:concept_name).concept_id)
 
           return order unless add_result
 
-          create(:observation, order: order,
-                               encounter: create(:encounter, patient: patient),
+          create(:observation, order:,
+                               encounter: create(:encounter, patient:),
                                concept_id: @test_result_concept.concept_id,
                                person_id: patient.patient_id,
                                obs_group_id: test.obs_id,
@@ -69,7 +69,7 @@ module Lab
 
       it 'retrieves tests by accession number' do
         accession_number = @orders.last.accession_number
-        tests_found = subject.find_tests(accession_number: accession_number)
+        tests_found = subject.find_tests(accession_number:)
 
         expect(tests_found.size).to eq(1)
         expect(tests_found.first[:order][:id]).to eq(@orders.last.order_id)
@@ -89,7 +89,7 @@ module Lab
 
       it 'retrieves tests by specimen type id' do
         specimen_type_id = @orders.first.concept_id
-        tests_found = subject.find_tests(specimen_type_id: specimen_type_id)
+        tests_found = subject.find_tests(specimen_type_id:)
 
         expect(tests_found.size).to eq(1)
         expect(tests_found.first[:order][:id]).to eq(@orders.first.order_id)

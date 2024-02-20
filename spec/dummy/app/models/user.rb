@@ -51,7 +51,7 @@ class User < RetirableRecord
         programs: {},
         person: {
           include: {
-            names: {},
+            names: {}
             # person_attributes: {},
             # addresses: {}
           }

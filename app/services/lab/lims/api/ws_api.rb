@@ -89,7 +89,7 @@ module Lab
         end
 
         def find_order(lims_id)
-          mapping = Lab::LimsOrderMapping.where(lims_id: lims_id).select(:order_id)
+          mapping = Lab::LimsOrderMapping.where(lims_id:).select(:order_id)
           Lab::LabOrder.find_by(order_id: mapping)
         end
 

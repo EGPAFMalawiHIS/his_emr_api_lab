@@ -34,12 +34,16 @@ class DrugOrder < ApplicationRecord
   end
 
   def amount_needed
-    drug_frequency = self.frequency.to_s rescue ''
-    if drug_frequency.match(/Weekly/i)
-      value = (((duration * (equivalent_daily_dose || 1)) - (quantity || 0)) / 7)
-    else
-      value = (duration * (equivalent_daily_dose || 1)) - (quantity || 0)
+    drug_frequency = begin
+      frequency.to_s
+    rescue StandardError
+      ''
     end
+    value = if drug_frequency.match(/Weekly/i)
+              (((duration * (equivalent_daily_dose || 1)) - (quantity || 0)) / 7)
+            else
+              (duration * (equivalent_daily_dose || 1)) - (quantity || 0)
+            end
     value.negative? ? 0 : value
   end
 
@@ -49,7 +53,7 @@ class DrugOrder < ApplicationRecord
 
   # Construct
   def dosage_struct
-    ingredient = MohRegimenIngredient.find_by(drug: drug)
+    ingredient = MohRegimenIngredient.find_by(drug:)
     {
       drug_id: drug.drug_id,
       drug_name: drug.name,
@@ -61,9 +65,13 @@ class DrugOrder < ApplicationRecord
   end
 
   def to_s
-    return order.instructions unless order.instructions.blank? rescue nil
+    begin
+      return order.instructions unless order.instructions.blank?
+    rescue StandardError
+      nil
+    end
 
-    str = "#{drug.name}: #{self.dose} #{self.units} #{frequency} for #{duration||'some'} days"
+    str = "#{drug.name}: #{dose} #{units} #{frequency} for #{duration || 'some'} days"
     str << ' (prn)' if prn == 1
     str
   end
@@ -206,6 +214,4 @@ class DrugOrder < ApplicationRecord
   #   self.save
   #   amounts_dispensed
   # end
-
-
 end

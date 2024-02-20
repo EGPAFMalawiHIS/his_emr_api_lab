@@ -14,7 +14,7 @@ module Lab
 
         def void_order(order_dto); end
 
-        def consume_orders(&_block); end
+        def consume_orders(&); end
       end
     end
   end
