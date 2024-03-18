@@ -75,8 +75,8 @@ module Lab
     def self.reasons_for_test
       ConceptSet.find_members_by_name(Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME)
                 .joins('INNER JOIN concept_name ON concept_name.concept_id = concept_set.concept_id')
-                .select('concept_name.concept_id, concept_name.name')
-                .map { |concept| { name: concept.name, concept_id: concept.concept_id } }
+                .select('concept_name.concept_id, concept_name.name, concept_name.uuid')
+                .map { |concept| { name: concept.name, concept_id: concept.concept_id, uuid: concept.uuid } }
     end
   end
 end

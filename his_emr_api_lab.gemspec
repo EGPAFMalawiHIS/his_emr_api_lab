@@ -30,8 +30,8 @@ Gem::Specification.new do |spec|
   spec.files = Dir['{app,config,db,lib}/**/*', 'MIT-LICENSE', 'Rakefile', 'README.md']
 
   spec.add_dependency 'couchrest', '~> 2.0.0'
-  spec.add_dependency 'parallel', '~> 1.20.1'
-  spec.add_dependency 'rails', '~> 5.2.4', '>= 5.2.4.3'
+  spec.add_dependency 'parallel'
+  # spec.add_dependency 'rails', '~> 5.2.4', '>= 5.2.4.3'
   spec.add_dependency 'socket.io-client-simple', '~> 1.2.1'
   spec.add_development_dependency 'bcrypt', '~> 3.1.0'
   spec.add_development_dependency 'factory_bot_rails', '~> 6.1.0'

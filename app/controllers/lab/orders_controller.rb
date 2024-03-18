@@ -2,7 +2,7 @@
 
 module Lab
   class OrdersController < ApplicationController
-    skip_before_action :authenticate, only: %i[order_status order_result]
+    skip_before_action :authorize_request, only: %i[order_status order_result]
     before_action :authenticate_request, only: %i[order_status order_result]
 
     def create
@@ -59,27 +59,8 @@ module Lab
     private
 
     def authenticate_request
-      header = request.headers['Authorization']
-      content = header.split(' ')
-      auth_scheme = content.first
-      unless header
-        errors = ['Authorization token required']
-        render json: { errors: errors }, status: :unauthorized
-        return false
-      end
-      unless auth_scheme == 'Bearer'
-        errors = ['Authorization token bearer scheme required']
-        render json: { errors: errors }, status: :unauthorized
-        return false
-      end
-  
-      process_token(content.last)
-    end
-
-    def process_token(token)
-      browser = Browser.new(request.user_agent)
-      decoded = Lab::JsonWebTokenService.decode(token, request.remote_ip + browser.name + browser.version)
-      user(decoded)
+      decoded_user = authorize_request
+      user(decoded_user)
     end
 
     def user(decoded)

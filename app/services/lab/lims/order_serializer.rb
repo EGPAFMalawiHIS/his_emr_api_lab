@@ -14,7 +14,6 @@ module Lab
 
         def serialize_order(order)
           serialized_order = Lims::Utils.structify(Lab::LabOrderSerializer.serialize_order(order))
-
           Lims::OrderDTO.new(
             _id: Lab::LimsOrderMapping.find_by(order: order)&.lims_id || serialized_order.accession_number,
             tracking_number: serialized_order.accession_number,
@@ -65,8 +64,8 @@ module Lab
             last_name: name&.family_name,
             id: national_id&.identifier,
             arv_number: find_arv_number(patient_id),
-            art_regimen: find_current_regimen(patient_id),
-            art_start_date: find_art_start_date(patient_id),
+            art_regimen: nil,
+            art_start_date: nil,
             dob: person.birthdate,
             phone_number: phone_number&.value || 'Unknown',
             gender: person.gender,
@@ -114,9 +113,9 @@ module Lab
         def format_sample_status_trail(order)
           return [] if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
 
-          user = User.find(order.discontinued_by || order.creator)
+          user = User.find(order.creator)
           drawn_by = PersonName.find_by_person_id(user.user_id)
-          drawn_date = order.discontinued_date || order.start_date
+          drawn_date = order.date_created
 
           [
             drawn_date.strftime('%Y%m%d%H%M%S') => {
@@ -132,7 +131,7 @@ module Lab
         end
 
         def format_test_status_trail(order)
-          tests = order.voided.zero? ? order.tests : Lab::LabOrderSerializer.voided_tests(order)
+          tests = order.voided ? order.tests : Lab::LabOrderSerializer.voided_tests(order)
 
           tests.each_with_object({}) do |test, trail|
             test_name = format_test_name(ConceptName.find_by_concept_id!(test.value_coded).name)

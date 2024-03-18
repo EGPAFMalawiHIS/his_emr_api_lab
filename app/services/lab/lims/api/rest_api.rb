@@ -1,7 +1,8 @@
 # frozen_string_literal: true
+require 'rest-client'
 
 class Lab::Lims::Api::RestApi
-  class LimsApiError < GatewayError; end
+  class LimsApiError < StandardError; end
 
   class AuthenticationTokenExpired < LimsApiError; end
 
@@ -239,7 +240,7 @@ class Lab::Lims::Api::RestApi
   def current_district
     health_centre = Location.current_health_center
     raise 'Current health centre not set' unless health_centre
-
+    
     district = health_centre.district || Lab::Lims::Config.application['district']
 
     unless district

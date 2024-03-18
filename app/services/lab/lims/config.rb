@@ -53,7 +53,7 @@ module Lab
         ##
         # Returns LIMS' application.yml configuration file
         def application
-          @application ||= YAML.load_file(find_config_path('application.yml'))
+          @application ||= YAML.load_file(find_config_path('nlims.yml'))
         end
 
         ##
@@ -65,7 +65,7 @@ module Lab
         private
 
         def emr_api_application(param, fallback = nil)
-          @emr_api_application ||= YAML.load_file(Rails.root.join('config', 'application.yml'))
+          @emr_api_application ||= YAML.load_file(Rails.root.join('config', 'nlims.yml'))
 
           @emr_api_application.fetch(param) do
             raise ConfigNotFound, "Missing config param: #{param}" unless fallback
@@ -80,7 +80,7 @@ module Lab
         # Returns: a path to a file found
         def find_config_path(filename)
           paths = [
-            "#{ENV['HOME']}/apps/nlims_controller/config/#{filename}",
+            "#{Dir.home}/apps/nlims_controller/config/#{filename}",
             "/var/www/nlims_controller/config/#{filename}",
             Rails.root.parent.join("nlims_controller/config/#{filename}")
           ]

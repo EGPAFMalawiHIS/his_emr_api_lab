@@ -86,9 +86,9 @@ module Lab
                         discontinued_reason_non_coded: 'Sample drawn/updated')
         end
 
-        if params[:reason_for_test_id]
+        if params[:reason_for_test]
           Rails.logger.debug("Updating reason for test on order ##{order.order_id}")
-          update_reason_for_test(order, params[:reason_for_test_id])
+          update_reason_for_test(order, params[:reason_for_test])
         end
 
         Lab::LabOrderSerializer.serialize_order(order)
@@ -188,18 +188,14 @@ module Lab
       # a 'Lab' encounter is created using the provided program_id and
       # patient_id.
       def find_encounter(order_params)
-        return Encounter.find(order_params[:encounter_id]) if order_params[:encounter_id]
-
-        raise InvalidParameterError, 'encounter_id or patient_id required' unless order_params[:patient_id]
-
-        program_id = order_params[:program_id] || Program.find_by_name!(Lab::Metadata::LAB_PROGRAM_NAME).program_id
+        return Encounter.find(order_params[:encounter]) if order_params[:encounter]
+        raise StandardError, 'encounter_uuid or patient_uuid required' unless order_params[:patient]
 
         Encounter.create!(
-          patient_id: order_params[:patient_id],
-          program_id: program_id,
-          type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
-          encounter_datetime: order_params[:date] || Date.today,
-          provider_id: order_params[:provider_id] || User.current.person.person_id
+          patient: Person.find_by_uuid(order_params[:patient]).patient,
+          visit: Visit.find_by_uuid(order_params[:visit]),
+          encounter_type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
+          encounter_datetime: order_params[:date] || Date.today
         )
       end
 
@@ -208,11 +204,11 @@ module Lab
         raise 'Accession Number cannot be blank' unless access_number.present?
         raise 'Accession cannot be this short' unless access_number.length > 6
         Lab::LabOrder.create!(
-          order_type: OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME),
-          concept_id: params.dig(:specimen, :concept_id) || unknown_concept_id,
-          encounter_id: encounter.encounter_id,
-          patient_id: encounter.patient_id,
-          start_date: params[:date]&.to_date || Date.today,
+          order_type_id: OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME).id,
+          concept_id: Concept.find_concept_by_uuid(params.dig(:specimen, :concept))&.id,
+          encounter_id: encounter.id,
+          patient_id: encounter.patient.id,
+          date_created: params[:date]&.to_date || Date.today,
           auto_expire_date: params[:end_date],
           accession_number: access_number,
           orderer: User.current&.user_id
@@ -252,7 +248,7 @@ module Lab
           order,
           Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME,
           params[:date],
-          value_coded: params[:reason_for_test_id]
+          value_coded: Concept.find_concept_by_uuid(params[:reason_for_test]).id
         )
       end
 
@@ -285,7 +281,7 @@ module Lab
       end
 
       def unknown_concept_id
-        ConceptName.find_by_name!('Unknown').concept_id
+        ConceptName.find_by_name!('Unknown').concept
       end
 
       def update_reason_for_test(order, concept_id)

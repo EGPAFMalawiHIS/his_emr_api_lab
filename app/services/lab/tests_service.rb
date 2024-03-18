@@ -32,7 +32,7 @@ module Lab
               order_id: order.order_id,
               person_id: order.patient_id,
               obs_datetime: date&.to_time || Time.now,
-              value_coded: params[:concept_id]
+              value_coded: Concept.find_concept_by_uuid(params[:concept]).id
             )
 
             Lab::TestSerializer.serialize(test, order: order)

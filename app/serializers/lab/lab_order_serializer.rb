@@ -7,13 +7,12 @@ module Lab
       requesting_clinician ||= order.requesting_clinician
       reason_for_test ||= order.reason_for_test
       target_lab = target_lab&.value_text || order.target_lab&.value_text || Location.current_health_center&.name
-
       ActiveSupport::HashWithIndifferentAccess.new(
         {
           id: order.order_id,
           order_id: order.order_id, # Deprecated: Link to :id
           encounter_id: order.encounter_id,
-          order_date: order.start_date,
+          order_date: order.date_created,
           patient_id: order.patient_id,
           accession_number: order.accession_number,
           specimen: {
