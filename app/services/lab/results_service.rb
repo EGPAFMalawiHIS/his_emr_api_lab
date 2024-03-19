@@ -20,8 +20,10 @@ module Lab
         serializer = {}
         results_obs = {}
         ActiveRecord::Base.transaction do
-          test = Lab::LabTest.find(test_id)
+          test = Lab::LabTest.find(test_id) rescue nil
+          test = Lab::LabTest.find_by_uuid(test_id) if test.blank?
           encounter = find_encounter(test, encounter_id: params[:encounter_id],
+                                           encounter_uuid: params[:encounter],
                                            date: params[:date]&.to_date,
                                            provider_id: params[:provider_id])
 
@@ -45,16 +47,16 @@ module Lab
         data = { Type: result_enter_by,
                  'Test type': ConceptName.find_by(concept_id: result.test.value_coded)&.name,
                  'Accession number': order&.accession_number,
-                 'Orde date': order&.start_date,
+                 'Orde date': Order.columns.include?('start_date') ? order.start_date : order.date_created,
                  'ARV-Number': find_arv_number(result.person_id),
                  PatientID: result.person_id,
-                 'Ordered By': order&.provider&.person&.name,
+                 'Ordered By': Order.columns.include?('provider_id') ? order&.provider&.person&.name : Person.find(order.creator)&.name,
                  Result: values }.as_json
         NotificationService.new.create_notification(result_enter_by, data) 
       end
 
       def process_acknowledgement(results, results_enter_by)
-        Lab::AcknowledgementService.create_acknowledgement({ order_id: results.order_id, test: results.test.value_coded,
+        Lab::AcknowledgementService.create_acknowledgement({ order_id: results.order_id, test: results.test.id,
                                                              date_received: Time.now,
                                                              entered_by: results_enter_by })
       end
@@ -66,22 +68,23 @@ module Lab
                          .first&.identifier
       end
 
-      def find_encounter(test, encounter_id: nil, date: nil, provider_id: nil)
+      def find_encounter(test, encounter_id: nil, encounter_uuid: nil, date: nil, provider_id: nil)
         return Encounter.find(encounter_id) if encounter_id
+        return Encounter.find_by_uuid(encounter_uuid) if encounter_uuid
 
-        Encounter.create!(
-          patient_id: test.person_id,
-          program_id: test.encounter.program_id,
-          type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
-          encounter_datetime: date || Date.today,
-          provider_id: provider_id || User.current.user_id
-        )
+        encounter = Encounter.new
+        encounter.patient_id = test.person_id
+        encounter.program_id = test.encounter.program_id if Encounter.column_names.include?('program_id')
+        encounter.type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
+        encounter.encounter_datetime = date || Date.today
+        encounter.provider_id = provider_id || User.current.user_id if Encounter.column_names.include?('provider_id')
+
+        encounter.save!
       end
 
       # Creates the parent observation for results to which the different measures are attached
       def create_results_obs(encounter, test, date, comments = nil)
         void_existing_results_obs(encounter, test)
-
         Lab::LabResult.create!(
           person_id: encounter.patient_id,
           encounter_id: encounter.encounter_id,
@@ -111,11 +114,13 @@ module Lab
       def add_measure_to_results(results_obs, params, date)
         validate_measure_params(params)
 
+        concept_id = params[:indicator][:concept_id] || Concept.find_concept_by_uuid(params.dig(:indicator, :concept))&.id
+
         Observation.create!(
           person_id: results_obs.person_id,
           encounter_id: results_obs.encounter_id,
           order_id: results_obs.order_id,
-          concept_id: params[:indicator][:concept_id],
+          concept_id: concept_id,
           obs_group_id: results_obs.obs_id,
           obs_datetime: date&.to_datetime || DateTime.now,
           **make_measure_value(params)
@@ -125,8 +130,8 @@ module Lab
       def validate_measure_params(params)
         raise InvalidParameterError, 'measures.value is required' if params[:value].blank?
 
-        if params[:indicator]&.[](:concept_id).blank?
-          raise InvalidParameterError, 'measures.indicator.concept_id is required'
+        if params[:indicator]&.[](:concept_id).blank? && params[:indicator]&.[](:concept).blank?
+          raise InvalidParameterError, 'measures.indicator.concept_id or concept is required'
         end
 
         params

@@ -25,7 +25,7 @@ module Lab
 
     def self.read_value(measure)
       %w[value_numeric value_coded value_boolean value_text].each do |field|
-        value = measure.send(field)
+        value = measure.send(field) if measure.respond_to?(field)
 
         return [value, field.split('_')[1]] if value
       end

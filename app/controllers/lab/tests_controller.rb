@@ -2,7 +2,7 @@
 
 class Lab::TestsController < ::ApplicationController
   def index
-    filters = params.permit(%i[order_date accession_number patient_id test_type_id specimen_type_id pending_results])
+    filters = params.permit(%i[order_date accession_number patient patient_id test_type_id specimen_type_id pending_results])
 
     tests = service.find_tests(filters)
     render json: tests

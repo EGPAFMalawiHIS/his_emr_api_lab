@@ -23,8 +23,13 @@ module Lab
       def create_tests(order, date, tests_params)
         raise InvalidParameterError, 'tests are required' if tests_params.nil? || tests_params.empty?
 
+        
         Lab::LabTest.transaction do
           tests_params.map do |params|
+            
+            concept_id = tests_params[:concept_id]
+            Concept.find_concept_by_uuid(params[:concept]).id if concept_id.nil?
+            
             test = Lab::LabTest.create!(
               concept_id: ConceptName.find_by_name!(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                                      .concept_id,
@@ -32,7 +37,7 @@ module Lab
               order_id: order.order_id,
               person_id: order.patient_id,
               obs_datetime: date&.to_time || Time.now,
-              value_coded: Concept.find_concept_by_uuid(params[:concept]).id
+              value_coded: concept_id
             )
 
             Lab::TestSerializer.serialize(test, order: order)
@@ -44,9 +49,12 @@ module Lab
 
       ##
       # Filter a LabTests Relation.
-      def filter_tests(tests, test_type_id: nil, patient_id: nil)
+      def filter_tests(tests, test_type_id: nil, patient_id: nil, patient: nil)
         tests = tests.where(value_coded: test_type_id) if test_type_id
         tests = tests.where(person_id: patient_id) if patient_id
+
+        person = ::Person.find_by_uuid(patient) if patient
+        tests = tests.where(person_id: person.patient.id) if patient && person
 
         tests
       end

@@ -6,6 +6,9 @@ module Lab
     class << self
       def create_acknowledgement(params)
         order = Order.find(params[:order_id])
+
+        Lab::LabAcknowledgement.find_by(order_id: order.id, test: params[:test])&.destroy
+
         Lab::LabAcknowledgement.create!(order_id: order.id, test: params[:test], pushed: false,
                                         acknowledgement_type: params[:entered_by] == 'LIMS' ? 'test_results_delivered_to_site_electronically' : 'test_results_delivered_to_site_manually',
                                         date_received: params[:date_received])
