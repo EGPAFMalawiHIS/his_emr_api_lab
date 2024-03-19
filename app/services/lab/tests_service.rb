@@ -26,9 +26,8 @@ module Lab
         
         Lab::LabTest.transaction do
           tests_params.map do |params|
-            
-            concept_id = tests_params[:concept_id]
-            Concept.find_concept_by_uuid(params[:concept]).id if concept_id.nil?
+            concept_id = params[:concept_id]
+            concept_id = Concept.find_concept_by_uuid(params[:concept]).id if concept_id.nil?
             
             test = Lab::LabTest.create!(
               concept_id: ConceptName.find_by_name!(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)

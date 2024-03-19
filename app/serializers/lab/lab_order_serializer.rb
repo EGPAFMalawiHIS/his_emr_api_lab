@@ -32,6 +32,7 @@ module Lab
             {
               id: test.obs_id,
               concept_id: test.value_coded,
+              uuid: test.uuid,
               name: concept_name(test.value_coded),
               result: result_obs && ResultSerializer.serialize(result_obs)
             }

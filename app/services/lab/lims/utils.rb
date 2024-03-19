@@ -47,8 +47,8 @@ module Lab
         return user if user
 
         god_user = User.first
-
-        person = Person.create!(creator: god_user.user_id)
+        User.current = god_user
+        person = Person.create!(creator: god_user.user_id, birthdate: '1980-01-01')
         PersonName.create!(person: person, given_name: 'Lab', family_name: 'Daemon', creator: god_user.user_id)
 
         User.create!(username: 'lab_daemon', person: person, creator: god_user.user_id)

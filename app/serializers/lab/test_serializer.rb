@@ -6,7 +6,6 @@ module Lab
     def self.serialize(test, order: nil, result: nil)
       order ||= test.order
       result ||= test.result
-
       {
         id: test.obs_id,
         test_uuid: test.uuid,
@@ -24,6 +23,7 @@ module Lab
         result: if result
                   {
                     id: result.obs_id,
+                    uuid: result.uuid,
                     modifier: result.value_modifier,
                     value: result.value_text
                   }
