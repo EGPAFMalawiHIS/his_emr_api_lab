@@ -53,9 +53,8 @@ module Lab
       def filter_tests(tests, test_type_id: nil, patient_id: nil, patient: nil)
         tests = tests.where(value_coded: test_type_id) if test_type_id
         tests = tests.where(person_id: patient_id) if patient_id
-
         person = ::Person.find_by_uuid(patient) if patient
-        tests = tests.where(person_id: person.patient.id) if patient && person
+        tests = tests.where(person_id: person&.patient&.id) if patient
 
         tests
       end
