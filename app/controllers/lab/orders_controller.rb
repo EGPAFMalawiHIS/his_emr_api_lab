@@ -25,9 +25,12 @@ module Lab
     end
 
     def index
-      filters = params.permit(%i[patient_id accession_number date status])
+      filters = params.permit(%i[patient_id patient accession_number date status])
 
-      Lab::UpdatePatientOrdersJob.perform_later(filters[:patient_id]) if filters[:patient_id]
+      patient = Patient.find(filters[:patient_id]) if filters[:patient_id]
+      patient = Person.find_by_uuid(filters[:patient])&.patient if filters[:patient]
+      
+      Lab::UpdatePatientOrdersJob.perform_later(patient.id) if filters[:patient_id] || filters[:patient]
       render json: OrdersSearchService.find_orders(filters)
     end
 

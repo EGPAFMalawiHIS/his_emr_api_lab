@@ -7,12 +7,18 @@ module Lab
       def find_orders(filters)
         extra_filters = pop_filters(filters, :date, :end_date, :status)
 
+        uuid = filters.delete(:patient)
+        patient = Person.find_by_uuid(uuid)&.patient if uuid
+
+        filters.merge!(patient_id: patient.id) if patient
+
         orders = Lab::LabOrder.prefetch_relationships
                               .where(filters)
-                              .order(start_date: :desc)
+        orders = orders.order(start_date: :desc) if Order.column_names.include?('start_date')
+        orders = orders.order(date_created: :desc) unless Order.column_names.include?('start_date')
 
-        orders = filter_orders_by_status(orders, pop_filters(extra_filters, :status))
-        orders = filter_orders_by_date(orders, extra_filters)
+        orders = filter_orders_by_status(orders: orders, status: extra_filters[:status])
+        orders = filter_orders_by_date(orders: orders, date: extra_filters[:date], end_date: extra_filters[:end_date])
 
         orders.map { |order| Lab::LabOrderSerializer.serialize_order(order) }
       end
@@ -27,7 +33,7 @@ module Lab
         query
       end
 
-      def filter_orders_by_date(orders, date: nil, end_date: nil)
+      def filter_orders_by_date(orders:, date: nil, end_date: nil)
         date = date&.to_date
         end_date = end_date&.to_date
 
@@ -40,7 +46,7 @@ module Lab
         orders
       end
 
-      def filter_orders_by_status(orders, status: nil)
+      def filter_orders_by_status(orders:, status: nil)
         case status&.downcase
         when 'ordered' then orders.where(concept_id: unknown_concept_id)
         when 'drawn' then orders.where.not(concept_id: unknown_concept_id)
