@@ -3,7 +3,7 @@
 module Lab
   class TestTypesController < ApplicationController
     def index
-      filters = params.permit(%w[name specimen_type])
+      filters = params.slice(:name, :specimen_type)
 
       test_types = ConceptsService.test_types(name: filters['name'],
                                               specimen_type: filters['specimen_type'])

@@ -57,7 +57,7 @@ class Observation < VoidableRecord
     # HACK: Nullify any attached dispensations
     return unless order_id
 
-    drug_order = DrugOrder.find_by(order_id: order_id)
+    drug_order = DrugOrder.find_by(order_id:)
     return unless drug_order
 
     drug_order.quantity = nil
@@ -72,24 +72,53 @@ class Observation < VoidableRecord
     ConceptName.find_by_concept_id(concept_id).name
   end
 
-  def answer_string(tags=[])
-    coded_answer_name = self.answer_concept.concept_names.typed(tags).first.name rescue nil
-    coded_answer_name ||= self.answer_concept.concept_names.first.name rescue nil
-    coded_name = "#{coded_answer_name} #{self.value_modifier}#{self.value_text} #{self.value_numeric}#{self.value_datetime.strftime("%d/%b/%Y") rescue nil}#{self.value_boolean && (self.value_boolean == true ? 'Yes' : 'No' rescue nil)}#{' ['+order.to_s+']' if order_id && tags.include?('order')}"
-    #the following code is a hack
-    #we need to find a better way because value_coded can also be a location - not only a concept
+  def answer_string(tags = [])
+    coded_answer_name = begin
+      answer_concept.concept_names.typed(tags).first.name
+    rescue StandardError
+      nil
+    end
+    coded_answer_name ||= begin
+      answer_concept.concept_names.first.name
+    rescue StandardError
+      nil
+    end
+    coded_name = "#{coded_answer_name} #{value_modifier}#{value_text} #{value_numeric}#{begin
+      value_datetime.strftime('%d/%b/%Y')
+    rescue StandardError
+      nil
+    end}#{value_boolean && begin
+      value_boolean == true ? 'Yes' : 'No'
+    rescue StandardError
+      nil
+    end}#{" [#{order}]" if order_id && tags.include?('order')}"
+    # the following code is a hack
+    # we need to find a better way because value_coded can also be a location - not only a concept
     return coded_name unless coded_name.blank?
-    answer = Concept.find_by_concept_id(self.value_coded).shortname rescue nil
 
-    if answer.nil?
-      answer = Concept.find_by_concept_id(self.value_coded).fullname rescue nil
+    answer = begin
+      Concept.find_by_concept_id(value_coded).shortname
+    rescue StandardError
+      nil
     end
 
     if answer.nil?
-      answer = Concept.find_with_voided(self.value_coded).fullname rescue ""
-      answer = answer + ' - retired'
+      answer = begin
+        Concept.find_by_concept_id(value_coded).fullname
+      rescue StandardError
+        nil
+      end
     end
 
-    return answer
+    if answer.nil?
+      answer = begin
+        Concept.find_with_voided(value_coded).fullname
+      rescue StandardError
+        ''
+      end
+      answer += ' - retired'
+    end
+
+    answer
   end
 end

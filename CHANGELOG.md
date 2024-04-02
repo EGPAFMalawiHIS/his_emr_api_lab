@@ -4,6 +4,16 @@ This file tracks changes to the HIS-EMR-API-Lab module. Changes are categorised
 as `Fixed`, `Added`, `Deprecated`, and `Removed`.
 Versioning follows Semantic versioning which is documented [here](https://semver.org/spec/v2.0.0.html). 
 
+## [v2.0.0] - 2024-04-02
+
+### Deprecated
+
+- Upgraded ruby version to 3.2.0
+
+### Fixed
+
+- Fixed Depreciated class and method calls fot new rails
+
 ## [v.1.1.21] - 2022-06-13
 
 ### Added

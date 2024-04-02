@@ -1,11 +1,13 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
 module Lab
   RSpec.describe LimsOrderMapping, type: :model do
-    subject { create(:lims_order_mapping, order: order, lims_id: 'alphanumeric-id-1') }
+    subject { create(:lims_order_mapping, order:, lims_id: 'alphanumeric-id-1') }
 
     let(:patient) { create(:patient) }
-    let(:order) { create(:lab_order, patient: patient, encounter: create(:encounter, patient: patient)) }
+    let(:order) { create(:lab_order, patient:, encounter: create(:encounter, patient:)) }
 
     describe 'associations' do
       it { should belong_to(:order).class_name('Lab::LabOrder') }

@@ -13,7 +13,7 @@ class CouchBum
   def initialize(database:, protocol: 'http', host: 'localhost', port: 5984, username: nil, password: nil)
     @connection_string = make_connection_string(protocol, username, password, host, port, database)
 
-    CouchBum.logger ||= Logger.new(STDOUT)
+    CouchBum.logger ||= Logger.new($stdout)
   end
 
   ##
@@ -25,7 +25,7 @@ class CouchBum
   def binge_changes(since: 0, limit: nil, include_docs: nil, &block)
     catch(:choke) do
       logger.debug("Binging #{limit} changes from '#{since}'")
-      params = stringify_params(limit: limit, include_docs: include_docs)
+      params = stringify_params(limit:, include_docs:)
       params = "since=#{since}&#{params}" unless since.blank?
 
       changes = couch_rest(:get, "_changes?#{params}")
@@ -37,9 +37,9 @@ class CouchBum
     end
   end
 
-  def couch_rest(method, route, *args, **kwargs)
+  def couch_rest(method, route, *, **)
     url = expand_route(route)
-    CouchRest.send(method, url, *args, **kwargs)
+    CouchRest.send(method, url, *, **)
   rescue CouchRest::Exception => e
     logger.error("Failed to communicate with CouchDB: Status: #{e.http_code} - #{e.http_body}")
     raise e

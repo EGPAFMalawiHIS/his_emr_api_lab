@@ -80,7 +80,7 @@ module Lab
         # Returns: a path to a file found
         def find_config_path(filename)
           paths = [
-            "#{ENV['HOME']}/apps/nlims_controller/config/#{filename}",
+            "#{Dir.home}/apps/nlims_controller/config/#{filename}",
             "/var/www/nlims_controller/config/#{filename}",
             Rails.root.parent.join("nlims_controller/config/#{filename}")
           ]

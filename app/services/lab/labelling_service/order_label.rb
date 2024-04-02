@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'auto12epl'
+require_relative '../../../../lib/auto12epl'
 
 module Lab
   module LabellingService
@@ -89,7 +89,7 @@ module Lab
       end
 
       def short_concept_name(concept_id)
-        ConceptName.where(concept_id: concept_id)
+        ConceptName.where(concept_id:)
                    .min_by { |concept| concept.name.size }
                    &.name
       end

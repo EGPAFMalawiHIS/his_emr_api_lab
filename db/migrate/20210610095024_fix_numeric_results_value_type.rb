@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class FixNumericResultsValueType < ActiveRecord::Migration[5.2]
   def up
     results = Lab::LabResult.all.includes(:children)

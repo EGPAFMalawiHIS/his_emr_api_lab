@@ -22,9 +22,9 @@ class LoggerMultiplexor
     end
   end
 
-  def method_missing(method_name, *args)
+  def method_missing(method_name, *)
     if respond_to_missing?(method_name)
-      @loggers.each { |logger| logger.send(method_name, *args) }
+      @loggers.each { |logger| logger.send(method_name, *) }
     else
       super
     end

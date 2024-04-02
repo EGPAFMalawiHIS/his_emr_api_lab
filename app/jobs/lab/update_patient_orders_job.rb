@@ -21,7 +21,7 @@ module Lab
         end
 
         worker = Lab::Lims::PullWorker.new(Lab::Lims::ApiFactory.create_api)
-        worker.pull_orders(patient_id: patient_id)
+        worker.pull_orders(patient_id:)
 
         true
       end
