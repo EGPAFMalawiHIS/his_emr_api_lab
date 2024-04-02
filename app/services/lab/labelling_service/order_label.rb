@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'auto12epl'
+require_relative '../../../../lib/auto12epl'
 
 module Lab
   module LabellingService
