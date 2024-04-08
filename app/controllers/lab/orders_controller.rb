@@ -31,7 +31,8 @@ module Lab
       patient = Person.find_by_uuid(filters[:patient])&.patient if filters[:patient]
       
       Lab::UpdatePatientOrdersJob.perform_later(patient.id) if filters[:patient_id] || filters[:patient]
-      render json: OrdersSearchService.find_orders(filters)
+      orders = OrdersSearchService.find_orders(filters)
+      render json: orders.reload, status: :ok
     end
 
     def verify_tracking_number
