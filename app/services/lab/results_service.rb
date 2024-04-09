@@ -75,11 +75,14 @@ module Lab
         encounter = Encounter.new
         encounter.patient_id = test.person_id
         encounter.program_id = test.encounter.program_id if Encounter.column_names.include?('program_id')
-        encounter.type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
+        encounter.visit_id = test.encounter.visit_id if Encounter.column_names.include?('visit_id')
+        encounter.encounter_type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
         encounter.encounter_datetime = date || Date.today
         encounter.provider_id = provider_id || User.current.user_id if Encounter.column_names.include?('provider_id')
 
         encounter.save!
+
+        encounter
       end
 
       # Creates the parent observation for results to which the different measures are attached

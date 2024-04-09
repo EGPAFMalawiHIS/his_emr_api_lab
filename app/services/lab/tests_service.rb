@@ -7,6 +7,10 @@ module Lab
     class << self
       def find_tests(filters)
         tests = Lab::LabTest.all
+        patient_id = filters.delete(:patient_id)
+        patient_id ||= ::Patient.find(filters.delete(:patient))&.id if filters[:patient]
+
+        Lab::UpdatePatientOrdersJob.perform_later(patient_id) if patient_id
 
         tests = filter_tests(tests, test_type_id: filters.delete(:test_type_id),
                                     patient_id: filters.delete(:patient_id),
