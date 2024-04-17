@@ -64,8 +64,8 @@ module Lab
             last_name: name&.family_name,
             id: national_id&.identifier,
             arv_number: find_arv_number(patient_id),
-            art_regimen: nil,
-            art_start_date: nil,
+            art_regimen: find_current_regimen(patient_id),
+            art_start_date: find_art_start_date(patient_id),
             dob: person.birthdate,
             phone_number: phone_number&.value || 'Unknown',
             gender: person.gender,
@@ -80,6 +80,8 @@ module Lab
           return nil if regimen_data.blank?
 
           regimen_data['regimen']
+        rescue ActiveRecord::Exception
+          nil
         end
 
         def find_arv_number(patient_id)
@@ -96,6 +98,8 @@ module Lab
           return nil if start_date.blank?
 
           start_date['earliest_date']
+        rescue ActiveRecord::Exception
+          nil
         end
 
         def format_sample_type(name)
@@ -114,8 +118,11 @@ module Lab
           return [] if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
 
           user = User.find(order.creator)
+          user = User.find(order.discontinued_by) if Order.columns_hash.key?('discontinued_by') && user.blank?
+
           drawn_by = PersonName.find_by_person_id(user.user_id)
-          drawn_date = order.date_created
+          drawn_date = order.discontinued_date || order.start_date if ['discontinued_date', 'start_date'].all? { |column| order.respond_to?(column) }
+          drawn_date ||= order.date_created
 
           [
             drawn_date.strftime('%Y%m%d%H%M%S') => {

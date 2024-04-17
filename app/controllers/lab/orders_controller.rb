@@ -3,7 +3,6 @@
 module Lab
   class OrdersController < ApplicationController
     skip_before_action :authorize_request, only: %i[order_status order_result]
-    before_action :authenticate_request, only: %i[order_status order_result]
 
     def create
       order_params_list = params.require(:orders)
@@ -27,9 +26,10 @@ module Lab
     def index
       filters = params.permit(%i[patient_id patient accession_number date status])
 
-      patient = Patient.find(filters[:patient_id]) if filters[:patient_id]
-      patient = Person.find_by_uuid(filters[:patient])&.patient if filters[:patient]
-      
+      id = filters[:patient_id] || filters[:patient]
+
+      patient = Patient.find(id) if filters[:patient_id] || filters[:patient]
+
       Lab::UpdatePatientOrdersJob.perform_later(patient.id) if filters[:patient_id] || filters[:patient]
       orders = OrdersSearchService.find_orders(filters)
       render json: orders.reload, status: :ok

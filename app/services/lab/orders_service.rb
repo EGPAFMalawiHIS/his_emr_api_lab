@@ -86,9 +86,11 @@ module Lab
                         discontinued_reason_non_coded: 'Sample drawn/updated')
         end
 
-        if params[:reason_for_test]
+        reason_for_test = params[:reason_for_test] || params[:reason_for_test_id]
+
+        if reason_for_test
           Rails.logger.debug("Updating reason for test on order ##{order.order_id}")
-          update_reason_for_test(order, params[:reason_for_test])
+          update_reason_for_test(order, Concept.find(reason_for_test)&.id)
         end
 
         Lab::LabOrderSerializer.serialize_order(order)
@@ -188,31 +190,48 @@ module Lab
       # a 'Lab' encounter is created using the provided program_id and
       # patient_id.
       def find_encounter(order_params)
-        return Encounter.find(order_params[:encounter]) if order_params[:encounter]
-        raise StandardError, 'encounter_uuid or patient_uuid required' unless order_params[:patient]
+        encounter_id = order_params[:encounter_id] || order_params[:encounter]
+        patient_id = order_params[:patient_id] || order_params[:patient]
+        visit = order_params[:visit]
 
-        Encounter.create!(
-          patient: Person.find_by_uuid(order_params[:patient]).patient,
-          visit: Visit.find_by_uuid(order_params[:visit]),
-          encounter_type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
-          encounter_datetime: order_params[:date] || Date.today
-        )
+        return Encounter.find(encounter_id) if order_params[:encounter] || order_params[:encounter_id]
+        raise StandardError, 'encounter_id|uuid or patient_id|uuid required' unless order_params[:patient]
+
+
+        encounter = Encounter.new
+        encounter.patient = Patient.find(patient_id)
+        encounter.encounter_type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
+        encounter.encounter_datetime = order_params[:date] || Date.today
+        encounter.visit = Visit.find_by_uuid(visit) if Encounter.column_names.include?('visit_id')
+        encounter.provider_id = User.current&.person.id if Encounter.column_names.include?('provider_id')
+
+        encounter.save!
+
+        encounter.reload
       end
 
       def create_order(encounter, params)
         access_number = params[:accession_number] || next_accession_number(params[:date]&.to_date || Date.today)
         raise 'Accession Number cannot be blank' unless access_number.present?
         raise 'Accession cannot be this short' unless access_number.length > 6
-        Lab::LabOrder.create!(
-          order_type_id: OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME).id,
-          concept_id: Concept.find_concept_by_uuid(params.dig(:specimen, :concept))&.id,
-          encounter_id: encounter.id,
-          patient_id: encounter.patient.id,
-          date_created: params[:date]&.to_date || Date.today,
-          auto_expire_date: params[:end_date],
-          accession_number: access_number,
-          orderer: User.current&.user_id
-        )
+
+        concept = params.dig(:specimen, :concept)
+        concept ||= params.dig(:specimen, :concept_id)
+
+        order = Lab::LabOrder.new
+        order.order_type_id = OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME).id
+        order.concept_id = Concept.find(concept)&.id
+        order.encounter_id = encounter.id
+        order.patient_id = encounter.patient.id
+        order.date_created = params[:date]&.to_date || Date.today if order.respond_to?(:date_created)
+        order.start_date = params[:date]&.to_date || Date.today if order.respond_to?(:start_date)
+        order.auto_expire_date = params[:end_date]
+        order.accession_number = access_number
+        order.orderer = User.current&.user_id
+
+        order.save!
+
+        order.reload
       end
 
       def accession_number_exists?(accession_number)
@@ -244,8 +263,10 @@ module Lab
       #
       # Examples of reasons include: Routine, Targeted, Confirmatory, Repeat, or Stat.
       def add_reason_for_test(order, params)
-        reason = Concept.find_concept_by_uuid(params[:reason_for_test])&.id if params[:reason_for_test]
-        reason = Concept.find(params[:reason_for_test_id])&.id if params[:reason_for_test_id]
+
+        reason = params[:reason_for_test_id] || params[:reason_for_test]
+
+        reason = Concept.find(reason)
 
         create_order_observation(
           order,

@@ -8,7 +8,7 @@ module Lab
         extra_filters = pop_filters(filters, :date, :end_date, :status)
 
         uuid = filters.delete(:patient)
-        patient = Person.find_by_uuid(uuid)&.patient if uuid
+        patient = Patient.find(uuid) if uuid
 
         filters.merge!(patient_id: patient.id) if patient
 

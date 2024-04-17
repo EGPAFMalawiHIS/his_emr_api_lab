@@ -50,10 +50,15 @@ module Lab
           30 # Seconds
         end
 
+        def config_file_name
+          # if nlims.yml exists return it, else return application.yml
+          File.exist?(Rails.root.join('config', 'nlims.yml')) ? 'nlims.yml' : 'application.yml'
+        end
+
         ##
         # Returns LIMS' application.yml configuration file
         def application
-          @application ||= YAML.load_file(find_config_path('nlims.yml'))
+          @application ||= YAML.load_file(find_config_path(config_file_name))
         end
 
         ##
@@ -65,7 +70,7 @@ module Lab
         private
 
         def emr_api_application(param, fallback = nil)
-          @emr_api_application ||= YAML.load_file(Rails.root.join('config', 'nlims.yml'))
+          @emr_api_application ||= YAML.load_file(Rails.root.join('config', config_file_name))
 
           @emr_api_application.fetch(param) do
             raise ConfigNotFound, "Missing config param: #{param}" unless fallback

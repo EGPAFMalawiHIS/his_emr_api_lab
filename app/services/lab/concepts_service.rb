@@ -58,7 +58,7 @@ module Lab
     def self.test_result_indicators(test_type_id)
       # Verify that the specified test_type is indeed a test_type
       test = ConceptSet.find_members_by_name(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
-                       .where(concept_id: [test_type_id, Concept.find_concept_by_uuid(test_type_id)&.concept_id])
+                       .where(concept_id: Concept.find(test_type_id)&.id)
                        .select(:concept_id)
 
       # From the members above, filter out only those concepts that are result indicators
