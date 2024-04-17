@@ -80,7 +80,7 @@ module Lab
           return nil if regimen_data.blank?
 
           regimen_data['regimen']
-        rescue ActiveRecord::Exception
+        rescue StandardError
           nil
         end
 
@@ -98,7 +98,7 @@ module Lab
           return nil if start_date.blank?
 
           start_date['earliest_date']
-        rescue ActiveRecord::Exception
+        rescue StandardError
           nil
         end
 

@@ -267,7 +267,6 @@ module Lab
         reason = params[:reason_for_test_id] || params[:reason_for_test]
 
         reason = Concept.find(reason)
-
         create_order_observation(
           order,
           Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME,
@@ -316,7 +315,9 @@ module Lab
         raise InvalidParameterError, "Can't change reason for test once set" if order.reason_for_test&.value_coded
 
         order.reason_for_test&.delete
-        add_reason_for_test(order, date: order.start_date, reason_for_test_id: concept_id)
+        date = order.start_date if order.respond_to?(:start_date)
+        date ||= order.date_created
+        add_reason_for_test(order, date: date, reason_for_test_id: concept_id)
       end
 
       def void_order_status(order, concept)

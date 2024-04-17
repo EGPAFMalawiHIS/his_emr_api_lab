@@ -32,7 +32,11 @@ module Lab
 
       Lab::UpdatePatientOrdersJob.perform_later(patient.id) if filters[:patient_id] || filters[:patient]
       orders = OrdersSearchService.find_orders(filters)
-      render json: orders.reload, status: :ok
+      begin
+        render json: orders.reload, status: :ok
+      rescue StandardError
+        render json: orders
+      end
     end
 
     def verify_tracking_number
