@@ -20,7 +20,7 @@ module Lab
             tracking_number: serialized_order.accession_number,
             sending_facility: current_facility_name,
             receiving_facility: serialized_order.target_lab,
-            tests: serialized_order.tests.map { |test| format_test_name(test.name) },
+            tests: serialized_order.tests.map { |test| test.name},
             patient: format_patient(serialized_order.patient_id),
             order_location: format_order_location(serialized_order.encounter_id),
             sample_type: format_sample_type(serialized_order.specimen.name),
@@ -106,7 +106,7 @@ module Lab
           tests = order.voided.zero? ? order.tests : Lab::LabOrderSerializer.voided_tests(order)
 
           tests.each_with_object({}) do |test, trail|
-            test_name = format_test_name(ConceptName.find_by_concept_id!(test.value_coded).name)
+            test_name = ConceptName.find_by_concept_id!(test.value_coded).name
 
             current_test_trail = trail[test_name] = {}
 
@@ -142,9 +142,9 @@ module Lab
             test_creator = User.find(Observation.find(test.result.first.id).creator)
             test_creator_name = PersonName.find_by_person_id(test_creator.person_id)
 
-            results[format_test_name(test.name)] = {
+            results[test.name] = {
               results: test.result.each_with_object({}) do |measure, measures|
-                measures[format_test_name(measure.indicator.name)] = {
+                measures[measure.indicator.name] = {
                   result_value: "#{measure.value_modifier}#{measure.value}"
                 }
               end,
@@ -156,14 +156,6 @@ module Lab
               }
             }
           end
-        end
-
-        def format_test_name(test_name)
-          return 'Viral Load' if test_name.casecmp?('HIV Viral load')
-
-          return 'TB' if test_name.casecmp?('TB Program')
-
-          test_name.titleize
         end
 
         def format_sample_priority(priority)
