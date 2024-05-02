@@ -24,6 +24,10 @@ module Lab
         'indian ink' => 'India ink'
       }.freeze
 
+      TEST_INDICATOR_MAPPINGS = {
+        'HCT' => 10_532
+      }.freeze
+
       def self.translate_test_name(test_name)
         TEST_NAME_MAPPINGS.fetch(test_name.downcase, test_name)
       end
@@ -79,10 +83,18 @@ module Lab
       end
 
       def self.find_concept_by_name(name)
-        ConceptName.joins(:concept)
-                   .merge(Concept.all) # Filter out voided
-                   .where(name: CGI.unescapeHTML(name))
-                   .first
+        concept_id = TEST_INDICATOR_MAPPINGS[name.upcase]
+        if concept_id.nil?
+          ConceptName.joins(:concept)
+                     .merge(Concept.all)
+                     .where(name: CGI.unescapeHTML(name))
+                     .first
+        else
+          ConceptName.joins(:concept)
+                     .merge(Concept.all)
+                     .where(concept_id:)
+                     .first
+        end
       end
     end
   end
