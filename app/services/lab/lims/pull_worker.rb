@@ -82,7 +82,9 @@ module Lab
 
       protected
 
-      def order_saved(order_dto); end
+      def order_saved(order_dto)
+        order_dto
+      end
 
       def order_rejected(order_dto, message); end
 
