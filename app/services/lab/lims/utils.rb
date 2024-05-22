@@ -84,17 +84,11 @@ module Lab
 
       def self.find_concept_by_name(name)
         concept_id = TEST_INDICATOR_MAPPINGS[name.upcase]
-        if concept_id.nil?
-          ConceptName.joins(:concept)
-                     .merge(Concept.all)
-                     .where(name: CGI.unescapeHTML(name))
-                     .first
-        else
-          ConceptName.joins(:concept)
-                     .merge(Concept.all)
-                     .where(concept_id:)
-                     .first
-        end
+        query_condition = concept_id.nil? ? { name: CGI.unescapeHTML(name) } : { concept_id: }
+        ConceptName.joins(:concept)
+                   .merge(Concept.all)
+                   .where(query_condition)
+                   .first
       end
     end
   end
