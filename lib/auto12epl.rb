@@ -133,9 +133,9 @@ class Auto12Epl
 
     # combine EPL statements
     if stat.nil?
-      "\nN\nR216,0\nZT\nS1\n#{name_element}\n#{pid_dob_age_gender_element}\n#{barcode_element}\n#{barcode_human_element}\n#{collector_element}\n#{tests_element}\nP#{::GlobalPropertyService.print_copies}\n"
+      "\nN\nR216,0\nZT\nS1\n#{name_element}\n#{pid_dob_age_gender_element}\n#{barcode_element}\n#{barcode_human_element}\n#{collector_element}\n#{tests_element}\nP#{print_copies}\n"
     else
-      "\nN\nR216,0\nZT\nS1\n#{name_element}\n#{pid_dob_age_gender_element}\n#{barcode_element}\n#{barcode_human_element}\n#{collector_element}\n#{tests_element}\n#{stat_element}\nP#{::GlobalPropertyService.print_copies}\n"
+      "\nN\nR216,0\nZT\nS1\n#{name_element}\n#{pid_dob_age_gender_element}\n#{barcode_element}\n#{barcode_human_element}\n#{collector_element}\n#{tests_element}\n#{stat_element}\nP#{print_copies}\n"
     end
   end
 
@@ -175,6 +175,12 @@ class Auto12Epl
   def generate_barcode_element(x, y, height, schema_track)
     schema_track = schema_track.gsub('-', '').strip
     "B#{x},#{y},#{BARCODE_ROTATION},#{BARCODE_TYPE},#{BARCODE_NARROW_WIDTH},#{BARCODE_WIDE_WIDTH},#{height},#{BARCODE_IS_HUMAN_READABLE},\"#{schema_track}\""
+  end
+
+  def print_copies
+    property = ::GlobalProperty.find_by(property: 'max.lab.order.print.copies')
+    value = property&.property_value&.strip
+    value || 3
   end
 end
 
