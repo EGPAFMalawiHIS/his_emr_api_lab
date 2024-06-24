@@ -232,7 +232,7 @@ module Lab
           creator = format_result_entered_by(test_results['result_entered_by'])
 
           ResultsService.create_results(test.id, { provider_id: User.current.person_id,
-                                                   date: Utils.parse_date(test_results['date_result_entered'],
+                                                   date: Utils.parse_date(test_results['result_date'] || result_date,
                                                                           order[:order_date].to_s),
                                                    comments: "LIMS import: Entered by: #{creator}",
                                                    measures: })
