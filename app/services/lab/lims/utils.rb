@@ -24,10 +24,6 @@ module Lab
         'indian ink' => 'India ink'
       }.freeze
 
-      TEST_INDICATOR_MAPPINGS = {
-        'HCT' => 10_532
-      }.freeze
-
       def self.translate_test_name(test_name)
         TEST_NAME_MAPPINGS.fetch(test_name.downcase, test_name)
       end
@@ -83,11 +79,9 @@ module Lab
       end
 
       def self.find_concept_by_name(name)
-        concept_id = TEST_INDICATOR_MAPPINGS[name.upcase]
-        query_condition = concept_id.nil? ? { name: CGI.unescapeHTML(name) } : { concept_id: }
         ConceptName.joins(:concept)
-                   .merge(Concept.all)
-                   .where(query_condition)
+                   .merge(Concept.all) # Filter out voided
+                   .where(name: CGI.unescapeHTML(name))
                    .first
       end
     end
