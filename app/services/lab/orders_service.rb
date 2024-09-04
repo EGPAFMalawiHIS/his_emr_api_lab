@@ -148,8 +148,7 @@ module Lab
                  'arv_number': find_arv_number(order.patient_id),
                  'patient_id': result.person_id,
                  'ordered_by': order&.provider&.person&.name,
-                 'rejection_reason': order_params['comments']
-                }.as_json
+                 'rejection_reason': order_params['comments'] }.as_json
         NotificationService.new.create_notification('LIMS', data)
       end
 
@@ -196,7 +195,6 @@ module Lab
 
         return Encounter.find(encounter_id) if order_params[:encounter] || order_params[:encounter_id]
         raise StandardError, 'encounter_id|uuid or patient_id|uuid required' unless order_params[:patient]
-
 
         encounter = Encounter.new
         encounter.patient = Patient.find(patient_id)
@@ -263,7 +261,6 @@ module Lab
       #
       # Examples of reasons include: Routine, Targeted, Confirmatory, Repeat, or Stat.
       def add_reason_for_test(order, params)
-
         reason = params[:reason_for_test_id] || params[:reason_for_test]
 
         reason = Concept.find(reason)
@@ -289,6 +286,8 @@ module Lab
       end
 
       def create_order_observation(order, concept_name, date, **values)
+        creator = User.find_by(username: 'lab_daemon')
+        User.current ||= creator
         Observation.create!(
           order: order,
           encounter_id: order.encounter_id,

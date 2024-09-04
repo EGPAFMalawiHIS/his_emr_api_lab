@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'rest-client'
 
 class Lab::Lims::Api::RestApi
@@ -7,6 +8,8 @@ class Lab::Lims::Api::RestApi
   class AuthenticationTokenExpired < LimsApiError; end
 
   class InvalidParameters < LimsApiError; end
+
+  START_DATE = Time.parse('2024-09-03').freeze
 
   def initialize(config)
     @config = config
@@ -240,7 +243,7 @@ class Lab::Lims::Api::RestApi
   def current_district
     health_centre = Location.current_health_center
     raise 'Current health centre not set' unless health_centre
-    
+
     district = health_centre.district || Lab::Lims::Config.application['district']
 
     unless district
@@ -406,7 +409,7 @@ class Lab::Lims::Api::RestApi
     Rails.logger.debug('Looking for orders without a specimen')
     unknown_specimen = ConceptName.where(name: Lab::Metadata::UNKNOWN_SPECIMEN)
                                   .select(:concept_id)
-    orders = Lab::LabOrder.where(concept_id: unknown_specimen)
+    orders = Lab::LabOrder.where(concept_id: unknown_specimen, date_created: START_DATE..(Date.today + 1.day))
                           .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
     orders = orders.where(patient_id: patient_id) if patient_id
 
@@ -418,16 +421,17 @@ class Lab::Lims::Api::RestApi
     # Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
     #                         .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id).where("pulled_at IS NULL"))
     Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
-                             .where(order_id: Lab::LimsOrderMapping.select(:order_id))
+                            .where(order_id: Lab::LimsOrderMapping.select(:order_id), date_created: START_DATE..(Date.today + 1.day))
   end
 
   def orders_without_reason(patient_id = nil)
     Rails.logger.debug('Looking for orders without a reason for test')
     orders = Lab::LabOrder.joins(:reason_for_test)
                           .merge(Observation.where(value_coded: nil, value_text: nil))
+                          .where(date_created: START_DATE..(Date.today + 1.day))
                           .limit(1000)
                           .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
-    orders = orders.where(patient_id: patient_id) if patient_id
+    orders = orders.where(patient_id: patient_id, date_created: START_DATE..(Date.today + 1.day)) if patient_id
 
     orders
   end

@@ -10,6 +10,7 @@ module Lab
       include Utils # for logger
 
       SECONDS_TO_WAIT_FOR_ORDERS = 30
+      START_DATE = Time.parse('2024-09-03').freeze
 
       def initialize(lims_api)
         @lims_api = lims_api
@@ -23,7 +24,7 @@ module Lab
           logger.debug("Found #{orders.size} orders...")
           orders.each do |order|
             push_order(order)
-          rescue GatewayError => e
+          rescue StandardError => e
             logger.error("Failed to push order ##{order.accession_number}: #{e.class} - #{e.message}")
           rescue StandardError => e
             logger.error("Failed to push order ##{order.id}: #{order&.accession_number} : #{e.class} - #{e.message}")
@@ -60,9 +61,9 @@ module Lab
             Rails.logger.info("Updating order ##{order_dto[:accession_number]} in LIMS")
             lims_api.update_order(mapping.lims_id, order_dto)
             if order_dto['test_results'].nil? || order_dto['test_results'].empty?
-              mapping.update(pushed_at: Time.now)             
+              mapping.update(pushed_at: Time.now)
             else
-              mapping.update(pushed_at: Time.now, result_push_status: true)  
+              mapping.update(pushed_at: Time.now, result_push_status: true)
            end
           elsif order_dto[:_id] && Lab::LimsOrderMapping.where(lims_id: order_dto[:_id]).exists?
             # HACK: v1.1.7 had a bug where duplicates of recently created orders where being created by
@@ -94,6 +95,7 @@ module Lab
         Rails.logger.debug('Looking for new orders that need to be created in LIMS...')
         Lab::LabOrder.where.not(order_id: Lab::LimsOrderMapping.all.select(:order_id))
                      .where("accession_number IS NOT NULL AND accession_number !=''")
+                     .where(date_created: START_DATE..(Date.today + 1.day))
                      .order(date_created: :desc)
       end
 
