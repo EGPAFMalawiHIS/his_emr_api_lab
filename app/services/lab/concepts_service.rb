@@ -66,7 +66,7 @@ module Lab
                            .select(:concept_id)
 
       ConceptSet.where(concept_set: measures, concept_id: test)
-                .joins('INNER JOIN concept_name AS measure ON measure.concept_id = concept_set.concept_set')
+                .joins("INNER JOIN concept_name AS measure ON measure.concept_id = concept_set.concept_set AND (measure.locale_preferred = 1 OR measure.concept_name_type = 'SHORT' OR measure.concept_name_type = 'FULLY_SPECIFIED')")
                 .select('measure.concept_id, measure.name')
                 .group('measure.concept_id')
                 .map { |concept| { name: concept.name, concept_id: concept.concept_id } }
