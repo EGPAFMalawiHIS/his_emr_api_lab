@@ -7,11 +7,7 @@ module Lab
     def print_order_label
       order_id = params.require(:order_id)
 
-      label = LabellingService::OrderLabel.new(order_id)
-      send_data(label.print, type: 'application/label; charset=utf-8',
-                             stream: false,
-                             filename: "#{SecureRandom.hex(24)}.lbl",
-                             disposition: 'inline')
+      render json: LabellingService::OrderLabel.new(order_id).print
     end
   end
 end
