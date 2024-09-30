@@ -8,7 +8,7 @@ module Lab
       order_id = params.require(:order_id)
 
       render json: LabellingService::OrderLabel.new(order_id).print(
-        params[:use_small_specimen_label]
+        params[:use_small_specimen_label]=="true"
       )
     end
   end
