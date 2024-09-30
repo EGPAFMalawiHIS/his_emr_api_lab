@@ -106,10 +106,9 @@ class Auto12Epl
     ^FD#{acc_num}
     ^FS
     ^FO15,25
-    ^BY1.5,100
+    ^BY1,80
     ^BCB,40,N,N,N
-    ^FD#{acc_num}
-    ^FS
+    ^FD>:#{acc_num}^FS
     ^PQ#{print_copies}
     ^XZ
     """
