@@ -110,6 +110,7 @@ class Auto12Epl
     ^BCB,40,N,N,N
     ^FD#{acc_num}
     ^FS
+    ^PQ#{print_copies}
     ^XZ
     """
   end
