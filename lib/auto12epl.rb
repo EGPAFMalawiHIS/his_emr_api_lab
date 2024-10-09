@@ -96,6 +96,24 @@ class Auto12Epl
     "#{last_name}, #{first_name}#{middle_initial.nil? ? '' : " #{middle_initial}"}"
   end
 
+  def generate_small_specimen_label(acc_num)
+    """
+    ^XA
+    ^PW400
+    ^LL200
+    ^FO60,20
+    ^A0R,30,30
+    ^FD#{acc_num}
+    ^FS
+    ^FO15,25
+    ^BY1,80
+    ^BCB,40,N,N,N
+    ^FD>:#{acc_num}^FS
+    ^PQ#{print_copies}
+    ^XZ
+    """
+  end
+
   # The main function to generate the EPL
   def generate_epl(last_name, first_name, middle_initial, pid, dob, age, gender, col_date_time, col_name, tests, stat,
                    acc_num, schema_track)
