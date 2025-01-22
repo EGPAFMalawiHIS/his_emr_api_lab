@@ -96,7 +96,7 @@ class Auto12Epl
     "#{last_name}, #{first_name}#{middle_initial.nil? ? '' : " #{middle_initial}"}"
   end
 
-  def generate_small_specimen_label(last_name, first_name, gender, col_date_time, tests, acc_num)
+  def generate_small_specimen_label(last_name, first_name, gender, col_date_time, tests, acc_num, number_of_copies = print_copies)
     <<~TEXT
       N
       R216,0
@@ -107,13 +107,13 @@ class Auto12Epl
       A100,100,0,1,1,1,N,"#{acc_num}"
       A100,118,0,1,1,1,N,"#{col_date_time}"
       A100,140,0,1,1,1,N,"#{tests}"
-      P#{print_copies}
+      P#{number_of_copies}
     TEXT
   end
 
   # The main function to generate the EPL
   def generate_epl(last_name, first_name, middle_initial, pid, dob, age, gender, col_date_time, col_name, tests, stat,
-                   acc_num, schema_track)
+                   acc_num, schema_track, number_of_copies = print_copies)
     # format text and set margin
     if stat.nil?
       name_text = truncate_name(last_name, first_name, middle_initial, false)
@@ -148,9 +148,9 @@ class Auto12Epl
 
     # combine EPL statements
     if stat.nil?
-      "\nN\nR216,0\nZT\nS1\n#{name_element}\n#{pid_dob_age_gender_element}\n#{barcode_element}\n#{barcode_human_element}\n#{collector_element}\n#{tests_element}\nP#{print_copies}\n"
+      "\nN\nR216,0\nZT\nS1\n#{name_element}\n#{pid_dob_age_gender_element}\n#{barcode_element}\n#{barcode_human_element}\n#{collector_element}\n#{tests_element}\nP#{number_of_copies}\n"
     else
-      "\nN\nR216,0\nZT\nS1\n#{name_element}\n#{pid_dob_age_gender_element}\n#{barcode_element}\n#{barcode_human_element}\n#{collector_element}\n#{tests_element}\n#{stat_element}\nP#{print_copies}\n"
+      "\nN\nR216,0\nZT\nS1\n#{name_element}\n#{pid_dob_age_gender_element}\n#{barcode_element}\n#{barcode_human_element}\n#{collector_element}\n#{tests_element}\n#{stat_element}\nP#{number_of_copies}\n"
     end
   end
 
