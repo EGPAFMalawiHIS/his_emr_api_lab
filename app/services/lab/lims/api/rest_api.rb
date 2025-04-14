@@ -91,7 +91,7 @@ module Lab
         end
 
         def verify_tracking_number(tracking_number)
-          find_lims_order(tracking_number)
+          nlims_order_exist?(tracking_number)
         rescue InvalidParameters => e
           Rails.logger.error("Failed to verify tracking number #{tracking_number}: #{e.message}")
           false
@@ -288,6 +288,14 @@ module Lab
 
           Rails.logger.info("Order ##{tracking_number} found... Parsing...")
           JSON.parse(response).fetch('data')
+        end
+
+        def nlims_order_exist?(tracking_number)
+          response = in_authenticated_session do |headers|
+            Rails.logger.info("Checking if order ##{tracking_number} exists in LIMS")
+            RestClient.get(expand_uri("verify_order_tracking_number_exist/#{tracking_number}"), headers)
+          end
+          JSON.parse(response)
         end
 
         def find_lims_results(tracking_number)
