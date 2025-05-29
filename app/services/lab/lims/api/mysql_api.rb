@@ -162,7 +162,7 @@ module Lab
           drawn_by_first_name, drawn_by_last_name = specimen['drawn_by_name']&.split
           patient_first_name, patient_last_name = patient['name'].split
 
-          OrderDTO.new(
+          OrderDto.new(
             _id: specimen['doc_id'].blank? ? SecureRandom.uuid : specimen['doc_id'],
             _rev: '0',
             tracking_number: specimen['tracking_number'],

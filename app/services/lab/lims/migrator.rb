@@ -29,7 +29,7 @@ require 'lab/lab_test'
 require 'lab/lims_order_mapping'
 require 'lab/lims_failed_import'
 
-require_relative './api/couchdb_api'
+require_relative './api/couch_db_api'
 require_relative './config'
 require_relative './pull_worker'
 require_relative './utils'
@@ -82,7 +82,7 @@ module Lab
               next unless row['doc']['type']&.casecmp?('Order')
 
               User.current = Utils.lab_user
-              yield OrderDTO.new(row['doc']), OpenStruct.new(last_seq: (from || 0) + limit, current_seq: from)
+              yield OrderDto.new(row['doc']), OpenStruct.new(last_seq: (from || 0) + limit, current_seq: from)
             end
 
             from += orders.size
