@@ -33,7 +33,7 @@ module Lab
           bum.binge_changes(since: from, limit: limit, include_docs: true) do |change|
             next unless change['doc']['type']&.casecmp?('Order')
 
-            yield OrderDTO.new(change['doc']), self
+            yield OrderDto.new(change['doc']), self
           end
         end
 

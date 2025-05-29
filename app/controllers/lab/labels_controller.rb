@@ -2,7 +2,8 @@
 
 module Lab
   class LabelsController < ApplicationController
-    skip_before_action :authenticate
+    _callbacks = _process_action_callbacks.map(&:filter)
+    skip_before_action :authenticate if _callbacks.include?(:authenticate)
 
     def print_order_label
       order_id = params.require(:order_id)

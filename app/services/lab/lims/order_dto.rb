@@ -6,7 +6,7 @@ module Lab
   module Lims
     ##
     # LIMS' Data Transfer Object for orders
-    class OrderDTO < ActiveSupport::HashWithIndifferentAccess
+    class OrderDto < ActiveSupport::HashWithIndifferentAccess
       include Utils
 
       ##

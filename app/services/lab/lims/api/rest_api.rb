@@ -198,7 +198,7 @@ class Lab::Lims::Api::RestApi
   end
 
   ##
-  # Converts an OrderDTO to parameters for POST /create_order
+  # Converts an OrderDto to parameters for POST /create_order
   def make_create_params(order_dto)
     {
       tracking_number: order_dto.fetch(:tracking_number),
@@ -227,7 +227,7 @@ class Lab::Lims::Api::RestApi
   end
 
   ##
-  # Converts an OrderDTO to parameters for POST /update_order
+  # Converts an OrderDto to parameters for POST /update_order
   def make_update_params(order_dto)
     date_updated, status = sample_drawn_status(order_dto)
 
@@ -255,7 +255,7 @@ class Lab::Lims::Api::RestApi
   end
 
   ##
-  # Extracts sample drawn status from an OrderDTO
+  # Extracts sample drawn status from an OrderDto
   def sample_drawn_status(order_dto)
     order_dto[:sample_statuses].each do |trail_entry|
       date, status = trail_entry.each_pair.find { |_date, status| status['status'].casecmp?('Drawn') }
@@ -268,13 +268,13 @@ class Lab::Lims::Api::RestApi
   end
 
   ##
-  # Extracts a sample drawn date from a LIMS OrderDTO.
+  # Extracts a sample drawn date from a LIMS OrderDto.
   def sample_drawn_date(order_dto)
     sample_drawn_status(order_dto).first
   end
 
   ##
-  # Extracts the requesting clinician from a LIMS OrderDTO
+  # Extracts the requesting clinician from a LIMS OrderDto
   def requesting_clinician(order_dto)
     orderer = order_dto[:who_order_test]
 

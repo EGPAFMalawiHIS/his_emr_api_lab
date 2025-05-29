@@ -21,7 +21,7 @@ RSpec.describe Lab::Lims::PushWorker do
     it 'passes a serialised order to lims_api#create_order for new orders' do
       subject.push_order_by_id(order.order_id)
 
-      expect(lims_api.created_order).to be_an_instance_of(Lab::Lims::OrderDTO)
+      expect(lims_api.created_order).to be_an_instance_of(Lab::Lims::OrderDto)
       expect(lims_api.created_order[:tracking_number]).to eq(order.accession_number)
       expect(lims_api.created_order[:sending_facility]).to eq(@location.name)
       expect(lims_api.created_order[:districy]).to eq(@location.parent.name) # districy[sic] for district
@@ -33,7 +33,7 @@ RSpec.describe Lab::Lims::PushWorker do
       subject.push_order_by_id(order.order_id) # Updated order
 
       expect(lims_api.updated_order.id).to eq(response[:id])
-      expect(lims_api.updated_order.order).to be_an_instance_of(Lab::Lims::OrderDTO)
+      expect(lims_api.updated_order.order).to be_an_instance_of(Lab::Lims::OrderDto)
       expect(lims_api.updated_order.order[:tracking_number]).to eq(order.accession_number)
       expect(lims_api.updated_order.order[:sending_facility]).to eq(@location.name)
       expect(lims_api.updated_order.order[:districy]).to eq(@location.parent.name) # districy[sic] for district
