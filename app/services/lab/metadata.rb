@@ -5,6 +5,7 @@ module Lab
     # Concepts
     REASON_FOR_TEST_CONCEPT_NAME = 'Reason for test'
     REQUESTING_CLINICIAN_CONCEPT_NAME = 'Person making request'
+    COMMENT_TO_FULFILLER_CONCEPT_NAME = 'Comment to fulfiller'
     SPECIMEN_TYPE_CONCEPT_NAME = 'Specimen type'
     TARGET_LAB_CONCEPT_NAME = 'Lab'
     TEST_RESULT_CONCEPT_NAME = 'Lab test result'
