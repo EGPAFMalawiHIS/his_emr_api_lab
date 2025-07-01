@@ -63,7 +63,8 @@ module Lab
           Lab::LabOrderSerializer.serialize_order(
             order, requesting_clinician: add_requesting_clinician(order, order_params),
                    reason_for_test: add_reason_for_test(order, order_params),
-                   target_lab: add_target_lab(order, order_params)
+                   target_lab: add_target_lab(order, order_params),
+                   comment_to_fulfiller: add_comment_to_fulfiller(order, order_params)
           )
         end
       end
@@ -97,11 +98,12 @@ module Lab
       end
 
       def void_order(order_id, reason)
-        order = Lab::LabOrder.includes(%i[requesting_clinician reason_for_test target_lab], tests: [:result])
+        order = Lab::LabOrder.includes(%i[requesting_clinician reason_for_test target_lab comment_to_fulfiller], tests: [:result])
                              .find(order_id)
 
         order.requesting_clinician&.void(reason)
         order.reason_for_test&.void(reason)
+        order.comment_to_fulfiller&.void(reason)
         order.target_lab&.void(reason)
 
         order.tests.each { |test| test.void(reason) }
@@ -224,6 +226,7 @@ module Lab
         order.date_created = params[:date]&.to_date || Date.today if order.respond_to?(:date_created)
         order.start_date = params[:date]&.to_date || Date.today if order.respond_to?(:start_date)
         order.auto_expire_date = params[:end_date]
+        order.comment_to_fulfiller = params[:comment_to_fulfiller] if params[:comment_to_fulfiller]
         order.accession_number = access_number
         order.orderer = User.current&.user_id
 
@@ -253,6 +256,15 @@ module Lab
           Lab::Metadata::REQUESTING_CLINICIAN_CONCEPT_NAME,
           params[:date],
           value_text: params['requesting_clinician']
+        )
+      end
+
+      def add_comment_to_fulfiller(order, params)
+        create_order_observation(
+          order,
+          Lab::Metadata::COMMENT_TO_FULFILLER_CONCEPT_NAME,
+          params[:date],
+          value_text: params['comment_to_fulfiller']
         )
       end
 

@@ -2,9 +2,10 @@
 
 module Lab
   module LabOrderSerializer
-    def self.serialize_order(order, tests: nil, requesting_clinician: nil, reason_for_test: nil, target_lab: nil)
+    def self.serialize_order(order, tests: nil, requesting_clinician: nil, reason_for_test: nil, target_lab: nil, comment_to_fulfiller: nil)
       tests ||= order.voided == 1 ? voided_tests(order) : order.tests
       requesting_clinician ||= order.requesting_clinician
+      comment_to_fulfiller ||= order.comment_to_fulfiller
       reason_for_test ||= order.reason_for_test
       target_lab = target_lab&.value_text || order.target_lab&.value_text || Location.current_health_center&.name
       ActiveSupport::HashWithIndifferentAccess.new(
@@ -21,6 +22,7 @@ module Lab
           },
           requesting_clinician: requesting_clinician&.value_text,
           target_lab: target_lab,
+          comment_to_fulfiller: comment_to_fulfiller&.value_text,
           reason_for_test: {
             concept_id: reason_for_test&.value_coded,
             name: concept_name(reason_for_test&.value_coded)
