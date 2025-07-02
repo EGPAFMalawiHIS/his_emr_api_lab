@@ -22,7 +22,7 @@ module Lab
           },
           requesting_clinician: requesting_clinician&.value_text,
           target_lab: target_lab,
-comment_to_fulfiller: comment_to_fulfiller.respond_to?(:value_text) ? comment_to_fulfiller.value_text : comment_to_fulfiller,          reason_for_test: {
+          comment_to_fulfiller: comment_to_fulfiller.respond_to?(:value_text) ? comment_to_fulfiller.value_text : comment_to_fulfiller,          reason_for_test: {
             concept_id: reason_for_test&.value_coded,
             name: concept_name(reason_for_test&.value_coded)
           },
