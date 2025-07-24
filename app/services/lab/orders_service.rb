@@ -136,6 +136,24 @@ module Lab
         Lab::Lims::PullWorker.new(nil).process_order(order_dto)
       end
 
+      def lab_orders(start_date, end_date, concept_id = nil, include_data: false)
+        tests = Lab::LabTest.where('date_created >= ? AND date_created <= ?', start_date, end_date)
+        tests = tests.where(value_coded: concept_id) if concept_id
+        orders = Lab::LabOrder.where(order_id: tests.pluck(:order_id))
+        data = {
+          count: orders.count,
+          lab_orders: []
+        }
+        data[:lab_orders] = orders.map do |order|
+          Lab::LabOrderSerializer.serialize_order(
+            order, requesting_clinician: order.requesting_clinician,
+                   reason_for_test: order.reason_for_test,
+                   target_lab: order.target_lab
+          )
+        end if include_data
+        data
+      end
+
       private
 
       def create_rejection_notification(order_params)
