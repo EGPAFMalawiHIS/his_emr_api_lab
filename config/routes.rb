@@ -5,6 +5,7 @@ Lab::Engine.routes.draw do
     collection do
       post :order_status
       post :order_result
+      get  :summary
     end
   end
   resources :tests, path: 'api/v1/lab/tests', except: %i[update] do # ?pending=true to select tests without results?
