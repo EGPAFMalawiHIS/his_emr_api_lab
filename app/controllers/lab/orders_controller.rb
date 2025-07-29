@@ -2,8 +2,8 @@
 
 module Lab
   class OrdersController < ApplicationController
-    skip_before_action :authenticate, only: %i[order_status order_result]
-    before_action :authenticate_request, only: %i[order_status order_result]
+    skip_before_action :authenticate, only: %i[order_status order_result summary]
+    before_action :authenticate_request, only: %i[order_status order_result summary]
 
     def create
       order_params_list = params.require(:orders)
