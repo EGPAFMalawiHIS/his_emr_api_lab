@@ -142,6 +142,7 @@ module Lab
         orders = Lab::LabOrder.where(order_id: tests.pluck(:order_id))
         data = {
           count: orders.count,
+          last_order_date: Lab::LabOrder.last&.start_date&.to_date,
           lab_orders: []
         }
         data[:lab_orders] = orders.map do |order|
