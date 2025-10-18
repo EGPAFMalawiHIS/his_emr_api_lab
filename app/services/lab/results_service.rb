@@ -32,8 +32,9 @@ module Lab
 
           serializer = Lab::ResultSerializer.serialize(results_obs)
         end
-        process_acknowledgement(results_obs, result_enter_by)
-        precess_notification_message(results_obs, serializer, result_enter_by)
+
+        ProcessLabResultJob.perform_later(results_obs.id, serializer, result_enter_by)
+
         Rails.logger.info("Lab::ResultsService: Result created for test #{test_id} #{serializer}")
         serializer
       end
