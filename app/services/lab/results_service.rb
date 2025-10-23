@@ -39,6 +39,11 @@ module Lab
         serializer
       end
 
+      def process_result_completion(results_obs, serializer, result_enter_by)
+        process_acknowledgement(results_obs, result_enter_by)
+        precess_notification_message(results_obs, serializer, result_enter_by)
+      end
+
       private
 
       def precess_notification_message(result, values, result_enter_by)
