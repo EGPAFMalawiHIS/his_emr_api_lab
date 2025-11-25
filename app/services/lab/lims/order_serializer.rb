@@ -21,9 +21,14 @@ module Lab
             sending_facility: current_facility_name,
             receiving_facility: serialized_order.target_lab,
             tests: serialized_order.tests.map { |test| format_test_name(test.name) },
+            tests_map: serialized_order.tests,
             patient: format_patient(serialized_order.patient_id),
             order_location: format_order_location(serialized_order.encounter_id),
             sample_type: format_sample_type(serialized_order.specimen.name),
+            sample_type_map: {
+              name: format_sample_type(serialized_order.specimen.name),
+              nlims_code: Concept.find(serialized_order.specimen.concept_id).nlims_code
+            },
             sample_status: format_sample_status(serialized_order.specimen.name),
             sample_statuses: format_sample_status_trail(order),
             test_statuses: format_test_status_trail(order),

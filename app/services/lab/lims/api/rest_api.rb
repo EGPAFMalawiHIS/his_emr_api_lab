@@ -17,11 +17,10 @@ module Lab
         def create_order(order_dto)
           response = in_authenticated_session do |headers|
             Rails.logger.info("Pushing order ##{order_dto[:tracking_number]} to LIMS")
-
             if order_dto['sample_type'].casecmp?('not_specified')
               RestClient.post(expand_uri('request_order', api_version: 'v2'), make_create_params(order_dto), headers)
             else
-              RestClient.post(expand_uri('create_order'), make_create_params(order_dto), headers)
+              RestClient.post(expand_uri('create_order', api_version: 'v2'), make_create_params(order_dto), headers)
             end
           end
 
@@ -57,7 +56,6 @@ module Lab
         def consume_orders(*_args, patient_id: nil, **_kwargs)
           orders_pending_updates(patient_id).each do |order|
             order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
-
             if order_dto['priority'].nil? || order_dto['sample_type'].casecmp?('not_specified')
               patch_order_dto_with_lims_order!(order_dto, find_lims_order(order.accession_number))
             end
@@ -172,7 +170,8 @@ module Lab
         #   Lims::ApiError - Thrown when we couldn't make sense of the error
         def check_response!(response)
           body = JSON.parse(response.body)
-          return response if body['status'] == 200
+          
+          return response if [200, 201].include?(response.code)
 
           Rails.logger.error("Lims Api Error: #{response.body}")
 
@@ -200,28 +199,48 @@ module Lab
         # Converts an OrderDto to parameters for POST /create_order
         def make_create_params(order_dto)
           {
-            tracking_number: order_dto.fetch(:tracking_number),
-            district: current_district,
-            health_facility_name: order_dto.fetch(:sending_facility),
-            first_name: order_dto.fetch(:patient).fetch(:first_name),
-            last_name: order_dto.fetch(:patient).fetch(:last_name),
-            phone_number: order_dto.fetch(:patient).fetch(:phone_number),
-            gender: order_dto.fetch(:patient).fetch(:gender),
-            arv_number: order_dto.fetch(:patient).fetch(:arv_number),
-            art_regimen: order_dto.fetch(:patient).fetch(:art_regimen),
-            art_start_date: order_dto.fetch(:patient).fetch(:art_start_date),
-            date_of_birth: order_dto.fetch(:patient).fetch(:dob),
-            national_patient_id: order_dto.fetch(:patient).fetch(:id),
-            requesting_clinician: requesting_clinician(order_dto),
-            sample_type: order_dto.fetch(:sample_type),
-            tests: order_dto.fetch(:tests),
-            date_sample_drawn: sample_drawn_date(order_dto),
-            sample_priority: order_dto.fetch(:priority) || 'Routine',
-            sample_status: order_dto.fetch(:sample_status),
-            target_lab: order_dto.fetch(:receiving_facility),
-            order_location: order_dto.fetch(:order_location) || 'Unknown',
-            who_order_test_first_name: order_dto.fetch(:who_order_test).fetch(:first_name),
-            who_order_test_last_name: order_dto.fetch(:who_order_test).fetch(:last_name)
+             order: {
+              tracking_number: order_dto.fetch(:tracking_number),
+              district: current_district,
+              health_facility_name: order_dto.fetch(:sending_facility),
+              sending_facility: order_dto.fetch(:sending_facility),
+              arv_number: order_dto.fetch(:patient).fetch(:arv_number),
+              art_regimen: order_dto.fetch(:patient).fetch(:art_regimen),
+              art_start_date: order_dto.fetch(:patient).fetch(:art_start_date),
+              requesting_clinician: requesting_clinician(order_dto),
+              sample_type: order_dto.fetch(:sample_type_map),
+              date_sample_drawn: sample_drawn_date(order_dto),
+              date_created: sample_drawn_date(order_dto),
+              priority: order_dto.fetch(:priority) || 'Routine',
+              sample_status: {
+                name: order_dto.fetch(:sample_status)
+              },
+              target_lab: order_dto.fetch(:receiving_facility),
+              order_location: order_dto.fetch(:order_location) || 'Unknown',
+              who_order_test_first_name: order_dto.fetch(:who_order_test).fetch(:first_name),
+              who_order_test_last_name: order_dto.fetch(:who_order_test).fetch(:last_name),
+              requested_by:"#{order_dto.fetch(:who_order_test).fetch(:first_name)} #{order_dto.fetch(:who_order_test).fetch(:last_name)}",
+              drawn_by:{
+                id: order_dto.fetch(:who_order_test).fetch(:id),
+                name: "#{order_dto.fetch(:who_order_test).fetch(:first_name)} #{order_dto.fetch(:who_order_test).fetch(:last_name)}"
+              }
+            },
+            patient: {
+              national_patient_id: order_dto.fetch(:patient).fetch(:id),
+              first_name: order_dto.fetch(:patient).fetch(:first_name),
+              last_name: order_dto.fetch(:patient).fetch(:last_name),
+              phone_number: order_dto.fetch(:patient).fetch(:phone_number),
+              gender: order_dto.fetch(:patient).fetch(:gender),
+              date_of_birth: order_dto.fetch(:patient).fetch(:dob),
+            },
+            tests: order_dto.fetch(:tests_map).map do |test|
+              {
+                test_type: {
+                  name: test.name,
+                  nlims_code: Concept.find(test.concept_id).nlims_code
+                }
+              }
+            end,
           }
         end
 
@@ -307,8 +326,14 @@ module Lab
           end
 
           Rails.logger.info("Result for order ##{tracking_number} found... Parsing...")
-          JSON.parse(response).fetch('data').fetch('results')
-        end
+          data = JSON.parse(response)
+
+          if(data.fetch('data').empty?)
+            raise InvalidParameters, "No results found for order ##{tracking_number}"
+          end
+
+          data.fetch('data').fetch('results')
+        end 
 
         ##
         # Make a copy of the order_dto with the results from LIMS parsed
