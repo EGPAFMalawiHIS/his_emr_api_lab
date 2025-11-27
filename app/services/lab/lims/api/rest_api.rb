@@ -18,9 +18,9 @@ module Lab
           response = in_authenticated_session do |headers|
             Rails.logger.info("Pushing order ##{order_dto[:tracking_number]} to LIMS")
             if order_dto['sample_type'].casecmp?('not_specified')
-              RestClient.post(expand_uri('request_order', api_version: 'v2'), make_create_params(order_dto), headers)
+              RestClient.post(expand_uri('requests', api_version: 'v2'), make_create_params(order_dto), headers)
             else
-              RestClient.post(expand_uri('create_order', api_version: 'v2'), make_create_params(order_dto), headers)
+              RestClient.post(expand_uri('orders', api_version: 'v2'), make_create_params(order_dto), headers)
             end
           end
 
@@ -36,8 +36,17 @@ module Lab
 
         def acknowledge(acknowledgement_dto)
           Rails.logger.info("Acknowledging order ##{acknowledgement_dto} in LIMS")
+          test_concept = ::Concept.find(acknowledgement_dto.fetch(:test))
+
           response = in_authenticated_session do |headers|
-            RestClient.post(expand_uri('/acknowledge/test/results/recipient'), acknowledgement_dto, headers)
+            RestClient.post(expand_uri("tests/#{acknowledgement_dto[:tracking_number]}/acknowledge_test_results_receipt", api_version: 'v2'), {
+              test_type: {
+                name: test_concept.test_catalogue_name,
+                nlims_code: test_concept.nlims_code
+              },
+              date_acknowledged: acknowledgement_dto[:date_acknowledged],
+              recepient_type: acknowledgement_dto[:recepient_type]
+            }, headers)
           end
           Rails.logger.info("Acknowledged order ##{acknowledgement_dto} in LIMS. Response: #{response}")
           JSON.parse(response)
@@ -322,17 +331,17 @@ module Lab
         def find_lims_results(tracking_number)
           response = in_authenticated_session do |headers|
             Rails.logger.info("Fetching results for order ##{tracking_number}")
-            RestClient.get(expand_uri("query_results_by_tracking_number/#{tracking_number}"), headers)
+            RestClient.get(expand_uri("orders/#{tracking_number}", api_version: 'v2'), headers)
           end
 
           Rails.logger.info("Result for order ##{tracking_number} found... Parsing...")
           data = JSON.parse(response)
-
+          
           if(data.fetch('data').empty?)
             raise InvalidParameters, "No results found for order ##{tracking_number}"
           end
 
-          data.fetch('data').fetch('results')
+          data.fetch('data').fetch('tests')
         end 
 
         ##
@@ -343,14 +352,17 @@ module Lab
             '_id' => order_dto[:tracking_number],
             '_rev' => 0,
             'test_results' => results.each_with_object({}) do |result, formatted_results|
-              test_name, measures = result
-              result_date = measures.delete('result_date')
+              test_type = result.delete('test_type')
+              results = result.delete('test_results')
+              test_name = test_type['name']
 
               formatted_results[test_name] = {
-                results: measures.each_with_object({}) do |measure, processed_measures|
-                  processed_measures[measure[0]] = { 'result_value' => measure[1] }
+                results: results.each_with_object({}) do |result, processed_measures|
+                  measure = result['measure']
+                  result = result['result']
+                  processed_measures[measure['name']] = { 'result_value' => result['value'] }
                 end,
-                result_date:,
+                result_date: results.first['result']['result_date'],
                 result_entered_by: {}
               }
             end

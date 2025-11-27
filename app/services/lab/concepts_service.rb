@@ -15,7 +15,7 @@ module Lab
             AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
           WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
           AND ca.concept_id IN (#{test_types.select(:concept_id).to_sql})
-          GROUP BY ca.value_reference
+          GROUP BY ca.concept_id
         SQL
       end
 
@@ -37,7 +37,7 @@ module Lab
           AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
         WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
         AND ca.concept_id IN (#{concept_set.select(:concept_id).to_sql})
-        GROUP BY ca.value_reference
+        GROUP BY ca.concept_id
       SQL
     end
 
@@ -53,7 +53,7 @@ module Lab
             AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
           WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
           AND ca.concept_id IN (#{specimen_types.select(:concept_id).to_sql})
-          GROUP BY ca.value_reference
+          GROUP BY ca.concept_id
         SQL
       end
 
@@ -75,7 +75,7 @@ module Lab
           AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
         WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
         AND ca.concept_id IN (#{concept_set.pluck(:concept_id).push(0).join(',')})
-        GROUP BY ca.value_reference
+        GROUP BY ca.concept_id
       SQL
     end
 
@@ -98,7 +98,7 @@ module Lab
             AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
           WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
           AND ca.concept_id IN (#{sets.pluck(:concept_set).push(0).join(',')})
-          GROUP BY ca.value_reference
+          GROUP BY ca.concept_id
       SQL
     end
 
