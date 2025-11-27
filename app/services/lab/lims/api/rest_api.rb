@@ -54,7 +54,7 @@ module Lab
 
         def update_order(_id, order_dto)
           in_authenticated_session do |headers|
-            RestClient.post(expand_uri('update_order'), make_update_params(order_dto), headers)
+            RestClient.put(expand_uri("orders/#{order_dto[:tracking_number]}", api_version: 'v2'), make_update_params(order_dto), headers)
           end
 
           update_order_results(order_dto)
@@ -311,7 +311,7 @@ module Lab
         def find_lims_order(tracking_number)
           response = in_authenticated_session do |headers|
             Rails.logger.info("Fetching order ##{tracking_number}")
-            RestClient.get(expand_uri("query_order_by_tracking_number/#{tracking_number}"), headers)
+            RestClient.get(expand_uri("orders/#{tracking_number}"), headers)
           end
 
           Rails.logger.info("Order ##{tracking_number} found... Parsing...")
@@ -321,7 +321,7 @@ module Lab
         def nlims_order_exists?(tracking_number)
           response = in_authenticated_session do |headers|
             Rails.logger.info("Verifying order ##{tracking_number}")
-            RestClient.get(expand_uri("verify_order_tracking_number_exist/#{tracking_number}"), headers)
+            RestClient.get(expand_uri("orders/#{tracking_number}"), headers)
           end
 
           Rails.logger.info("Order ##{tracking_number} verified... Parsing...")
