@@ -43,7 +43,7 @@ module Lab
 
     def self.specimen_types(name: nil, test_type: nil)
       specimen_types = ConceptSet.find_members_by_name(Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME)
-      specimen_types = specimen_types.filter_members(name: name.strip) if name
+      specimen_types = specimen_types.filter_members(name: name&.strip) if name
 
       unless test_type
         return ActiveRecord::Base.connection.select_all <<~SQL
@@ -60,7 +60,7 @@ module Lab
       # Retrieve only those specimen types that belong to concept
       # set of the selected test_type
       test_types = ConceptSet.find_members_by_name(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
-                             .filter_members(name: test_type.strip)
+                             .filter_members(name: test_type&.strip)
                              .select(:concept_id)
 
       concept_set = ConceptSet.where(

@@ -68,7 +68,6 @@ module Lab
             if order_dto['priority'].nil? || order_dto['sample_type'].casecmp?('not_specified')
               patch_order_dto_with_lims_order!(order_dto, find_lims_order(order.accession_number))
             end
-
             if order_dto['test_results'].empty?
               begin
                 patch_order_dto_with_lims_results!(order_dto, find_lims_results(order.accession_number))
@@ -243,10 +242,11 @@ module Lab
               date_of_birth: order_dto.fetch(:patient).fetch(:dob),
             },
             tests: order_dto.fetch(:tests_map).map do |test|
+              concept = ::Concept.find(test.concept_id)
               {
                 test_type: {
-                  name: test.name,
-                  nlims_code: Concept.find(test.concept_id).nlims_code
+                  name: concept.test_catalogue_name,
+                  nlims_code: concept.nlims_code
                 }
               }
             end,
@@ -332,12 +332,19 @@ module Lab
             RestClient.get(expand_uri("orders/#{tracking_number}", api_version: 'v2'), headers)
           end
 
-          Rails.logger.info("Result for order ##{tracking_number} found... Parsing...")
+          Rails.logger.info("Found order ##{tracking_number}")
           data = JSON.parse(response)
           
-          if(data.fetch('data').empty?)
+          # raise data.fetch('data').fetch('tests').inspect
+
+          if(data.fetch('data').fetch('tests').all? do |test|
+              test.fetch('test_results').blank?
+            end)
+            Rails.logger.info("No results found for order ##{tracking_number}")
             raise InvalidParameters, "No results found for order ##{tracking_number}"
           end
+
+          Rails.logger.info("Result for order ##{tracking_number} found...")
 
           data.fetch('data').fetch('tests')
         end 
@@ -353,14 +360,13 @@ module Lab
               test_type = result.delete('test_type')
               results = result.delete('test_results')
               test_name = test_type['name']
-
               formatted_results[test_name] = {
                 results: results.each_with_object({}) do |result, processed_measures|
                   measure = result['measure']
                   result = result['result']
                   processed_measures[measure['name']] = { 'result_value' => result['value'] }
                 end,
-                result_date: results.present? && results&.first&['result']&.fetch('result_date'),
+                result_date: results.first['result']&.fetch('result_date'),
                 result_entered_by: {}
               }
             end
@@ -435,6 +441,11 @@ module Lab
             test_type: {
               name: ::Concept.find(test.concept_id).test_catalogue_name,
               nlims_code: ::Concept.find(test.concept_id).nlims_code
+            },
+            updated_by: {
+              first_name: voided_by[:first_name],
+              last_name: voided_by[:last_name],
+              id_number: voided_by[:id]
             }
           }
         end
