@@ -18,7 +18,7 @@ module Lab
           response = in_authenticated_session do |headers|
             Rails.logger.info("Pushing order ##{order_dto[:tracking_number]} to LIMS")
             if order_dto['sample_type'].casecmp?('not_specified')
-              RestClient.post(expand_uri('requests', api_version: 'v2'), make_create_params(order_dto), headers)
+              RestClient.post(expand_uri('orders/requests', api_version: 'v2'), make_create_params(order_dto), headers)
             else
               RestClient.post(expand_uri('orders', api_version: 'v2'), make_create_params(order_dto), headers)
             end
@@ -87,12 +87,12 @@ module Lab
         def delete_order(_id, order_dto)
           tracking_number = order_dto.fetch('tracking_number')
 
-          order_dto['tests'].each do |test|
-            Rails.logger.info("Voiding test '#{test}' (#{tracking_number}) in LIMS")
+          order_dto['tests_map'].each do |test|
+            Rails.logger.info("Voiding test '#{test.name}' (#{tracking_number}) in LIMS")
             in_authenticated_session do |headers|
-              date_voided, voided_status = find_test_status(order_dto, test, 'Voided')
+              date_voided, voided_status = find_test_status(order_dto, test.name, 'Voided')
               params = make_void_test_params(tracking_number, test, voided_status['updated_by'], date_voided)
-              RestClient.post(expand_uri('update_test'), params, headers)
+              RestClient.put(expand_uri("tests/#{tracking_number}", api_version: 'v2'), params, headers)
             end
           end
         end
@@ -257,13 +257,11 @@ module Lab
         # Converts an OrderDto to parameters for POST /update_order
         def make_update_params(order_dto)
           date_updated, status = sample_drawn_status(order_dto)
-
           {
-            tracking_number: order_dto.fetch(:tracking_number),
-            who_updated: status.fetch(:updated_by),
-            date_updated:,
-            specimen_type: order_dto.fetch(:sample_type),
-            status: 'specimen_collected'
+            status: 'specimen_collected',
+            time_updated: date_updated,
+            sample_type: order_dto.fetch(:sample_type_map),
+            updated_by: status.fetch(:updated_by),
           }
         end
 
@@ -311,7 +309,7 @@ module Lab
         def find_lims_order(tracking_number)
           response = in_authenticated_session do |headers|
             Rails.logger.info("Fetching order ##{tracking_number}")
-            RestClient.get(expand_uri("orders/#{tracking_number}"), headers)
+            RestClient.get(expand_uri("orders/#{tracking_number}", api_version: 'v2'), headers)
           end
 
           Rails.logger.info("Order ##{tracking_number} found... Parsing...")
@@ -321,7 +319,7 @@ module Lab
         def nlims_order_exists?(tracking_number)
           response = in_authenticated_session do |headers|
             Rails.logger.info("Verifying order ##{tracking_number}")
-            RestClient.get(expand_uri("orders/#{tracking_number}"), headers)
+            RestClient.get(expand_uri("orders/#{tracking_number}", api_version: 'v2'), headers)
           end
 
           Rails.logger.info("Order ##{tracking_number} verified... Parsing...")
@@ -385,7 +383,7 @@ module Lab
             in_authenticated_session do |headers|
               params = make_update_test_params(order_dto['tracking_number'], test_name, results)
 
-              RestClient.post(expand_uri('update_test'), params, headers)
+              RestClient.post(expand_uri("tests/#{order_dto['tracking_number']}", api_version: 'v2'), params, headers)
             end
           end
         end
@@ -424,19 +422,16 @@ module Lab
           nil
         end
 
-        def make_void_test_params(tracking_number, test_name, voided_by, void_date = nil)
+        def make_void_test_params(tracking_number, test, voided_by, void_date = nil)
           void_date ||= Time.now
 
           {
-            tracking_number:,
-            test_name:,
+            test_status: 'voided',
             time_updated: void_date,
-            who_updated: {
-              first_name: voided_by[:first_name],
-              last_name: voided_by[:last_name],
-              id_number: voided_by[:id]
-            },
-            test_status: 'voided'
+            test_type: {
+              name: ::Concept.find(test.concept_id).test_catalogue_name,
+              nlims_code: ::Concept.find(test.concept_id).nlims_code
+            }
           }
         end
 
