@@ -360,7 +360,7 @@ module Lab
                   result = result['result']
                   processed_measures[measure['name']] = { 'result_value' => result['value'] }
                 end,
-                result_date: results.first['result']['result_date'],
+                result_date: results.present? && results&.first&['result']&.fetch('result_date'),
                 result_entered_by: {}
               }
             end
@@ -388,22 +388,26 @@ module Lab
           end
         end
 
-        def make_update_test_params(tracking_number, test_name, results, test_status = 'Drawn')
+        def make_update_test_params(tracking_number, test, results, test_status = 'Drawn')
           {
-            tracking_number:,
-            test_name:,
-            result_date: results['result_date'],
-            time_updated: results['result_date'],
-            who_updated: {
-              first_name: results[:result_entered_by][:first_name],
-              last_name: results[:result_entered_by][:last_name],
-              id_number: results[:result_entered_by][:id]
-            },
             test_status:,
-            results: results['results']&.each_with_object({}) do |measure, formatted_results|
+            time_updated: results['result_date'],
+            test_type: {
+              name: ::Concept.find(test.concept_id).test_catalogue_name,
+              nlims_code: ::Concept.find(test.concept_id).nlims_code
+            },
+            test_results: results['results'].map do |measure, value|
               measure_name, measure_value = measure
-
-              formatted_results[measure_name] = measure_value['result_value']
+              {
+                measure: {
+                  name: measure_name,
+                  nlims_code: ::ConceptAttribute.find_by(value_reference: measure_name, attribute_type: ConceptAttributeType.nlims_code)&.value_reference
+                },
+                result: {
+                  value: measure_value,
+                  result_date: results['result_date'],
+                }
+              }
             end
           }
         end
