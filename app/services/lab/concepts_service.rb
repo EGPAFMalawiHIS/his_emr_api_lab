@@ -43,7 +43,7 @@ module Lab
 
     def self.specimen_types(name: nil, test_type: nil)
       specimen_types = ConceptSet.find_members_by_name(Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME)
-      specimen_types = specimen_types.filter_members(name:) if name
+      specimen_types = specimen_types.filter_members(name: name.strip) if name
 
       unless test_type
         return ActiveRecord::Base.connection.select_all <<~SQL
@@ -60,7 +60,7 @@ module Lab
       # Retrieve only those specimen types that belong to concept
       # set of the selected test_type
       test_types = ConceptSet.find_members_by_name(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
-                             .filter_members(name: test_type)
+                             .filter_members(name: test_type.strip)
                              .select(:concept_id)
 
       concept_set = ConceptSet.where(
@@ -89,7 +89,7 @@ module Lab
       measures = ConceptSet.find_members_by_name(Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
                            .select(:concept_id)
 
-      sets = ConceptSet.where(concept_set: measures, concept_id: test)
+      sets = ConceptSet.where(concept_set: measures, concept_id: test.strip)
 
       return ActiveRecord::Base.connection.select_all <<~SQL
         SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
@@ -105,7 +105,6 @@ module Lab
     def self.reasons_for_test
       ConceptSet.find_members_by_name(Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME)
                 .joins('INNER JOIN concept_name ON concept_name.concept_id = concept_set.concept_id')
-                .joins('INNER JOIN concept_attribute ON concept_attribute.concept_id = concept_name.concept_id')
                 .select('concept_name.concept_id, concept_name.name')
                 .map { |concept| { name: concept.name, concept_id: concept.concept_id } }
     end
