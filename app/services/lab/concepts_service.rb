@@ -89,7 +89,7 @@ module Lab
       measures = ConceptSet.find_members_by_name(Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
                            .select(:concept_id)
 
-      sets = ConceptSet.where(concept_set: measures, concept_id: test.strip)
+      sets = ConceptSet.where(concept_set: measures, concept_id: test&.strip)
 
       return ActiveRecord::Base.connection.select_all <<~SQL
         SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
