@@ -43,7 +43,7 @@ module Lab
 
     def self.specimen_types(name: nil, test_type: nil)
       specimen_types = ConceptSet.find_members_by_name(Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME)
-      specimen_types = specimen_types.filter_members(name: name&.strip) if name
+      specimen_types = specimen_types.filter_members(name: name) if name
 
       unless test_type
         return ActiveRecord::Base.connection.select_all <<~SQL
@@ -89,7 +89,7 @@ module Lab
       measures = ConceptSet.find_members_by_name(Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
                            .select(:concept_id)
 
-      sets = ConceptSet.where(concept_set: measures, concept_id: test&.strip)
+      sets = ConceptSet.where(concept_set: measures, concept_id: test)
 
       return ActiveRecord::Base.connection.select_all <<~SQL
         SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
