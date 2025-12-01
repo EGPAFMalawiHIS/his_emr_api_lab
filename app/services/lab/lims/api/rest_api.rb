@@ -85,13 +85,12 @@ module Lab
 
         def delete_order(_id, order_dto)
           tracking_number = order_dto.fetch('tracking_number')
-
           order_dto['tests_map'].each do |test|
             Rails.logger.info("Voiding test '#{test.name}' (#{tracking_number}) in LIMS")
             in_authenticated_session do |headers|
               date_voided, voided_status = find_test_status(order_dto, test.name, 'Voided')
               params = make_void_test_params(tracking_number, test, voided_status['updated_by'], date_voided)
-              RestClient.put(expand_uri("tests/#{tracking_number}", api_version: 'v2'), params, headers)
+              RestClient.put(expand_uri("tests/#{tracking_number}", api_version: 'v2'), params.to_json, headers)
             end
           end
         end
@@ -442,11 +441,13 @@ module Lab
               name: ::Concept.find(test.concept_id).test_catalogue_name,
               nlims_code: ::Concept.find(test.concept_id).nlims_code
             },
-            updated_by: {
-              first_name: voided_by[:first_name],
-              last_name: voided_by[:last_name],
-              id_number: voided_by[:id]
-            }
+            status_trail: [
+              updated_by: {
+                first_name: voided_by[:first_name],
+                last_name: voided_by[:last_name],
+                id_number: voided_by[:id]
+              }
+            ]
           }
         end
 

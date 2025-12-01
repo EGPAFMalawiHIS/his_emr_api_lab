@@ -53,7 +53,7 @@ module Lab
 
         ActiveRecord::Base.transaction do
           if mapping && !order.voided.zero?
-            Rails.logger.info("Deleting order ##{order_dto[:accession_number]} from LIMS")
+            Rails.logger.info("Deleting order ##{order_dto['accession_number']} from LIMS")
             lims_api.delete_order(mapping.lims_id, order_dto)
             mapping.destroy
           elsif mapping
