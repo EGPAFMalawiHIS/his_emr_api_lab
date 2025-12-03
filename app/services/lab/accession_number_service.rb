@@ -41,8 +41,8 @@ module Lab
         year = format_year(date.year)
         month = format_month(date.month)
         day = format_day(date.day)
-
-        "X#{site_code}#{year}#{month}#{day}#{counter}"
+        random_number = rand(10..99)
+        "X#{site_code}#{year}#{month}#{day}#{counter}#{random_number}"
       end
 
       def format_year(year)
