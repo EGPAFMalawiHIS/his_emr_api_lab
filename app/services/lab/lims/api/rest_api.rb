@@ -373,10 +373,11 @@ module Lab
         end
 
         def patch_order_dto_with_lims_order!(order_dto, lims_order)
+          order = lims_order['order']
           order_dto.merge!(
-            'sample_type' => lims_order['other']['sample_type'],
-            'sample_status' => lims_order['other']['specimen_status'],
-            'priority' => lims_order['other']['priority']
+            'sample_type' => order['sample_type']['name'],
+            'sample_status' => order['sample_status']['name'],
+            'priority' => order['priority']
           )
         end
 
