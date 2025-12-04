@@ -88,7 +88,7 @@ module Lab
 
         if params[:reason_for_test_id]
           Rails.logger.debug("Updating reason for test on order ##{order.order_id}")
-          update_reason_for_test(order, params[:reason_for_test_id])
+          update_reason_for_test(order, params[:reason_for_test_id], force_update: params.fetch('force_update', false))
         end
 
         Lab::LabOrderSerializer.serialize_order(order)
@@ -307,12 +307,12 @@ module Lab
         ConceptName.find_by_name!('Unknown').concept_id
       end
 
-      def update_reason_for_test(order, concept_id)
+      def update_reason_for_test(order, concept_id, force_update: false)
         raise InvalidParameterError, "Reason for test can't be blank" if concept_id.blank?
 
         return if order.reason_for_test&.value_coded == concept_id
 
-        raise InvalidParameterError, "Can't change reason for test once set" if order.reason_for_test&.value_coded
+        raise InvalidParameterError, "Can't change reason for test once set" if order.reason_for_test&.value_coded && !force_update
 
         order.reason_for_test&.delete
         add_reason_for_test(order, date: order.start_date, reason_for_test_id: concept_id)

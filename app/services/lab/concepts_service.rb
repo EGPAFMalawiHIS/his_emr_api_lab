@@ -15,7 +15,7 @@ module Lab
             AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
           WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
           AND ca.concept_id IN (#{test_types.select(:concept_id).to_sql})
-          GROUP BY ca.value_reference
+          GROUP BY ca.concept_id
         SQL
       end
 
@@ -33,7 +33,7 @@ module Lab
       return ActiveRecord::Base.connection.select_all <<~SQL
         SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
           FROM concept_attribute ca
-        LEFT JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
+        INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
           AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
         WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
         AND ca.concept_id IN (#{concept_set.select(:concept_id).to_sql})
@@ -49,7 +49,7 @@ module Lab
         return ActiveRecord::Base.connection.select_all <<~SQL
           SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
             FROM concept_attribute ca
-          LEFT JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
+          INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
             AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
           WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
           AND ca.concept_id IN (#{specimen_types.select(:concept_id).to_sql})
@@ -71,7 +71,7 @@ module Lab
       return ActiveRecord::Base.connection.select_all <<~SQL
         SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
           FROM concept_attribute ca
-        LEFT JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
+        INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
           AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
         WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
         AND ca.concept_id IN (#{concept_set.pluck(:concept_id).push(0).join(',')})
@@ -94,7 +94,7 @@ module Lab
       return ActiveRecord::Base.connection.select_all <<~SQL
         SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
           FROM concept_attribute ca
-          LEFT JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
+          INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
             AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
           WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
           AND ca.concept_id IN (#{sets.pluck(:concept_set).push(0).join(',')})

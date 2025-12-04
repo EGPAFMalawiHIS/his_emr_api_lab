@@ -73,6 +73,7 @@ module Lab
                 patch_order_dto_with_lims_results!(order_dto, find_lims_results(order.accession_number))
               rescue InvalidParameters => e # LIMS responds with a 401 when a result is not found :(
                 Rails.logger.error("Failed to fetch results for ##{order.accession_number}: #{e.message}")
+                next
               end
             end
 
@@ -80,6 +81,9 @@ module Lab
           rescue LimsApiError => e
             Rails.logger.error("Failed to fetch updates for ##{order.accession_number}: #{e.class} - #{e.message}")
             sleep(1)
+          rescue StandardError => e
+            Rails.logger.error("Failed to fetch updates for ##{order.accession_number}: #{e.class} - #{e.message}")
+            next
           end
         end
 
@@ -334,12 +338,9 @@ module Lab
           Rails.logger.info("Found order ##{tracking_number}")
           data = JSON.parse(response)
           
-          # raise data.fetch('data').fetch('tests').inspect
-
           if(data.fetch('data').fetch('tests').all? do |test|
               test.fetch('test_results').blank?
             end)
-            Rails.logger.info("No results found for order ##{tracking_number}")
             raise InvalidParameters, "No results found for order ##{tracking_number}"
           end
 
