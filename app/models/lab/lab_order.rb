@@ -41,7 +41,10 @@ module Lab
 
     default_scope do
       joins(:order_type)
-        .merge(OrderType.where(name: Lab::Metadata::ORDER_TYPE_NAME))
+        .merge(OrderType.where(name: [
+          Lab::Metadata::ORDER_TYPE_NAME, 
+          Lab::Metadata::HTS_ORDER_TYPE_NAME
+        ]))
         .where.not(concept_id: ConceptName.where(name: 'Tests ordered').select(:concept_id))
     end
 

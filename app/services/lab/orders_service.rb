@@ -226,8 +226,12 @@ module Lab
         access_number = params[:accession_number] || next_accession_number(params[:date]&.to_date || Date.today)
         raise 'Accession Number cannot be blank' unless access_number.present?
         raise 'Accession cannot be this short' unless access_number.length > 6
+
+        order_type = nil
+        order_type = OrderType.find_by_name!(params[:order_type_name]) if params[:order_type_name].present?
+        
         Lab::LabOrder.create!(
-          order_type: OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME),
+          order_type: order_type || OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME),
           concept_id: params.dig(:specimen, :concept_id) || unknown_concept_id,
           encounter_id: encounter.encounter_id,
           patient_id: encounter.patient_id,
