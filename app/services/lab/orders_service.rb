@@ -228,7 +228,7 @@ module Lab
         raise 'Accession cannot be this short' unless access_number.length > 6
 
         order_type = nil
-        order_type = OrderType.find_by_name!(params[:order_type_name]) if params[:order_type_name].present?
+        order_type = OrderType.find_by_order_type_id!(params[:order_type_id]) if params[:order_type_id].present?
         
         Lab::LabOrder.create!(
           order_type: order_type || OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME),
