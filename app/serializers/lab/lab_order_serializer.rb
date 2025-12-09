@@ -8,12 +8,18 @@ module Lab
       reason_for_test ||= order.reason_for_test
       target_lab = target_lab&.value_text || order.target_lab&.value_text || Location.current_health_center&.name
 
+      encounter = Encounter.find_by_encounter_id(order.encounter_id)
+      program = Program.find_by_program_id(encounter.program_id)
+
       ActiveSupport::HashWithIndifferentAccess.new(
         {
           id: order.order_id,
           order_type_id: order.order_type_id,
           order_id: order.order_id, # Deprecated: Link to :id
           encounter_id: order.encounter_id,
+          location_id: encounter.location_id,
+          program_id: encounter.program_id,
+          program_name: program.name,
           order_date: order.start_date,
           patient_id: order.patient_id,
           accession_number: order.accession_number,
