@@ -126,7 +126,7 @@ class Auto12Epl
       B100,30,0,1A,2,2,37,N,"#{acc_num}"
       A100,80,0,1,1,1,N,"#{acc_num}   #{arv_display}"
       A100,100,0,1,1,1,N,"#{col_date_time}	#{tests}"
-      A80,6,1,1,1,1,R,"   #{stat}   "
+      A80,6,1,1,1,1,R," #{stat} "
       P#{number_of_copies}
     TEXT
   end
