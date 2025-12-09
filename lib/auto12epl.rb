@@ -96,7 +96,8 @@ class Auto12Epl
     "#{last_name}, #{first_name}#{middle_initial.nil? ? '' : " #{middle_initial}"}"
   end
 
-  def generate_small_specimen_label(last_name, first_name, gender, col_date_time, tests, acc_num, number_of_copies = print_copies)
+  def generate_small_specimen_label(last_name, first_name, gender, col_date_time, tests, acc_num, arv_number, number_of_copies = print_copies)
+    arv_display = tests.match?(/vl/i) ? arv_number : ''
     <<~TEXT
       N
       R216,0
@@ -104,7 +105,7 @@ class Auto12Epl
       S1
       A100,6,0,1,1,1,N,"#{first_name}, #{last_name} - #{gender}"
       B120,40,0,1A,1,2,48,N,"#{acc_num}"
-      A100,100,0,1,1,1,N,"#{acc_num}"
+      A100,100,0,1,1,1,N,"#{acc_num}    #{arv_display}"
       A100,118,0,1,1,1,N,"#{col_date_time}"
       A100,140,0,1,1,1,N,"#{tests}"
       P#{number_of_copies}
