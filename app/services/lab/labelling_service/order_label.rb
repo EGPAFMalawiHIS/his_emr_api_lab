@@ -43,6 +43,7 @@ module Lab
                   reason_for_test,
                   order.accession_number,
                   order.accession_number,
+                  patient.arv,
                   number_of_copies
                 )
               end
@@ -76,27 +77,22 @@ module Lab
         patient_identifier = PatientIdentifier.where(type: PatientIdentifierType.where(name: 'National id'),
                                                      patient_id: order.patient_id)
                                               .first
-
+        arv_identifier = PatientIdentifier.where(type: PatientIdentifierType.where(name: 'ARV Number'),
+                                                     patient_id: order.patient_id)
+                                              .first
         @patient = OpenStruct.new(
           given_name: person_name.given_name,
           family_name: person_name.family_name,
           birthdate: person.birthdate,
           gender: person.gender,
-          nhid: patient_identifier&.identifier || 'Unknown'
+          nhid: patient_identifier&.identifier || 'Unknown',
+          arv: arv_identifier&.identifier || ''
         )
       end
 
       def drawer
         return 'N/A' if order.concept_id == unknown_concept.concept_id
-
-        drawer_id = User.find(order.discontinued_by || order.creator).person_id
-        draw_date = (order.discontinued_date || order.start_date).strftime('%d/%^b/%Y %H:%M:%S')
-
-        name = PersonName.find_by_person_id(drawer_id)
-        return "#{name.given_name} #{name.family_name} #{draw_date}" if name
-
-        user = User.find_by_user_id(drawer_id)
-        user ? "#{user.username} #{draw_date}" : 'N/A'
+        (order.discontinued_date || order.start_date).strftime('%d/%^b/%Y')
       end
 
       def drawer_date
