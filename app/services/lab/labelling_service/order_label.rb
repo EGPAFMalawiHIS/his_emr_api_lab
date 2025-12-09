@@ -23,9 +23,10 @@ module Lab
                   patient.family_name,
                   patient.given_name,
                   patient.gender,
-                  drawer_date,
+                  drawer,
                   tests,
                   order.accession_number,
+                  patient.arv,
                   number_of_copies
                 )
               else
