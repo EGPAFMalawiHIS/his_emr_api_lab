@@ -203,7 +203,7 @@ describe 'orders' do
 
       def create_order(no_specimen: false)
         encounter = create(:encounter, type: @encounter_type)
-        order = create(:order, encounter: encounter,
+        order = create(:order, encounter:,
                                patient_id: encounter.patient_id,
                                order_type: @order_type,
                                start_date: Date.today,
@@ -220,10 +220,10 @@ describe 'orders' do
         ]
 
         observations.each do |concept, params,|
-          create(:observation, encounter: encounter,
-                               concept: concept,
+          create(:observation, encounter:,
+                               concept:,
                                person_id: encounter.patient_id,
-                               order: order,
+                               order:,
                                obs_datetime: Time.now,
                                **params)
         end
@@ -289,7 +289,7 @@ describe 'orders' do
         encounter = create(:encounter)
         create(:order, order_type: create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME),
                        concept_id: create(:concept_name, name: 'Unknown').concept_id,
-                       encounter: encounter,
+                       encounter:,
                        patient: encounter.patient)
           .order_id
       end
@@ -328,7 +328,7 @@ describe 'orders' do
       let(:order_id) do
         encounter = create(:encounter)
         create(:order, order_type: create(:order_type, name: Lab::Metadata::ORDER_TYPE_NAME),
-                       encounter: encounter,
+                       encounter:,
                        patient: encounter.patient)
           .order_id
       end

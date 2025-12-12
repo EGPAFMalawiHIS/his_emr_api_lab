@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateLabLabAccessionNumberCounters < ActiveRecord::Migration[5.2]
   def change
     create_table :lab_accession_number_counters do |t|

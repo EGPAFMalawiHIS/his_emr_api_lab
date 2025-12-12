@@ -22,7 +22,7 @@ module Lab
           },
           requesting_clinician: requesting_clinician&.value_text,
           target_lab: target_lab,
-          comment_to_fulfiller: comment_to_fulfiller.respond_to?(:value_text) ? comment_to_fulfiller.value_text : comment_to_fulfiller,          reason_for_test: {
+          reason_for_test: {
             concept_id: reason_for_test&.value_coded,
             name: concept_name(reason_for_test&.value_coded)
           },
@@ -45,13 +45,13 @@ module Lab
     def self.concept_name(concept_id)
       return concept_id unless concept_id
 
-      ConceptName.select(:name).find_by_concept_id(concept_id)&.name
+      ::ConceptAttribute.find_by(concept_id:, attribute_type: ConceptAttributeType.test_catalogue_name)&.value_reference
     end
 
     def self.voided_tests(order)
       concept = ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                            .select(:concept_id)
-      LabTest.unscoped.where(concept: concept, order: order, voided: true)
+      LabTest.unscoped.where(concept:, order:, voided: true)
     end
   end
 end

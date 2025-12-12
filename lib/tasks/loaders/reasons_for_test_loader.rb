@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative './loader_mixin'
+require_relative 'loader_mixin'
 
 module Lab
   module Loaders

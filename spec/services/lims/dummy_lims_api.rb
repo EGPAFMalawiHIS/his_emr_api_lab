@@ -15,8 +15,8 @@ class DummyLimsApi
   end
 
   def update_order(id, order)
-    self.updated_order = OpenStruct.new(order: order)
+    self.updated_order = OpenStruct.new(order:)
 
-    order.merge(id: id)
+    order.merge(id:)
   end
 end

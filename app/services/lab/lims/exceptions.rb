@@ -2,12 +2,10 @@
 
 module Lab
   module Lims
-    module Exceptions
-      class LimsException < StandardError; end
-      class DuplicateNHID < LimsException; end
-      class MissingAccessionNumber < LimsException; end
-      class UnknownSpecimenType < LimsException; end
-      class UnknownTestType < LimsException; end
-    end
+    class LimsException < StandardError; end
+    class DuplicateNHID < LimsException; end
+    class MissingAccessionNumber < LimsException; end
+    class UnknownSpecimenType < LimsException; end
+    class UnknownTestType < LimsException; end
   end
 end

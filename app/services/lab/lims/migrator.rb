@@ -29,7 +29,7 @@ require 'lab/lab_test'
 require 'lab/lims_order_mapping'
 require 'lab/lims_failed_import'
 
-require_relative './api/couch_db_api'
+require_relative './api/couchdb_api'
 require_relative './config'
 require_relative './pull_worker'
 require_relative './utils'
@@ -42,7 +42,6 @@ require_relative '../../../serializers/lab/result_serializer'
 require_relative '../../../serializers/lab/test_serializer'
 
 require_relative 'order_dto'
-require_relative 'utils'
 
 module Lab
   module Lims
@@ -60,7 +59,7 @@ module Lab
 
       ##
       # A Lab::Lims::Api object that supports crawling of a LIMS CouchDB instance.
-      class CouchDbMigratorApi < Lab::Lims::Api::CouchDbApi
+      class CouchDbMigratorApi < Lab::Lims::Api::CouchdbApi
         def initialize(*args, processes: 1, on_merge_processes: nil, **kwargs)
           super(*args, **kwargs)
 
@@ -141,7 +140,7 @@ module Lab
         def order_rejected(order_dto, reason)
           @rejections ||= []
 
-          @rejections << OpenStruct.new(order: order_dto, reason: reason)
+          @rejections << OpenStruct.new(order: order_dto, reason:)
         end
       end
 
@@ -168,7 +167,7 @@ module Lab
           ]
         end
 
-        save_csv(MIGRATION_REJECTIONS_CSV_PATH, headers: headers, rows: rows)
+        save_csv(MIGRATION_REJECTIONS_CSV_PATH, headers:, rows:)
       end
 
       MIGRATION_FAILURES_CSV_PATH = Utils::LIMS_LOG_PATH.join('migration-failures.csv')
@@ -185,13 +184,13 @@ module Lab
           ]
         end
 
-        save_csv(MIGRATION_FAILURES_CSV_PATH, headers: headers, rows: rows)
+        save_csv(MIGRATION_FAILURES_CSV_PATH, headers:, rows:)
       end
 
       MIGRATION_LOG_PATH = Utils::LIMS_LOG_PATH.join('migration.log')
 
       def self.start_migration
-        Dir.mkdir(Utils::LIMS_LOG_PATH) unless File.exist?(Utils::LIMS_LOG_PATH)
+        FileUtils.mkdir_p(Utils::LIMS_LOG_PATH)
 
         logger = LoggerMultiplexor.new(Logger.new($stdout), MIGRATION_LOG_PATH)
         logger.level = :debug
@@ -202,7 +201,7 @@ module Lab
         api_class = case ENV.fetch('MIGRATION_SOURCE', 'couchdb').downcase
                     when 'couchdb' then CouchDbMigratorApi
                     when 'mysql' then Api::MysqlApi
-                    else raise "Invalid MIGRATION_SOURCE: #{ENV['MIGRATION_SOURCE']}"
+                    else raise "Invalid MIGRATION_SOURCE: #{ENV.fetch('MIGRATION_SOURCE', nil)}"
                     end
 
         worker = MigrationWorker.new(api_class)

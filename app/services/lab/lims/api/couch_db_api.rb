@@ -9,7 +9,7 @@ module Lab
     module Api
       ##
       # Talk to LIMS like a boss
-      class CouchDbApi
+      class CouchdbApi
         attr_reader :bum
 
         def initialize(config: nil)
@@ -30,7 +30,7 @@ module Lab
         # given block until the queue is empty or connection is terminated
         # by calling method +choke+.
         def consume_orders(from: 0, limit: 30)
-          bum.binge_changes(since: from, limit: limit, include_docs: true) do |change|
+          bum.binge_changes(since: from, limit:, include_docs: true) do |change|
             next unless change['doc']['type']&.casecmp?('Order')
 
             yield OrderDto.new(change['doc']), self

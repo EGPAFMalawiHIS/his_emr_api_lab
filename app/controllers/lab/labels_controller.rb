@@ -7,12 +7,12 @@ module Lab
 
     def print_order_label
       order_id = params.require(:order_id)
-
-      label = LabellingService::OrderLabel.new(order_id)
-      send_data(label.print, type: 'application/label; charset=utf-8',
-                             stream: false,
-                             filename: "#{SecureRandom.hex(24)}.lbl",
-                             disposition: 'inline')
+      print_copies = params[:number_of_copies].to_i if params[:number_of_copies].present?
+      render_zpl(LabellingService::OrderLabel.new(order_id).print(
+          params[:use_small_specimen_label] == 'true', 
+          print_copies        
+        )
+      )
     end
   end
 end

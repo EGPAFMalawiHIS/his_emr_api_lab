@@ -68,17 +68,17 @@ RSpec.describe 'results' do
 
         create(:concept_name, name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME)
 
-        encounter = create(:encounter, patient: patient,
+        encounter = create(:encounter, patient:,
                                        type: create(:encounter_type, name: Lab::Metadata::ENCOUNTER_TYPE_NAME))
-        order = create(:order, encounter: encounter,
-                               patient: patient,
+        order = create(:order, encounter:,
+                               patient:,
                                order_type: lab_test_type,
                                concept_id: specimen_type_concept.concept_id,
                                start_date: Date.today)
-        @test = create(:observation, encounter: encounter,
+        @test = create(:observation, encounter:,
                                      person_id: patient.patient_id,
                                      concept_id: test_type_concept.concept_id,
-                                     order: order,
+                                     order:,
                                      value_coded: create(:concept_name).concept_id)
       end
 

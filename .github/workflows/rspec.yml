@@ -19,19 +19,21 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ruby-version: ['2.5', '2.6']
+        ruby-version: ['3.2']
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Ruby
     # To automatically get bug fixes and new Ruby versions for ruby/setup-ruby,
     # change this to (see https://github.com/ruby/setup-ruby#versioning):
     # uses: ruby/setup-ruby@v1
-      uses: ruby/setup-ruby@473e4d8fe5dd94ee328fdfca9f8c9c7afc9dae5e
+      uses: ruby/setup-ruby@v1
       with:
         ruby-version: ${{ matrix.ruby-version }}
         bundler-cache: true # runs 'bundle install' and caches installed gems automatically
     - name: Prepare test database
-      run: RAILS_ENV=test bundle exec rake db:drop db:create db:schema:load db:migrate
+      run: bin/rails db:setup RAILS_ENV=test
+    - name: Load Schema and Migrations
+      run: bin/rails db:migrate db:schema:load RAILS_ENV=test
     - name: Run tests
       run: bundle exec rspec

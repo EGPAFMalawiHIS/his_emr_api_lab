@@ -91,7 +91,7 @@ module Lab
 
         if reason_for_test
           Rails.logger.debug("Updating reason for test on order ##{order.order_id}")
-          update_reason_for_test(order, Concept.find(reason_for_test)&.id)
+          update_reason_for_test(order, params[:reason_for_test_id])
         end
 
         Lab::LabOrderSerializer.serialize_order(order)
@@ -138,6 +138,25 @@ module Lab
         order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
         patch_order_dto_with_lims_results!(order_dto, order_params['results'])
         Lab::Lims::PullWorker.new(nil).process_order(order_dto)
+      end
+
+      def lab_orders(start_date, end_date, concept_id = nil, include_data: false)
+        tests = Lab::LabTest.where('date_created >= ? AND date_created <= ?', start_date, end_date)
+        tests = tests.where(value_coded: concept_id) if concept_id
+        orders = Lab::LabOrder.where(order_id: tests.pluck(:order_id))
+        data = {
+          count: orders.count,
+          last_order_date: Lab::LabOrder.last&.start_date&.to_date,
+          lab_orders: []
+        }
+        data[:lab_orders] = orders.map do |order|
+          Lab::LabOrderSerializer.serialize_order(
+            order, requesting_clinician: order.requesting_clinician,
+                   reason_for_test: order.reason_for_test,
+                   target_lab: order.target_lab
+          )
+        end if include_data
+        data
       end
 
       private
@@ -191,23 +210,19 @@ module Lab
       # a 'Lab' encounter is created using the provided program_id and
       # patient_id.
       def find_encounter(order_params)
-        encounter_id = order_params[:encounter_id] || order_params[:encounter]
-        patient_id = order_params[:patient_id] || order_params[:patient]
-        visit = order_params[:visit]
+        return Encounter.find(order_params[:encounter_id]) if order_params[:encounter_id]
 
-        return Encounter.find(encounter_id) if order_params[:encounter] || order_params[:encounter_id]
-        raise StandardError, 'encounter_id|uuid or patient_id|uuid required' unless order_params[:patient]
+        raise InvalidParameterError, 'encounter_id or patient_id required' unless order_params[:patient_id]
 
-        encounter = Encounter.new
-        encounter.patient = Patient.find(patient_id)
-        encounter.encounter_type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
-        encounter.encounter_datetime = order_params[:date] || Date.today
-        encounter.visit = Visit.find_by_uuid(visit) if Encounter.column_names.include?('visit_id')
-        encounter.provider_id = User.current&.person.id if Encounter.column_names.include?('provider_id')
+        program_id = order_params[:program_id] || Program.find_by_name!(Lab::Metadata::LAB_PROGRAM_NAME).program_id
 
-        encounter.save!
-
-        encounter.reload
+        Encounter.create!(
+          patient_id: order_params[:patient_id],
+          program_id: program_id,
+          type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
+          encounter_datetime: order_params[:date] || Date.today,
+          provider_id: order_params[:provider_id] || User.current.person.person_id
+        )
       end
 
       def create_order(encounter, params)
@@ -236,7 +251,7 @@ module Lab
       end
 
       def accession_number_exists?(accession_number)
-        Lab::LabOrder.where(accession_number: accession_number).exists?
+        Lab::LabOrder.where(accession_number:).exists?
       end
 
       def nlims_accession_number_exists?(accession_number)
@@ -298,15 +313,13 @@ module Lab
       end
 
       def create_order_observation(order, concept_name, date, **values)
-        creator = User.find_by(username: 'lab_daemon')
-        User.current ||= creator
         Observation.create!(
-          order: order,
+          order:,
           encounter_id: order.encounter_id,
           person_id: order.patient_id,
           concept_id: ConceptName.find_by_name!(concept_name).concept_id,
           obs_datetime: date&.to_time || Time.now,
-          **values
+          **
         )
       end
 
@@ -318,12 +331,12 @@ module Lab
         ConceptName.find_by_name!('Unknown').concept
       end
 
-      def update_reason_for_test(order, concept_id)
+      def update_reason_for_test(order, concept_id, force_update: false)
         raise InvalidParameterError, "Reason for test can't be blank" if concept_id.blank?
 
         return if order.reason_for_test&.value_coded == concept_id
 
-        raise InvalidParameterError, "Can't change reason for test once set" if order.reason_for_test&.value_coded
+        raise InvalidParameterError, "Can't change reason for test once set" if order.reason_for_test&.value_coded && !force_update
 
         order.reason_for_test&.delete
         date = order.start_date if order.respond_to?(:start_date)

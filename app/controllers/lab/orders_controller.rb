@@ -2,7 +2,8 @@
 
 module Lab
   class OrdersController < ApplicationController
-    skip_before_action :authorize_request, only: %i[order_status order_result]
+    skip_before_action :authenticate, only: %i[order_status order_result]
+    before_action :authenticate_request, only: %i[order_status order_result]
 
     def create
       order_params_list = params.require(:orders)
@@ -16,19 +17,15 @@ module Lab
     end
 
     def update
-      specimen = params.require(:specimen).permit(:concept_id)
-      order = OrdersService.update_order(params[:id], specimen: specimen, force_update: params[:force_update])
+      specimen = params.require(:specimen).slice(:concept_id)
+      order = OrdersService.update_order(params[:id], specimen:, force_update: params[:force_update])
       Lab::PushOrderJob.perform_later(order.fetch(:order_id))
 
       render json: order
     end
 
     def index
-      filters = params.permit(%i[patient_id patient accession_number date status])
-
-      id = filters[:patient_id] || filters[:patient]
-
-      patient = Patient.find(id) if filters[:patient_id] || filters[:patient]
+      filters = params.permit(%i[patient_id accession_number date status])
 
       Lab::UpdatePatientOrdersJob.perform_later(patient.id) if filters[:patient_id] || filters[:patient]
       orders = OrdersSearchService.find_orders(filters)
@@ -62,6 +59,15 @@ module Lab
       order_params = params[:data].to_h
       OrdersService.update_order_result(order_params)
       render json: { message: 'Results processed successfully' }, status: :ok
+    end
+
+    def summary
+      start_date = params[:start_date].present? ? params[:start_date] : 24.hours.ago.beginning_of_day
+      end_date = params[:end_date].present? ? params[:end_date].to_date.end_of_day : 24.hours.ago.end_of_day
+      concept_id = params[:concept_id]
+      include_data = params[:include_data]
+      orders = OrdersService.lab_orders(start_date, end_date, concept_id, include_data: include_data)
+      render json: orders, status: :ok
     end
 
     private
