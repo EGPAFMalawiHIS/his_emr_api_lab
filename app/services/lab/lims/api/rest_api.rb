@@ -2,12 +2,15 @@
 
 require 'rest-client'
 
-class Lab::Lims::Api::RestApi
-  class LimsApiError < GatewayError; end
+module Lab
+  module Lims
+    module Api
+      class RestApi
+        class LimsApiError < StandardError; end
 
         class AuthenticationTokenExpired < LimsApiError; end
 
-  class InvalidParameters < LimsApiError; end
+        class InvalidParameters < LimsApiError; end
 
         def initialize(config)
           @config = config
@@ -205,48 +208,67 @@ class Lab::Lims::Api::RestApi
           "#{protocol}://#{host}:#{port}/api/#{api_version}/#{uri}"
         end
 
-  ##
-  # Converts an OrderDTO to parameters for POST /create_order
-  def make_create_params(order_dto)
-    {
-      tracking_number: order_dto.fetch(:tracking_number),
-      district: current_district,
-      health_facility_name: order_dto.fetch(:sending_facility),
-      first_name: order_dto.fetch(:patient).fetch(:first_name),
-      last_name: order_dto.fetch(:patient).fetch(:last_name),
-      phone_number: order_dto.fetch(:patient).fetch(:phone_number),
-      gender: order_dto.fetch(:patient).fetch(:gender),
-      arv_number: order_dto.fetch(:patient).fetch(:arv_number),
-      art_regimen: order_dto.fetch(:patient).fetch(:art_regimen),
-      art_start_date: order_dto.fetch(:patient).fetch(:art_start_date),
-      date_of_birth: order_dto.fetch(:patient).fetch(:dob),
-      national_patient_id: order_dto.fetch(:patient).fetch(:id),
-      requesting_clinician: requesting_clinician(order_dto),
-      sample_type: order_dto.fetch(:sample_type),
-      tests: order_dto.fetch(:tests),
-      date_sample_drawn: sample_drawn_date(order_dto),
-      sample_priority: order_dto.fetch(:priority) || 'Routine',
-      sample_status: order_dto.fetch(:sample_status),
-      target_lab: order_dto.fetch(:receiving_facility),
-      order_location: order_dto.fetch(:order_location) || 'Unknown',
-      who_order_test_first_name: order_dto.fetch(:who_order_test).fetch(:first_name),
-      who_order_test_last_name: order_dto.fetch(:who_order_test).fetch(:last_name)
-    }
-  end
+        ##
+        # Converts an OrderDto to parameters for POST /create_order
+        def make_create_params(order_dto)
+          {
+             order: {
+              tracking_number: order_dto.fetch(:tracking_number),
+              district: current_district,
+              health_facility_name: order_dto.fetch(:sending_facility),
+              sending_facility: order_dto.fetch(:sending_facility),
+              arv_number: order_dto.fetch(:patient).fetch(:arv_number),
+              art_regimen: order_dto.fetch(:patient).fetch(:art_regimen),
+              art_start_date: order_dto.fetch(:patient).fetch(:art_start_date),
+              requesting_clinician: requesting_clinician(order_dto),
+              sample_type: order_dto.fetch(:sample_type_map),
+              date_sample_drawn: sample_drawn_date(order_dto),
+              date_created: sample_drawn_date(order_dto),
+              priority: order_dto.fetch(:priority) || 'Routine',
+              sample_status: {
+                name: order_dto.fetch(:sample_status)
+              },
+              target_lab: order_dto.fetch(:receiving_facility),
+              order_location: order_dto.fetch(:order_location) || 'Unknown',
+              who_order_test_first_name: order_dto.fetch(:who_order_test).fetch(:first_name),
+              who_order_test_last_name: order_dto.fetch(:who_order_test).fetch(:last_name),
+              requested_by:"#{order_dto.fetch(:who_order_test).fetch(:first_name)} #{order_dto.fetch(:who_order_test).fetch(:last_name)}",
+              drawn_by:{
+                id: order_dto.fetch(:who_order_test).fetch(:id),
+                name: "#{order_dto.fetch(:who_order_test).fetch(:first_name)} #{order_dto.fetch(:who_order_test).fetch(:last_name)}"
+              }
+            },
+            patient: {
+              national_patient_id: order_dto.fetch(:patient).fetch(:id),
+              first_name: order_dto.fetch(:patient).fetch(:first_name),
+              last_name: order_dto.fetch(:patient).fetch(:last_name),
+              phone_number: order_dto.fetch(:patient).fetch(:phone_number),
+              gender: order_dto.fetch(:patient).fetch(:gender),
+              date_of_birth: order_dto.fetch(:patient).fetch(:dob),
+            },
+            tests: order_dto.fetch(:tests_map).map do |test|
+              concept = ::Concept.find(test.concept_id)
+              {
+                test_type: {
+                  name: concept.test_catalogue_name,
+                  nlims_code: concept.nlims_code
+                }
+              }
+            end,
+          }
+        end
 
-  ##
-  # Converts an OrderDTO to parameters for POST /update_order
-  def make_update_params(order_dto)
-    date_updated, status = sample_drawn_status(order_dto)
-
-    {
-      tracking_number: order_dto.fetch(:tracking_number),
-      who_updated: status.fetch(:updated_by),
-      date_updated: date_updated,
-      specimen_type: order_dto.fetch(:sample_type),
-      status: 'specimen_collected'
-    }
-  end
+        ##
+        # Converts an OrderDto to parameters for POST /update_order
+        def make_update_params(order_dto)
+          date_updated, status = sample_drawn_status(order_dto)
+          {
+            status: 'specimen_collected',
+            time_updated: date_updated,
+            sample_type: order_dto.fetch(:sample_type_map),
+            updated_by: status.fetch(:updated_by),
+          }
+        end
 
         def current_district
           health_centre = Location.current_health_center
@@ -262,12 +284,12 @@ class Lab::Lims::Api::RestApi
           district
         end
 
-  ##
-  # Extracts sample drawn status from an OrderDTO
-  def sample_drawn_status(order_dto)
-    order_dto[:sample_statuses].each do |trail_entry|
-      date, status = trail_entry.each_pair.find { |_date, status| status['status'].casecmp?('Drawn') }
-      next unless date
+        ##
+        # Extracts sample drawn status from an OrderDto
+        def sample_drawn_status(order_dto)
+          order_dto[:sample_statuses].each do |trail_entry|
+            date, status = trail_entry.each_pair.find { |_date, status| status['status'].casecmp?('Drawn') }
+            next unless date
 
             return Date.strptime(date, '%Y%m%d%H%M%S').strftime('%Y-%m-%d'), status
           end
@@ -275,16 +297,16 @@ class Lab::Lims::Api::RestApi
           [order_dto['date_created'], nil]
         end
 
-  ##
-  # Extracts a sample drawn date from a LIMS OrderDTO.
-  def sample_drawn_date(order_dto)
-    sample_drawn_status(order_dto).first
-  end
+        ##
+        # Extracts a sample drawn date from a LIMS OrderDto.
+        def sample_drawn_date(order_dto)
+          sample_drawn_status(order_dto).first
+        end
 
-  ##
-  # Extracts the requesting clinician from a LIMS OrderDTO
-  def requesting_clinician(order_dto)
-    orderer = order_dto[:who_order_test]
+        ##
+        # Extracts the requesting clinician from a LIMS OrderDto
+        def requesting_clinician(order_dto)
+          orderer = order_dto[:who_order_test]
 
           "#{orderer[:first_name]} #{orderer[:last_name]}"
         end
@@ -444,32 +466,32 @@ class Lab::Lims::Api::RestApi
           orders.values
         end
 
-  def orders_without_specimen(patient_id = nil)
-    Rails.logger.debug('Looking for orders without a specimen')
-    unknown_specimen = ConceptName.where(name: Lab::Metadata::UNKNOWN_SPECIMEN)
-                                  .select(:concept_id)
-    orders = Lab::LabOrder.where(concept_id: unknown_specimen)
-                          .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
-    orders = orders.where(patient_id: patient_id) if patient_id
+        def orders_without_specimen(patient_id = nil)
+          Rails.logger.debug('Looking for orders without a specimen')
+          unknown_specimen = ConceptName.where(name: Lab::Metadata::UNKNOWN_SPECIMEN)
+                                        .select(:concept_id)
+          orders = Lab::LabOrder.where(concept_id: unknown_specimen)
+                                .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
+          orders = orders.where(patient_id:) if patient_id
 
           orders
         end
 
-  def orders_without_results(patient_id = nil)
-    Rails.logger.debug('Looking for orders without a result')
-    # Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
-    #                         .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id).where("pulled_at IS NULL"))
-    Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
-                             .where(order_id: Lab::LimsOrderMapping.select(:order_id))
-  end
+        def orders_without_results(patient_id = nil)
+          Rails.logger.debug('Looking for orders without a result')
+          # Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
+          #                         .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id).where("pulled_at IS NULL"))
+          Lab::OrdersSearchService.find_orders_without_results(patient_id:)
+                                  .where(order_id: Lab::LimsOrderMapping.select(:order_id))
+        end
 
-  def orders_without_reason(patient_id = nil)
-    Rails.logger.debug('Looking for orders without a reason for test')
-    orders = Lab::LabOrder.joins(:reason_for_test)
-                          .merge(Observation.where(value_coded: nil, value_text: nil))
-                          .limit(1000)
-                          .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
-    orders = orders.where(patient_id: patient_id) if patient_id
+        def orders_without_reason(patient_id = nil)
+          Rails.logger.debug('Looking for orders without a reason for test')
+          orders = Lab::LabOrder.joins(:reason_for_test)
+                                .merge(Observation.where(value_coded: nil, value_text: nil))
+                                .limit(1000)
+                                .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
+          orders = orders.where(patient_id:) if patient_id
 
           orders
         end

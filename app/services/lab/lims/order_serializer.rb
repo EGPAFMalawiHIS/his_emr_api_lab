@@ -15,7 +15,7 @@ module Lab
         def serialize_order(order)
           serialized_order = Lims::Utils.structify(Lab::LabOrderSerializer.serialize_order(order))
 
-          Lims::OrderDTO.new(
+          Lims::OrderDto.new(
             _id: Lab::LimsOrderMapping.find_by(order: order)&.lims_id || serialized_order.accession_number,
             tracking_number: serialized_order.accession_number,
             sending_facility: current_facility_name,
