@@ -14,6 +14,7 @@ Lab::Engine.routes.draw do
 
   get 'api/v1/lab/labels/order', to: 'labels#print_order_label'
   get 'api/v1/lab/accession_number', to: 'orders#verify_tracking_number'
+  get 'api/v1/lab/test_methods', to: 'test_methods#index'
 
   # Metadata
   # TODO: Move the following to namespace /concepts

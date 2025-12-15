@@ -3,6 +3,31 @@
 module Lab
   # A read-only repository of sort for all lab-centric concepts.
   module ConceptsService
+    def self.test_methods(nlims_code)
+      return ActiveRecord::Base.connection.select_all <<~SQL
+        SELECT cn.name, cn.concept_id
+        FROM concept_set cs
+                INNER JOIN concept_name cn ON cn.concept_id = cs.concept_id
+                INNER JOIN concept_attribute ca ON ca.value_reference = #{ActiveRecord::Base.connection.quote(nlims_code)}
+            AND ca.attribute_type_id = 20
+        WHERE cs.concept_id IN (SELECT concept_set.concept_id
+                                FROM concept_set
+                                WHERE concept_set.concept_set IN (SELECT concept_name.concept_id
+                                                                  FROM concept_name
+                                                                  WHERE concept_name.voided = 0
+                                                                    AND concept_name.name = 'Recommended test method'))
+          AND cs.concept_set IN (SELECT concept_set.concept_id
+                                          FROM concept_set
+                                          WHERE concept_set.concept_set IN (SELECT concept_name.concept_id
+                                                                            FROM concept_name
+                                                                            WHERE concept_name.voided = 0
+                                                                              AND concept_name.name = 'Test type')
+                                            AND concept_set.concept_id = ca.concept_id
+                                            )
+        GROUP BY cn.concept_id
+      SQL
+    end
+
     def self.test_types(name: nil, specimen_type: nil)
       test_types = ConceptSet.find_members_by_name(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
       test_types = test_types.filter_members(name:) if name
