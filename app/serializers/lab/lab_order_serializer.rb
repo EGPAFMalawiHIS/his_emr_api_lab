@@ -34,11 +34,23 @@ module Lab
               id: test.obs_id,
               concept_id: test.value_coded,
               name: concept_name(test.value_coded),
+              test_method: test_method(order, test.value_coded),
               result: result_obs && ResultSerializer.serialize(result_obs)
             }
           end
         }
       )
+    end
+
+    def self.test_method(order, concept_id)
+      obs =  ::Observation
+                .select(:value_coded)
+                .where(concept_id: ConceptName.find_by_name(Metadata::TEST_METHOD_CONCEPT_NAME).concept_id, order_id: order.id)
+                .first
+      {
+        concept_id: obs&.value_coded,
+        name: ConceptName.find_by_concept_id(obs&.value_coded)&.name
+      }
     end
 
     def self.concept_name(concept_id)

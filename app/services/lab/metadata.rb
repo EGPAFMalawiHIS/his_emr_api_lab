@@ -12,6 +12,7 @@ module Lab
     TEST_TYPE_CONCEPT_NAME = 'Test type'
     LAB_ORDER_STATUS_CONCEPT_NAME = 'lab order status'
     UNKNOWN_SPECIMEN = 'Unknown'
+    TEST_METHOD_CONCEPT_NAME = 'Recommended test method'
 
     # Encounter
     ENCOUNTER_TYPE_NAME = 'Lab'

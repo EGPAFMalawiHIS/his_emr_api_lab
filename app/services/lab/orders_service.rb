@@ -58,6 +58,8 @@ module Lab
 
           order = create_order(encounter, order_params)
 
+          attach_test_method(order, order_params) if order_params[:test_method]
+
           Lab::TestsService.create_tests(order, order_params[:date], order_params[:tests])
 
           Lab::LabOrderSerializer.serialize_order(
@@ -66,6 +68,15 @@ module Lab
                    target_lab: add_target_lab(order, order_params)
           )
         end
+      end
+
+      def attach_test_method(order, order_params)
+        create_order_observation(
+          order,
+          Lab::Metadata::TEST_METHOD_CONCEPT_NAME,
+          order_params[:date],
+          value_coded: order_params[:test_method]
+        )
       end
 
       def update_order(order_id, params)

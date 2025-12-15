@@ -249,7 +249,8 @@ module Lab
               {
                 test_type: {
                   name: concept.test_catalogue_name,
-                  nlims_code: concept.nlims_code
+                  nlims_code: concept.nlims_code,
+                  method_of_testing: test&.test_method&.name
                 }
               }
             end,
