@@ -27,7 +27,7 @@ module Lab
             Rails.logger.info("Updating acknowledgement ##{acknowledgement_dto[:tracking_number]} in LIMS")
             response = lims_api.acknowledge(acknowledgement_dto)
             Rails.logger.info("Info #{response}")
-            if response['status'] == 200 || response['message'] == 'results already delivered for test name given'
+            if ['results already delivered for test name given', 'test result acknowledged successfully', 'test result already acknowledged electronically at facility'].include?(response['message'])
               acknowledgement.pushed = true
               acknowledgement.date_pushed = Time.now
               acknowledgement.save!

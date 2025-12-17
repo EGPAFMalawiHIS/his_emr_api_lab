@@ -36,7 +36,8 @@ module Lab
 
         def acknowledge(acknowledgement_dto)
           Rails.logger.info("Acknowledging order ##{acknowledgement_dto} in LIMS")
-          test_concept = ::Concept.find(acknowledgement_dto.fetch(:test))
+          test_concept = ::ConceptName.find_by_name(acknowledgement_dto.fetch(:test))&.concept
+          return { 'status' => 400, 'message' => "Test concept not found for '#{acknowledgement_dto.fetch(:test)}'" } if test_concept.nil?
 
           response = in_authenticated_session do |headers|
             RestClient.post(expand_uri("tests/#{acknowledgement_dto[:tracking_number]}/acknowledge_test_results_receipt", api_version: 'v2'), {
@@ -45,11 +46,15 @@ module Lab
                 nlims_code: test_concept.nlims_code
               },
               date_acknowledged: acknowledgement_dto[:date_acknowledged],
-              recepient_type: acknowledgement_dto[:recepient_type]
+              recipient_type: acknowledgement_dto[:recipient_type],
+              acknowledged_by: 'emr_at_facility'
             }, headers)
           end
           Rails.logger.info("Acknowledged order ##{acknowledgement_dto} in LIMS. Response: #{response}")
           JSON.parse(response)
+        rescue StandardError => e
+          Rails.logger.error("Failed to acknowledge order ##{acknowledgement_dto} in LIMS: #{e.class}")
+          { 'status' => 500, 'message' => e.message }
         end
 
         def update_order(_id, order_dto)
