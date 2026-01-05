@@ -28,7 +28,7 @@ module Lab
         def consume_orders(from: nil, limit: 1000)
           loop do
             specimens_to_process = specimens(from, limit)
-            break if specimens_to_process.size.zero?
+            break if specimens_to_process.empty?
 
             processes = multiprocessed? ? @processes : 0
             on_merge_processes = ->(_item, index, _result) { @on_merge_processes&.call(from + index) }
@@ -42,7 +42,7 @@ module Lab
               end
 
               dto = make_order_dto(
-                specimen: specimen,
+                specimen:,
                 patient: specimen_patient(specimen['specimen_id']),
                 test_results: results,
                 specimen_status_trail: specimen_status_trail(specimen['specimen_id']),
@@ -197,8 +197,8 @@ module Lab
               object[format_date(trail_entry['date'])] = {
                 status: trail_entry['status_name'],
                 updated_by: {
-                  first_name: first_name,
-                  last_name: last_name,
+                  first_name:,
+                  last_name:,
                   phone_number: trail_entry['updated_by_phone_number'],
                   id: trail_entry['updated_by_id']
                 }
@@ -230,7 +230,7 @@ module Lab
         end
 
         def format_test_result_for_dto(test_name, specimen, results, test_status_trail)
-          return {} if results.size.zero?
+          return {} if results.empty?
 
           result_create_event = test_status_trail[test_name]&.find do |trail_entry|
             trail_entry['status_name'].casecmp?('drawn')

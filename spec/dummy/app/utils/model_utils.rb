@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module ModelUtils
   # Retrieve concept by its name
   #
@@ -9,7 +10,7 @@ module ModelUtils
   end
 
   def concept_name(name)
-    ConceptName.find_by(name: name)
+    ConceptName.find_by(name:)
   end
 
   def concept_name_to_id(name)
@@ -21,7 +22,7 @@ module ModelUtils
   end
 
   def encounter_type(name)
-    EncounterType.find_by name: name
+    EncounterType.find_by name:
   end
 
   def global_property(name)
@@ -30,7 +31,7 @@ module ModelUtils
 
   def user_property(name, user_id: nil)
     user_id ||= User.current.user_id
-    UserProperty.find_by(user_id: user_id, property: name)
+    UserProperty.find_by(user_id:, property: name)
   end
 
   def order_type(name)

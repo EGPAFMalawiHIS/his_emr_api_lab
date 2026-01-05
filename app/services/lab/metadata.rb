@@ -14,6 +14,7 @@ module Lab
     LAB_ORDER_STATUS_CONCEPT_NAME = 'lab order status'
     UNKNOWN_SPECIMEN = 'Unknown'
     VISIT_TYPE_UUID = '8a4a4488-c2cc-11de-8d13-0010c6dffd0f'
+    TEST_METHOD_CONCEPT_NAME = 'Recommended test method'
 
     # Encounter
     ENCOUNTER_TYPE_NAME = 'Lab'

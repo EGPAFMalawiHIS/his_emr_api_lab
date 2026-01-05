@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Encounter < VoidableRecord
   self.table_name = :encounter
   self.primary_key = :encounter_id
@@ -92,7 +94,7 @@ class Encounter < VoidableRecord
   # end
 
   def name
-    self.type&.name || 'N/A'
+    type&.name || 'N/A'
   end
 
   # def to_s

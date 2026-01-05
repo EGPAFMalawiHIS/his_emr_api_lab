@@ -8,7 +8,7 @@ module Lab
     # Various helper methods for modules in the Lims namespaces...
     module Utils
       LIMS_LOG_PATH = Rails.root.join('log', 'lims')
-      FileUtils.mkdir_p(LIMS_LOG_PATH) unless File.exist?(LIMS_LOG_PATH)
+      FileUtils.mkdir_p(LIMS_LOG_PATH)
 
       def logger
         Rails.logger
@@ -50,16 +50,13 @@ module Lab
         User.current = god_user
         person = Person.create!(creator: god_user.user_id, birthdate: '1980-01-01')
         PersonName.create!(person: person, given_name: 'Lab', family_name: 'Daemon', creator: god_user.user_id)
-
-        User.create!(username: 'lab_daemon', person: person, creator: god_user.user_id)
+        User.create!(username: 'lab_daemon', person:, creator: god_user.user_id)
       end
 
       def self.parse_date(str_date, fallback_date = nil)
         str_date = str_date&.to_s
 
-        if str_date.blank? && fallback_date.blank?
-          raise "Can't parse blank date"
-        end
+        raise "Can't parse blank date" if str_date.blank? && fallback_date.blank?
 
         return parse_date(fallback_date) if str_date.blank?
 

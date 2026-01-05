@@ -1,6 +1,6 @@
 AllCops:
   NewCops: enable
-  TargetRubyVersion: 2.5.3
+  TargetRubyVersion: 3.2.0
   SuggestExtensions:
     rubocop-rspec: false
 Layout/LineLength:

@@ -2,7 +2,7 @@
 
 require 'rails_helper'
 
-require_relative './dummy_lims_api'
+require_relative 'dummy_lims_api'
 
 RSpec.describe Lab::Lims::PushWorker do
   subject { Lab::Lims::PushWorker.new(lims_api) }

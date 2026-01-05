@@ -25,8 +25,6 @@ module Lab
           orders.each do |order|
             push_order(order)
           rescue StandardError => e
-            logger.error("Failed to push order ##{order.accession_number}: #{e.class} - #{e.message}")
-          rescue StandardError => e
             logger.error("Failed to push order ##{order.id}: #{order&.accession_number} : #{e.class} - #{e.message}")
           end
 
@@ -54,7 +52,7 @@ module Lab
 
         ActiveRecord::Base.transaction do
           if mapping && !order.voided.zero?
-            Rails.logger.info("Deleting order ##{order_dto[:accession_number]} from LIMS")
+            Rails.logger.info("Deleting order ##{order_dto['accession_number']} from LIMS")
             lims_api.delete_order(mapping.lims_id, order_dto)
             mapping.destroy
           elsif mapping
@@ -64,7 +62,7 @@ module Lab
               mapping.update(pushed_at: Time.now)
             else
               mapping.update(pushed_at: Time.now, result_push_status: true)
-           end
+            end
           elsif order_dto[:_id] && Lab::LimsOrderMapping.where(lims_id: order_dto[:_id]).exists?
             # HACK: v1.1.7 had a bug where duplicates of recently created orders where being created by
             # the pull worker. This here detects those duplicates and voids them.
@@ -73,12 +71,21 @@ module Lab
           else
             Rails.logger.info("Creating order ##{order_dto[:accession_number]} in LIMS")
             update = lims_api.create_order(order_dto)
-            Lab::LimsOrderMapping.create!(order: order, lims_id: update['id'], revision: update['rev'],
+            Lab::LimsOrderMapping.create!(order:, lims_id: update['id'], revision: update['rev'],
                                           pushed_at: Time.now, result_push_status: false)
           end
         end
 
         order_dto
+      end
+
+      def void_order_in_lims(order_id)
+        order = Lab::LabOrder.joins(order_type: { name: 'Lab' })
+        .unscoped
+        .find(order_id)
+        order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
+        Rails.logger.info("Deleting order ##{order_dto[:accession_number]} from LIMS")
+        lims_api.delete_order('', order_dto)
       end
 
       private
@@ -109,7 +116,7 @@ module Lab
                      .joins(:mapping)
                      .where('orders.discontinued_date > :last_updated
                              OR obs.date_created > orders.date_created AND lab_lims_order_mappings.result_push_status = 0',
-                            last_updated: last_updated)
+                            last_updated:)
                      .group('orders.order_id')
                      .order(discontinued_date: :desc, date_created: :desc)
       end

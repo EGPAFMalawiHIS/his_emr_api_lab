@@ -17,7 +17,7 @@ module Lab
        Lab::Metadata::REQUESTING_CLINICIAN_CONCEPT_NAME,
        Lab::Metadata::TARGET_LAB_CONCEPT_NAME,
        Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME].each do |name|
-        create(:concept_name, name: name)
+        create(:concept_name, name:)
       end
     end
 

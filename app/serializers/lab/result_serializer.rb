@@ -16,8 +16,8 @@ module Lab
             name: concept_name&.name
           },
           date: measure.obs_datetime,
-          value: value,
-          value_type: value_type,
+          value:,
+          value_type:,
           value_modifier: measure.value_modifier
         }
       end

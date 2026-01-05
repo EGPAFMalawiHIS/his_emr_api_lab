@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative './config'
-require_relative './order_dto'
-require_relative './utils'
+require_relative 'config'
+require_relative 'order_dto'
+require_relative 'utils'
 
 module Lab
   module Lims
@@ -20,9 +20,14 @@ module Lab
             sending_facility: current_facility_name,
             receiving_facility: serialized_order.target_lab,
             tests: serialized_order.tests.map { |test| format_test_name(test.name) },
+            tests_map: serialized_order.tests,
             patient: format_patient(serialized_order.patient_id),
             order_location: format_order_location(serialized_order.encounter_id),
             sample_type: format_sample_type(serialized_order.specimen.name),
+            sample_type_map: {
+              name: format_sample_type(serialized_order.specimen.name),
+              nlims_code: Concept.find(serialized_order.specimen.concept_id).nlims_code
+            },
             sample_status: format_sample_status(serialized_order.specimen.name),
             sample_statuses: format_sample_status_trail(order),
             test_statuses: format_test_status_trail(order),
@@ -38,9 +43,9 @@ module Lab
         private
 
         def format_order_location(encounter_id)
-          location_id = Encounter.select(:location_id).where(encounter_id: encounter_id)
+          location_id = Encounter.select(:location_id).where(encounter_id:)
           location = Location.select(:name)
-                             .where(location_id: location_id)
+                             .where(location_id:)
                              .first
 
           location&.name
@@ -52,7 +57,7 @@ module Lab
           name = PersonName.find_by_person_id(patient_id)
           national_id = PatientIdentifier.joins(:type)
                                          .merge(PatientIdentifierType.where(name: 'National ID'))
-                                         .where(patient_id: patient_id)
+                                         .where(patient_id:)
                                          .first
           phone_number = PersonAttribute.joins(:type)
                                         .merge(PersonAttributeType.where(name: 'Cell phone Number'))
@@ -87,7 +92,7 @@ module Lab
         def find_arv_number(patient_id)
           PatientIdentifier.joins(:type)
                            .merge(PatientIdentifierType.where(name: 'ARV Number'))
-                           .where(patient_id: patient_id)
+                           .where(patient_id:)
                            .first&.identifier
         end
 
@@ -215,8 +220,8 @@ module Lab
         end
 
         def current_district
-          district = current_health_center.city_village\
-                       || current_health_center.parent&.name\
+          district = current_health_center.city_village \
+                       || current_health_center.parent&.name \
                        || GlobalProperty.find_by_property('current_health_center_district')&.property_value
 
           return district if district
