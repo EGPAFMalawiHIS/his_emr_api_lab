@@ -1,26 +1,27 @@
 # frozen_string_literal: true
 
+require 'rest-client'
+
 module Lab
   module Lims
     module Api
       class RestApi
-        class LimsApiError < GatewayError; end
-
+        class LimsApiError < StandardError; end
         class AuthenticationTokenExpired < LimsApiError; end
-
         class InvalidParameters < LimsApiError; end
 
-  START_DATE = Time.parse('2024-09-03').freeze
+        START_DATE = Time.parse('2024-09-03').freeze
 
-  def initialize(config)
-    @config = config
-  end
+        def initialize(config)
+          @config = config
+        end
 
         def create_order(order_dto)
           response = in_authenticated_session do |headers|
             Rails.logger.info("Pushing order ##{order_dto[:tracking_number]} to LIMS")
             if order_dto['sample_type'].casecmp?('not_specified')
-              RestClient.post(expand_uri('orders/requests', api_version: 'v2'), make_create_params(order_dto), headers)
+              RestClient.post(expand_uri('orders/requests', api_version: 'v2'), make_create_params(order_dto),
+                              headers)
             else
               RestClient.post(expand_uri('orders', api_version: 'v2'), make_create_params(order_dto), headers)
             end
@@ -39,18 +40,21 @@ module Lab
         def acknowledge(acknowledgement_dto)
           Rails.logger.info("Acknowledging order ##{acknowledgement_dto} in LIMS")
           test_concept = ::ConceptName.find_by_name(acknowledgement_dto.fetch(:test))&.concept
-          return { 'status' => 400, 'message' => "Test concept not found for '#{acknowledgement_dto.fetch(:test)}'" } if test_concept.nil?
+          if test_concept.nil?
+            return { 'status' => 400,
+                     'message' => "Test concept not found for '#{acknowledgement_dto.fetch(:test)}'" }
+          end
 
           response = in_authenticated_session do |headers|
             RestClient.post(expand_uri("tests/#{acknowledgement_dto[:tracking_number]}/acknowledge_test_results_receipt", api_version: 'v2'), {
-              test_type: {
-                name: test_concept.test_catalogue_name,
-                nlims_code: test_concept.nlims_code
-              },
-              date_acknowledged: acknowledgement_dto[:date_acknowledged],
-              recipient_type: acknowledgement_dto[:recipient_type],
-              acknowledged_by: 'emr_at_facility'
-            }, headers)
+                              test_type: {
+                                name: test_concept.test_catalogue_name,
+                                nlims_code: test_concept.nlims_code
+                              },
+                              date_acknowledged: acknowledgement_dto[:date_acknowledged],
+                              recipient_type: acknowledgement_dto[:recipient_type],
+                              acknowledged_by: 'emr_at_facility'
+                            }, headers)
           end
           Rails.logger.info("Acknowledged order ##{acknowledgement_dto} in LIMS. Response: #{response}")
           JSON.parse(response)
@@ -61,7 +65,8 @@ module Lab
 
         def update_order(_id, order_dto)
           in_authenticated_session do |headers|
-            RestClient.put(expand_uri("orders/#{order_dto[:tracking_number]}", api_version: 'v2'), make_update_params(order_dto), headers)
+            RestClient.put(expand_uri("orders/#{order_dto[:tracking_number]}", api_version: 'v2'),
+                           make_update_params(order_dto), headers)
           end
 
           update_order_results(order_dto)
@@ -85,6 +90,9 @@ module Lab
             end
 
             yield order_dto, OpenStruct.new(last_seq: 0)
+          rescue RestClient::NotFound
+            Rails.logger.error("Order ##{order.accession_number} not found in LIMS")
+            next
           rescue LimsApiError => e
             Rails.logger.error("Failed to fetch updates for ##{order.accession_number}: #{e.class} - #{e.message}")
             sleep(1)
@@ -188,7 +196,7 @@ module Lab
         #   Lims::ApiError - Thrown when we couldn't make sense of the error
         def check_response!(response)
           body = JSON.parse(response.body)
-          
+
           return response if [200, 201].include?(response.code)
 
           Rails.logger.error("Lims Api Error: #{response.body}")
@@ -217,7 +225,7 @@ module Lab
         # Converts an OrderDto to parameters for POST /create_order
         def make_create_params(order_dto)
           {
-             order: {
+            order: {
               tracking_number: order_dto.fetch(:tracking_number),
               district: current_district,
               health_facility_name: order_dto.fetch(:sending_facility),
@@ -237,8 +245,8 @@ module Lab
               order_location: order_dto.fetch(:order_location) || 'Unknown',
               who_order_test_first_name: order_dto.fetch(:who_order_test).fetch(:first_name),
               who_order_test_last_name: order_dto.fetch(:who_order_test).fetch(:last_name),
-              requested_by:"#{order_dto.fetch(:who_order_test).fetch(:first_name)} #{order_dto.fetch(:who_order_test).fetch(:last_name)}",
-              drawn_by:{
+              requested_by: "#{order_dto.fetch(:who_order_test).fetch(:first_name)} #{order_dto.fetch(:who_order_test).fetch(:last_name)}",
+              drawn_by: {
                 id: order_dto.fetch(:who_order_test).fetch(:id),
                 name: "#{order_dto.fetch(:who_order_test).fetch(:first_name)} #{order_dto.fetch(:who_order_test).fetch(:last_name)}"
               }
@@ -249,7 +257,7 @@ module Lab
               last_name: order_dto.fetch(:patient).fetch(:last_name),
               phone_number: order_dto.fetch(:patient).fetch(:phone_number),
               gender: order_dto.fetch(:patient).fetch(:gender),
-              date_of_birth: order_dto.fetch(:patient).fetch(:dob),
+              date_of_birth: order_dto.fetch(:patient).fetch(:dob)
             },
             tests: order_dto.fetch(:tests_map).map do |test|
               concept = ::Concept.find(test.concept_id)
@@ -260,7 +268,7 @@ module Lab
                   method_of_testing: test&.test_method&.name
                 }
               }
-            end,
+            end
           }
         end
 
@@ -272,7 +280,7 @@ module Lab
             status: 'specimen_collected',
             time_updated: date_updated,
             sample_type: order_dto.fetch(:sample_type_map),
-            updated_by: status.fetch(:updated_by),
+            updated_by: status.fetch(:updated_by)
           }
         end
 
@@ -325,6 +333,8 @@ module Lab
 
           Rails.logger.info("Order ##{tracking_number} found... Parsing...")
           JSON.parse(response).fetch('data')
+        rescue RestClient::NotFound
+          raise RestClient::NotFound, "Order ##{tracking_number} not found in LIMS"
         end
 
         def nlims_order_exists?(tracking_number)
@@ -345,17 +355,17 @@ module Lab
 
           Rails.logger.info("Found order ##{tracking_number}")
           data = JSON.parse(response)
-          
-          if(data.fetch('data').fetch('tests').all? do |test|
-              test.fetch('test_results').blank?
-            end)
+
+          if data.fetch('data').fetch('tests').all? do |test|
+            test.fetch('test_results').blank?
+          end
             raise InvalidParameters, "No results found for order ##{tracking_number}"
           end
 
           Rails.logger.info("Result for order ##{tracking_number} found...")
 
           data.fetch('data').fetch('tests')
-        end 
+        end
 
         ##
         # Make a copy of the order_dto with the results from LIMS parsed
@@ -403,7 +413,7 @@ module Lab
           end
         end
 
-        def make_update_test_params(tracking_number, test, results, test_status = 'Drawn')
+        def make_update_test_params(_tracking_number, test, results, test_status = 'Drawn')
           {
             test_status:,
             time_updated: results['result_date'],
@@ -411,16 +421,17 @@ module Lab
               name: ::Concept.find(test.concept_id).test_catalogue_name,
               nlims_code: ::Concept.find(test.concept_id).nlims_code
             },
-            test_results: results['results'].map do |measure, value|
+            test_results: results['results'].map do |measure, _value|
               measure_name, measure_value = measure
               {
                 measure: {
                   name: measure_name,
-                  nlims_code: ::ConceptAttribute.find_by(value_reference: measure_name, attribute_type: ConceptAttributeType.nlims_code)&.value_reference
+                  nlims_code: ::ConceptAttribute.find_by(value_reference: measure_name,
+                                                         attribute_type: ConceptAttributeType.nlims_code)&.value_reference
                 },
                 result: {
                   value: measure_value,
-                  result_date: results['result_date'],
+                  result_date: results['result_date']
                 }
               }
             end
@@ -441,7 +452,7 @@ module Lab
           nil
         end
 
-        def make_void_test_params(tracking_number, test, voided_by, void_date = nil)
+        def make_void_test_params(_tracking_number, test, voided_by, void_date = nil)
           void_date ||= Time.now
 
           {
