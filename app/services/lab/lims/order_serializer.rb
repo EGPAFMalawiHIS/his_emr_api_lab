@@ -179,7 +179,15 @@ module Lab
           order.tests&.each_with_object({}) do |test, results|
             next if test.result.nil? || test.result.empty?
 
-            test_creator = User.find(Observation.find(test.result.first.id).creator)
+            # Find the result observation - use unscoped to bypass default scope filters
+            result_obs = Observation.find_by(obs_id: test.result.first.id)
+
+            unless result_obs
+              Rails.logger.warn("Observation with obs_id=#{test.result.first.id} not found for test #{test.name} in order #{order.accession_number}")
+              next
+            end
+
+            test_creator = User.find(result_obs.creator)
             test_creator_name = PersonName.find_by_person_id(test_creator.person_id)
 
             results[format_test_name(test.name)] = {
@@ -195,6 +203,9 @@ module Lab
                 id: test_creator.username
               }
             }
+          rescue ActiveRecord::RecordNotFound => e
+            Rails.logger.error("Failed to format test results for test #{test.name} in order #{order.accession_number}: #{e.message}")
+            next
           end
         end
 

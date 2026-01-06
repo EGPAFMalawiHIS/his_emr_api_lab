@@ -371,24 +371,89 @@ module Lab
         # Make a copy of the order_dto with the results from LIMS parsed
         # and appended to it.
         def patch_order_dto_with_lims_results!(order_dto, results)
+          Rails.logger.debug('=== DEBUG: patch_order_dto_with_lims_results! ===')
+          Rails.logger.debug("Tracking number: #{order_dto[:tracking_number]}")
+          Rails.logger.debug("Results class: #{results.class}")
+          Rails.logger.debug("Results count: #{results&.size}")
+          Rails.logger.debug("Results: #{results.inspect}")
+
           order_dto.merge!(
             '_id' => order_dto[:tracking_number],
             '_rev' => 0,
             'test_results' => results.each_with_object({}) do |result, formatted_results|
+              Rails.logger.debug("\n--- Processing result iteration ---")
+              Rails.logger.debug("Result: #{result.inspect}")
+
               test_type = result.delete('test_type')
+              Rails.logger.debug("test_type: #{test_type.inspect}")
+
+              if test_type.nil?
+                Rails.logger.error("ERROR: test_type is nil for result: #{result.inspect}")
+                next
+              end
+
               results = result.delete('test_results')
+              Rails.logger.debug("test_results (inner): #{results.inspect}")
+              Rails.logger.debug("test_results class: #{results.class}")
+
+              if results.nil?
+                Rails.logger.error("ERROR: test_results is nil for result: #{result.inspect}")
+                next
+              end
+
               test_name = test_type['name']
+              Rails.logger.debug("test_name: #{test_name}")
+
+              if test_name.nil?
+                Rails.logger.error("ERROR: test_name is nil, test_type was: #{test_type.inspect}")
+                next
+              end
+
               formatted_results[test_name] = {
                 results: results.each_with_object({}) do |result, processed_measures|
+                  Rails.logger.debug("  Processing measure - result: #{result.inspect}")
+
                   measure = result['measure']
-                  result = result['result']
-                  processed_measures[measure['name']] = { 'result_value' => result['value'] }
+                  Rails.logger.debug("  measure: #{measure.inspect}")
+
+                  if measure.nil?
+                    Rails.logger.error("  ERROR: measure is nil for result: #{result.inspect}")
+                    next
+                  end
+
+                  result_data = result['result']
+                  Rails.logger.debug("  result_data: #{result_data.inspect}")
+
+                  if result_data.nil?
+                    Rails.logger.error("  ERROR: result_data is nil for result: #{result.inspect}")
+                    next
+                  end
+
+                  measure_name = measure['name']
+                  result_value = result_data['value']
+
+                  Rails.logger.debug("  measure_name: #{measure_name}, result_value: #{result_value}")
+
+                  if measure_name.nil?
+                    Rails.logger.error("  ERROR: measure_name is nil, measure was: #{measure.inspect}")
+                    next
+                  end
+
+                  processed_measures[measure_name] = { 'result_value' => result_value }
                 end,
-                result_date: results.first['result']&.fetch('result_date'),
+                result_date: results&.first&.dig('result', 'result_date'),
                 result_entered_by: {}
               }
+
+              Rails.logger.debug("Formatted result for #{test_name}: #{formatted_results[test_name].inspect}")
             end
           )
+
+          Rails.logger.debug('=== END DEBUG ===')
+        rescue StandardError => e
+          Rails.logger.error("EXCEPTION in patch_order_dto_with_lims_results!: #{e.class} - #{e.message}")
+          Rails.logger.error("Backtrace: #{e.backtrace.first(10).join("\n")}")
+          raise
         end
 
         def patch_order_dto_with_lims_order!(order_dto, lims_order)
