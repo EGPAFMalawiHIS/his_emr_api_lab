@@ -179,9 +179,7 @@ module Lab
           order.tests&.each_with_object({}) do |test, results|
             next if test.result.nil? || test.result.empty?
 
-            # Find the result observation - use unscoped to bypass default scope filters
             result_obs = Observation.find_by(obs_id: test.result.first.id)
-
             unless result_obs
               Rails.logger.warn("Observation with obs_id=#{test.result.first.id} not found for test #{test.name} in order #{order.accession_number}")
               next
