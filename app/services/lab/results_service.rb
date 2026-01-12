@@ -43,6 +43,7 @@ module Lab
       def precess_notification_message(result, values, result_enter_by)
         order = Order.find(result.order_id)
         data = { Type: result_enter_by,
+                 Specimen: ConceptName.find_by(concept_id: order.concept_id)&.name,
                  'Test type': ConceptName.find_by(concept_id: result.test.value_coded)&.name,
                  'Accession number': order&.accession_number,
                  'Orde date': order&.start_date,

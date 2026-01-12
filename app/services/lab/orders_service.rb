@@ -160,6 +160,7 @@ module Lab
       def create_rejection_notification(order_params)
         order = find_order order_params['tracking_number']
         data = { 'type': 'LIMS',
+                 'specimen': ConceptName.find_by(concept_id: order.concept_id)&.name,
                  'accession_number': order&.accession_number,
                  'order_date': order&.start_date,
                  'arv_number': find_arv_number(order.patient_id),
