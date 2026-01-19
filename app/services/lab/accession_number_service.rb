@@ -41,8 +41,8 @@ module Lab
         year = format_year(date.year)
         month = format_month(date.month)
         day = format_day(date.day)
-
-        "X#{site_code}#{year}#{month}#{day}#{counter}"
+        time_acc_generated = Time.now.strftime('%H%M')
+        "X#{site_code}#{year}#{month}#{day}#{counter}#{time_acc_generated}"
       end
 
       def format_year(year)

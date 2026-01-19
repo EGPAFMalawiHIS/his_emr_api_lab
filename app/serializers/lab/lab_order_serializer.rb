@@ -8,12 +8,21 @@ module Lab
       comment_to_fulfiller ||= order.comment_to_fulfiller
       reason_for_test ||= order.reason_for_test
       target_lab = target_lab&.value_text || order.target_lab&.value_text || Location.current_health_center&.name
+
+      encounter = Encounter.find_by_encounter_id(order.encounter_id)
+      program = Program.find_by_program_id(encounter.program_id)
+
       ActiveSupport::HashWithIndifferentAccess.new(
         {
           id: order.order_id,
+          order_type_id: order.order_type_id,
           order_id: order.order_id, # Deprecated: Link to :id
           encounter_id: order.encounter_id,
           order_date: order.date_created,
+          location_id: encounter.location_id,
+          program_id: encounter.program_id,
+          program_name: program.name,
+          # order_date: order.start_date,
           patient_id: order.patient_id,
           accession_number: order.accession_number,
           specimen: {
@@ -44,11 +53,11 @@ module Lab
       )
     end
 
-    def self.test_method(order, concept_id)
-      obs =  ::Observation
-                .select(:value_coded)
-                .where(concept_id: ConceptName.find_by_name(Metadata::TEST_METHOD_CONCEPT_NAME).concept_id, order_id: order.id)
-                .first
+    def self.test_method(order, _concept_id)
+      obs = ::Observation
+            .select(:value_coded)
+            .where(concept_id: ConceptName.find_by_name(Metadata::TEST_METHOD_CONCEPT_NAME).concept_id, order_id: order.id)
+            .first
       {
         concept_id: obs&.value_coded,
         name: ConceptName.find_by_concept_id(obs&.value_coded)&.name

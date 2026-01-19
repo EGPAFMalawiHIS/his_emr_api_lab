@@ -175,6 +175,7 @@ module Lab
       def create_rejection_notification(order_params)
         order = find_order order_params['tracking_number']
         data = { 'type': 'LIMS',
+                 'specimen': ConceptName.find_by(concept_id: order.concept_id)&.name,
                  'accession_number': order&.accession_number,
                  'order_date': order&.start_date,
                  'arv_number': find_arv_number(order.patient_id),
@@ -247,8 +248,11 @@ module Lab
         concept = params.dig(:specimen, :concept)
         concept ||= params.dig(:specimen, :concept_id)
 
+        order_type = nil
+        order_type = OrderType.find_by_order_type_id!(params[:order_type_id])&.id if params[:order_type_id].present?
+
         order = Lab::LabOrder.new
-        order.order_type_id = OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME).id
+        order.order_type_id = order_type || OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME).id
         order.concept_id = Concept.find(concept)&.id
         order.encounter_id = encounter.id
         order.patient_id = encounter.patient.id

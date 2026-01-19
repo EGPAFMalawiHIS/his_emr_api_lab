@@ -21,6 +21,7 @@ module Lab
 
     # Order types
     ORDER_TYPE_NAME = 'Lab'
+    HTS_ORDER_TYPE_NAME = 'HTS Lab'
 
     # Programs
     LAB_PROGRAM_NAME = 'Laboratory Program'

@@ -34,10 +34,16 @@ module Lab
 
           serializer = Lab::ResultSerializer.serialize(results_obs)
         end
-        process_acknowledgement(results_obs, result_enter_by)
-        precess_notification_message(results_obs, serializer, result_enter_by)
+
+        ProcessLabResultJob.perform_later(results_obs.id, serializer, result_enter_by)
+
         Rails.logger.info("Lab::ResultsService: Result created for test #{test_id} #{serializer}")
         serializer
+      end
+
+      def process_result_completion(results_obs, serializer, result_enter_by)
+        process_acknowledgement(results_obs, result_enter_by)
+        precess_notification_message(results_obs, serializer, result_enter_by)
       end
 
       private
@@ -45,6 +51,7 @@ module Lab
       def precess_notification_message(result, values, result_enter_by)
         order = Order.find(result.order_id)
         data = { Type: result_enter_by,
+                 Specimen: ConceptName.find_by(concept_id: order.concept_id)&.name,
                  'Test type': ConceptName.find_by(concept_id: result.test.value_coded)&.name,
                  'Accession number': order&.accession_number,
                  'Orde date': Order.columns.include?('start_date') ? order.start_date : order.date_created,
