@@ -36,7 +36,8 @@ module Lab
             priority: format_sample_priority(serialized_order.reason_for_test.name),
             date_created: serialized_order.order_date,
             test_results: format_test_results(serialized_order),
-            type: 'Order'
+            type: 'Order',
+            clinical_history: serialized_order.comment_to_fulfiller
           )
         end
 
