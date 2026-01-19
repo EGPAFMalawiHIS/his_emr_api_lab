@@ -15,8 +15,8 @@ class CreateCommentToFulfillerConcept < ActiveRecord::Migration[5.2]
 
       # Create the concept
       concept = Concept.create!(
-        concept_class: concept_class,
-        datatype: concept_datatype,
+        class_id: concept_class.id,
+        datatype_id: concept_datatype.id,
         short_name: 'Comment to fulfiller',
         retired: 0,
         is_set: 0,
