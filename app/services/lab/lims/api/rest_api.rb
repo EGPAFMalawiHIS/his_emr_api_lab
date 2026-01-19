@@ -249,7 +249,8 @@ module Lab
               drawn_by: {
                 id: order_dto.fetch(:who_order_test).fetch(:id),
                 name: "#{order_dto.fetch(:who_order_test).fetch(:first_name)} #{order_dto.fetch(:who_order_test).fetch(:last_name)}"
-              }
+              },
+              clinical_history: order_dto.fetch(:clinical_history)
             },
             patient: {
               national_patient_id: order_dto.fetch(:patient).fetch(:id),
