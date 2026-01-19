@@ -7,7 +7,7 @@ require 'lab/version'
 
 # Describe your gem and declare its dependencies:
 Gem::Specification.new do |spec|
-  spec.name        = 'mahis_emr_api_lab'
+  spec.name        = 'his_emr_api_lab'
   spec.version     = Lab::VERSION
   spec.license     = 'MIT'
   spec.authors     = ['Elizabeth Glaser Pediatric Foundation Malawi']
