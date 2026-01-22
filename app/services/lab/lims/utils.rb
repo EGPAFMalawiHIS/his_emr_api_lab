@@ -78,9 +78,8 @@ module Lab
       end
 
       def self.find_concept_by_name(name)
-        ConceptName.joins(:concept)
-                   .merge(Concept.all) # Filter out voided
-                   .where(name: CGI.unescapeHTML(name))
+        ConceptName.joins("INNER JOIN concept_attribute ON concept_attribute.concept_id = concept_name.concept_id")
+                   .where("concept_attribute.value_reference = ?", CGI.unescapeHTML(name))
                    .first
       end
     end

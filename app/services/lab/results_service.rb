@@ -35,7 +35,11 @@ module Lab
           serializer = Lab::ResultSerializer.serialize(results_obs)
         end
 
-        ProcessLabResultJob.perform_later(results_obs.id, serializer, result_enter_by)
+        # force commit all transactions
+        ActiveRecord::Base.connection.commit_db_transaction
+        
+        # delay job by a second
+        ProcessLabResultJob.set(wait: 1.second).perform_later(results_obs.id, serializer, result_enter_by)
 
         Rails.logger.info("Lab::ResultsService: Result created for test #{test_id} #{serializer}")
         serializer
@@ -78,12 +82,14 @@ module Lab
       def find_encounter(test, encounter_id: nil, encounter_uuid: nil, date: nil, provider_id: nil)
         return Encounter.find(encounter_id) if encounter_id
         return Encounter.find_by_uuid(encounter_uuid) if encounter_uuid
+        encounter_type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
 
         encounter = Encounter.new
         encounter.patient_id = test.person_id
         encounter.program_id = test.encounter.program_id if Encounter.column_names.include?('program_id')
         encounter.visit_id = test.encounter.visit_id if Encounter.column_names.include?('visit_id')
-        encounter.encounter_type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
+        encounter.type = encounter_type
+        encounter.encounter_type = encounter_type if (encounter&.encounter_type.nil? || encounter&.type.nil?)
         encounter.encounter_datetime = date || Date.today
         encounter.provider_id = provider_id || User.current.user_id if Encounter.column_names.include?('provider_id')
 
