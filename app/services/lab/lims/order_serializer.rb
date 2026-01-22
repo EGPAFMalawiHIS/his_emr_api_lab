@@ -144,10 +144,9 @@ module Lab
         end
 
         def format_test_status_trail(order)
-          tests = order.voided ? order.tests : Lab::LabOrderSerializer.voided_tests(order)
-
+          tests = order.voided.zero? ? order.tests : Lab::LabOrderSerializer.voided_tests(order)
           tests.each_with_object({}) do |test, trail|
-            test_name = format_test_name(ConceptName.find_by_concept_id!(test.value_coded).name)
+            test_name = format_test_name(::Concept.find(test.value_coded).test_catalogue_name)
 
             current_test_trail = trail[test_name] = {}
 
@@ -209,11 +208,7 @@ module Lab
         end
 
         def format_test_name(test_name)
-          return 'Viral Load' if test_name.casecmp?('HIV Viral load')
-
-          return 'TB' if test_name.casecmp?('TB Program')
-
-          test_name.titleize
+          return test_name
         end
 
         def format_sample_priority(priority)

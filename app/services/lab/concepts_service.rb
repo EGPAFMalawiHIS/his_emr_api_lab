@@ -9,7 +9,7 @@ module Lab
         FROM concept_set cs
                 INNER JOIN concept_name cn ON cn.concept_id = cs.concept_id
                 INNER JOIN concept_attribute ca ON ca.value_reference = #{ActiveRecord::Base.connection.quote(nlims_code)}
-            AND ca.attribute_type_id = 20
+            AND ca.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
         WHERE cs.concept_id IN (SELECT concept_set.concept_id
                                 FROM concept_set
                                 WHERE concept_set.concept_set IN (SELECT concept_name.concept_id
@@ -22,8 +22,8 @@ module Lab
                                                                             FROM concept_name
                                                                             WHERE concept_name.voided = 0
                                                                               AND concept_name.name = 'Test type')
-                                            AND concept_set.concept_id = ca.concept_id
                                             )
+        AND cs.concept_set = ca.concept_id
         GROUP BY cn.concept_id
       SQL
     end
