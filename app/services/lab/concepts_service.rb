@@ -3,14 +3,45 @@
 module Lab
   # A read-only repository of sort for all lab-centric concepts.
   module ConceptsService
+    def self.test_methods(nlims_code)
+      return ActiveRecord::Base.connection.select_all <<~SQL
+        SELECT cn.name, cn.concept_id
+        FROM concept_set cs
+                INNER JOIN concept_name cn ON cn.concept_id = cs.concept_id
+                INNER JOIN concept_attribute ca ON ca.value_reference = #{ActiveRecord::Base.connection.quote(nlims_code)}
+            AND ca.attribute_type_id = 20
+        WHERE cs.concept_id IN (SELECT concept_set.concept_id
+                                FROM concept_set
+                                WHERE concept_set.concept_set IN (SELECT concept_name.concept_id
+                                                                  FROM concept_name
+                                                                  WHERE concept_name.voided = 0
+                                                                    AND concept_name.name = 'Recommended test method'))
+          AND cs.concept_set IN (SELECT concept_set.concept_id
+                                          FROM concept_set
+                                          WHERE concept_set.concept_set IN (SELECT concept_name.concept_id
+                                                                            FROM concept_name
+                                                                            WHERE concept_name.voided = 0
+                                                                              AND concept_name.name = 'Test type')
+                                            AND concept_set.concept_id = ca.concept_id
+                                            )
+        GROUP BY cn.concept_id
+      SQL
+    end
+
     def self.test_types(name: nil, specimen_type: nil)
       test_types = ConceptSet.find_members_by_name(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
       test_types = test_types.filter_members(name:) if name
 
       unless specimen_type
-        return test_types.joins('INNER JOIN concept_name ON concept_set.concept_id = concept_name.concept_id AND concept_name.voided = 0 AND concept_name.locale_preferred = 1')
-                         .select('concept_name.name, concept_name.concept_id')
-                         .group('concept_name.concept_id')
+        return ActiveRecord::Base.connection.select_all <<~SQL
+          SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
+            FROM concept_attribute ca
+          INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
+            AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
+          WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
+          AND ca.concept_id IN (#{test_types.select(:concept_id).to_sql})
+          GROUP BY ca.concept_id
+        SQL
       end
 
       # Filter out only those test types that have the specified specimen
@@ -24,25 +55,37 @@ module Lab
         concept_set: test_types.select(:concept_id)
       )
 
-      concept_set.joins('INNER JOIN concept_name ON concept_set.concept_set = concept_name.concept_id')
-                 .select('concept_name.concept_id, concept_name.name')
-                 .group('concept_name.concept_id')
+      return ActiveRecord::Base.connection.select_all <<~SQL
+        SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
+          FROM concept_attribute ca
+        INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
+          AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
+        WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
+        AND ca.concept_id IN (#{concept_set.select(:concept_id).to_sql})
+        GROUP BY ca.concept_id
+      SQL
     end
 
     def self.specimen_types(name: nil, test_type: nil)
       specimen_types = ConceptSet.find_members_by_name(Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME)
-      specimen_types = specimen_types.filter_members(name:) if name
+      specimen_types = specimen_types.filter_members(name: name) if name
 
       unless test_type
-        return specimen_types.select('concept_name.concept_id, concept_name.name')
-                             .joins('INNER JOIN concept_name ON concept_name.concept_id = concept_set.concept_id')
-                             .group('concept_name.concept_id')
+        return ActiveRecord::Base.connection.select_all <<~SQL
+          SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
+            FROM concept_attribute ca
+          INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
+            AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
+          WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
+          AND ca.concept_id IN (#{specimen_types.select(:concept_id).to_sql})
+          GROUP BY ca.concept_id
+        SQL
       end
 
       # Retrieve only those specimen types that belong to concept
       # set of the selected test_type
       test_types = ConceptSet.find_members_by_name(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
-                             .filter_members(name: test_type)
+                             .filter_members(name: test_type&.strip)
                              .select(:concept_id)
 
       concept_set = ConceptSet.where(
@@ -50,33 +93,45 @@ module Lab
         concept_set: test_types
       )
 
-      concept_set.select('concept_name.concept_id, concept_name.name')
-                 .joins('INNER JOIN concept_name ON concept_name.concept_id = concept_set.concept_id')
-                 .group('concept_name.concept_id')
+      return ActiveRecord::Base.connection.select_all <<~SQL
+        SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
+          FROM concept_attribute ca
+        INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
+          AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
+        WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
+        AND ca.concept_id IN (#{concept_set.pluck(:concept_id).push(0).join(',')})
+        GROUP BY ca.concept_id
+      SQL
     end
 
     def self.test_result_indicators(test_type_id)
       # Verify that the specified test_type is indeed a test_type
       test = ConceptSet.find_members_by_name(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
-                       .where(concept_id: test_type_id)
+                       .where(concept_id: Concept.find(test_type_id)&.id)
                        .select(:concept_id)
 
       # From the members above, filter out only those concepts that are result indicators
       measures = ConceptSet.find_members_by_name(Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
                            .select(:concept_id)
 
-      ConceptSet.where(concept_set: measures, concept_id: test)
-                .joins("INNER JOIN concept_name AS measure ON measure.concept_id = concept_set.concept_set AND (measure.locale_preferred = 1 OR measure.concept_name_type = 'SHORT' OR measure.concept_name_type = 'FULLY_SPECIFIED')")
-                .select('measure.concept_id, measure.name')
-                .group('measure.concept_id')
-                .map { |concept| { name: concept.name, concept_id: concept.concept_id } }
+      sets = ConceptSet.where(concept_set: measures, concept_id: test)
+
+      return ActiveRecord::Base.connection.select_all <<~SQL
+        SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
+          FROM concept_attribute ca
+          INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
+            AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
+          WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
+          AND ca.concept_id IN (#{sets.pluck(:concept_set).push(0).join(',')})
+          GROUP BY ca.concept_id
+      SQL
     end
 
     def self.reasons_for_test
       ConceptSet.find_members_by_name(Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME)
                 .joins('INNER JOIN concept_name ON concept_name.concept_id = concept_set.concept_id')
-                .select('concept_name.concept_id, concept_name.name')
-                .map { |concept| { name: concept.name, concept_id: concept.concept_id } }
+                .select('concept_name.concept_id, concept_name.name, concept_name.uuid')
+                .map { |concept| { name: concept.name, concept_id: concept.concept_id, uuid: concept.uuid } }
     end
   end
 end

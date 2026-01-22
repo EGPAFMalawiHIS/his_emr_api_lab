@@ -7,9 +7,15 @@ module Lab
     class << self
       def find_tests(filters)
         tests = Lab::LabTest.all
+        patient_id = filters.delete(:patient_id)
+        patient_id ||= ::Patient.find(filters.delete(:patient))&.id if filters[:patient]
+
+        Lab::UpdatePatientOrdersJob.perform_later(patient_id) if patient_id
 
         tests = filter_tests(tests, test_type_id: filters.delete(:test_type_id),
-                                    patient_id: filters.delete(:patient_id))
+                                    patient_id: filters.delete(:patient_id),
+                                    patient: filters.delete(:patient)
+                                    )
 
         tests = filter_tests_by_results(tests) if %w[1 true].include?(filters[:pending_results]&.downcase)
 
@@ -23,8 +29,12 @@ module Lab
       def create_tests(order, date, tests_params)
         raise InvalidParameterError, 'tests are required' if tests_params.nil? || tests_params.empty?
 
+        
         Lab::LabTest.transaction do
           tests_params.map do |params|
+            concept_id = params[:concept_id]
+            concept_id = Concept.find_concept_by_uuid(params[:concept]).id if concept_id.nil?
+            
             test = Lab::LabTest.create!(
               concept_id: ConceptName.find_by_name!(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                                      .concept_id,
@@ -32,7 +42,7 @@ module Lab
               order_id: order.order_id,
               person_id: order.patient_id,
               obs_datetime: date&.to_time || Time.now,
-              value_coded: params[:concept_id]
+              value_coded: concept_id
             )
 
             Lab::TestSerializer.serialize(test, order:)
@@ -44,9 +54,11 @@ module Lab
 
       ##
       # Filter a LabTests Relation.
-      def filter_tests(tests, test_type_id: nil, patient_id: nil)
+      def filter_tests(tests, test_type_id: nil, patient_id: nil, patient: nil)
         tests = tests.where(value_coded: test_type_id) if test_type_id
         tests = tests.where(person_id: patient_id) if patient_id
+        person = ::Person.find_by_uuid(patient) if patient
+        tests = tests.where(person_id: person&.patient&.id) if patient
 
         tests
       end

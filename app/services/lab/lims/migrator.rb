@@ -29,7 +29,7 @@ require 'lab/lab_test'
 require 'lab/lims_order_mapping'
 require 'lab/lims_failed_import'
 
-require_relative 'api/couchdb_api'
+require_relative 'api/couch_db_api'
 require_relative 'config'
 require_relative 'pull_worker'
 require_relative 'utils'
@@ -60,8 +60,8 @@ module Lab
       ##
       # A Lab::Lims::Api object that supports crawling of a LIMS CouchDB instance.
       class CouchDbMigratorApi < Lab::Lims::Api::CouchdbApi
-        def initialize(*args, processes: 1, on_merge_processes: nil, **kwargs)
-          super(*args, **kwargs)
+        def initialize(*, processes: 1, on_merge_processes: nil, **)
+          super(*, **)
 
           @processes = processes
           @on_merge_processes = on_merge_processes

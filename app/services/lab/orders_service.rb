@@ -58,14 +58,26 @@ module Lab
 
           order = create_order(encounter, order_params)
 
+          attach_test_method(order, order_params) if order_params[:test_method]
+
           Lab::TestsService.create_tests(order, order_params[:date], order_params[:tests])
 
           Lab::LabOrderSerializer.serialize_order(
             order, requesting_clinician: add_requesting_clinician(order, order_params),
                    reason_for_test: add_reason_for_test(order, order_params),
-                   target_lab: add_target_lab(order, order_params)
+                   target_lab: add_target_lab(order, order_params),
+                   comment_to_fulfiller: add_comment_to_fulfiller(order, order_params)
           )
         end
+      end
+
+      def attach_test_method(order, order_params)
+        create_order_observation(
+          order,
+          Lab::Metadata::TEST_METHOD_CONCEPT_NAME,
+          order_params[:date],
+          value_coded: order_params[:test_method]
+        )
       end
 
       def update_order(order_id, params)
@@ -86,20 +98,23 @@ module Lab
                         discontinued_reason_non_coded: 'Sample drawn/updated')
         end
 
-        if params[:reason_for_test_id]
+        reason_for_test = params[:reason_for_test] || params[:reason_for_test_id]
+
+        if reason_for_test
           Rails.logger.debug("Updating reason for test on order ##{order.order_id}")
-          update_reason_for_test(order, params[:reason_for_test_id])
+          update_reason_for_test(order, Concept.find(reason_for_test)&.id, force_update: params.fetch('force_update', false))
         end
 
         Lab::LabOrderSerializer.serialize_order(order)
       end
 
       def void_order(order_id, reason)
-        order = Lab::LabOrder.includes(%i[requesting_clinician reason_for_test target_lab], tests: [:result])
+        order = Lab::LabOrder.includes(%i[requesting_clinician reason_for_test target_lab comment_to_fulfiller], tests: [:result])
                              .find(order_id)
 
         order.requesting_clinician&.void(reason)
         order.reason_for_test&.void(reason)
+        order.comment_to_fulfiller&.void(reason)
         order.target_lab&.void(reason)
 
         order.tests.each { |test| test.void(reason) }
@@ -166,8 +181,7 @@ module Lab
                  'arv_number': find_arv_number(order.patient_id),
                  'patient_id': result.person_id,
                  'ordered_by': order&.provider&.person&.name,
-                 'rejection_reason': order_params['comments']
-                }.as_json
+                 'rejection_reason': order_params['comments'] }.as_json
         NotificationService.new.create_notification('LIMS', data)
       end
 
@@ -208,19 +222,22 @@ module Lab
       # a 'Lab' encounter is created using the provided program_id and
       # patient_id.
       def find_encounter(order_params)
-        return Encounter.find(order_params[:encounter_id]) if order_params[:encounter_id]
+        encounter_id = order_params[:encounter_id] || order_params[:encounter]
+        patient_id = order_params[:patient_id] || order_params[:patient]
+        visit = order_params[:visit]
 
-        raise InvalidParameterError, 'encounter_id or patient_id required' unless order_params[:patient_id]
+        return Encounter.find(encounter_id) if order_params[:encounter] || order_params[:encounter_id]
+        raise StandardError, 'encounter_id|uuid or patient_id|uuid required' unless order_params[:patient]
 
-        program_id = order_params[:program_id] || Program.find_by_name!(Lab::Metadata::LAB_PROGRAM_NAME).program_id
-
-        Encounter.create!(
-          patient_id: order_params[:patient_id],
-          program_id:,
-          type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
-          encounter_datetime: order_params[:date] || Date.today,
-          provider_id: order_params[:provider_id] || User.current.person.person_id
-        )
+        encounter = Encounter.new
+        encounter.patient = Patient.find(patient_id)
+        encounter.encounter_type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
+        encounter.encounter_datetime = order_params[:date] || Date.today
+        encounter.visit = Visit.find_by_uuid(visit) if Encounter.column_names.include?('visit_id')
+        encounter.provider_id = User.current&.person.id if Encounter.column_names.include?('provider_id')
+        encounter.program_id = order_params[:program_id] if Encounter.column_names.include?('program_id') && order_params[:program_id].present?
+        encounter.save!
+        encounter.reload
       end
 
       def create_order(encounter, params)
@@ -228,19 +245,27 @@ module Lab
         raise 'Accession Number cannot be blank' unless access_number.present?
         raise 'Accession cannot be this short' unless access_number.length > 6
 
+        concept = params.dig(:specimen, :concept)
+        concept ||= params.dig(:specimen, :concept_id)
+
         order_type = nil
-        order_type = OrderType.find_by_order_type_id!(params[:order_type_id]) if params[:order_type_id].present?
-        
-        Lab::LabOrder.create!(
-          order_type: order_type || OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME),
-          concept_id: params.dig(:specimen, :concept_id) || unknown_concept_id,
-          encounter_id: encounter.encounter_id,
-          patient_id: encounter.patient_id,
-          start_date: params[:date]&.to_date || Date.today,
-          auto_expire_date: params[:end_date],
-          accession_number: access_number,
-          orderer: User.current&.user_id
-        )
+        order_type = OrderType.find_by_order_type_id!(params[:order_type_id])&.id if params[:order_type_id].present?
+
+        order = Lab::LabOrder.new
+        order.order_type_id = order_type || OrderType.find_by_name!(Lab::Metadata::ORDER_TYPE_NAME).id
+        order.concept_id = Concept.find(concept)&.id
+        order.encounter_id = encounter.id
+        order.patient_id = encounter.patient.id
+        order.date_created = params[:date]&.to_date || Date.today if order.respond_to?(:date_created)
+        order.start_date = params[:date]&.to_date || Date.today if order.respond_to?(:start_date)
+        order.auto_expire_date = params[:end_date]
+        order.comment_to_fulfiller = params[:comment_to_fulfiller] if params[:comment_to_fulfiller]
+        order.accession_number = access_number
+        order.orderer = User.current&.user_id
+
+        order.save!
+
+        order.reload
       end
 
       def accession_number_exists?(accession_number)
@@ -267,16 +292,28 @@ module Lab
         )
       end
 
+      def add_comment_to_fulfiller(order, params)
+        create_order_observation(
+          order,
+          Lab::Metadata::COMMENT_TO_FULFILLER_CONCEPT_NAME,
+          params[:date],
+          value_text: params['comment_to_fulfiller']
+        )
+      end
+
       ##
       # Attach a reason for the order/test
       #
       # Examples of reasons include: Routine, Targeted, Confirmatory, Repeat, or Stat.
       def add_reason_for_test(order, params)
+        reason = params[:reason_for_test_id] || params[:reason_for_test]
+
+        reason = Concept.find(reason)
         create_order_observation(
           order,
           Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME,
           params[:date],
-          value_coded: params[:reason_for_test_id]
+          value_coded: reason
         )
       end
 
@@ -293,14 +330,16 @@ module Lab
         )
       end
 
-      def create_order_observation(order, concept_name, date, **)
+      def create_order_observation(order, concept_name, date, **values)
+        creator = User.find_by(username: 'lab_daemon')
+        User.current ||= creator
         Observation.create!(
           order:,
           encounter_id: order.encounter_id,
           person_id: order.patient_id,
           concept_id: ConceptName.find_by_name!(concept_name).concept_id,
           obs_datetime: date&.to_time || Time.now,
-          **
+          **values
         )
       end
 
@@ -309,18 +348,20 @@ module Lab
       end
 
       def unknown_concept_id
-        ConceptName.find_by_name!('Unknown').concept_id
+        ConceptName.find_by_name!('Unknown').concept
       end
 
-      def update_reason_for_test(order, concept_id)
+      def update_reason_for_test(order, concept_id, force_update: false)
         raise InvalidParameterError, "Reason for test can't be blank" if concept_id.blank?
 
         return if order.reason_for_test&.value_coded == concept_id
 
-        raise InvalidParameterError, "Can't change reason for test once set" if order.reason_for_test&.value_coded
+        raise InvalidParameterError, "Can't change reason for test once set" if order.reason_for_test&.value_coded && !force_update
 
         order.reason_for_test&.delete
-        add_reason_for_test(order, date: order.start_date, reason_for_test_id: concept_id)
+        date = order.start_date if order.respond_to?(:start_date)
+        date ||= order.date_created
+        add_reason_for_test(order, date: date, reason_for_test_id: concept_id)
       end
 
       def void_order_status(order, concept)

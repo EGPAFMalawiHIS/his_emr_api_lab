@@ -17,7 +17,7 @@ module Lab
           accession_number: self['tracking_number'],
           patient_id:,
           specimen: { concept_id: specimen_type_id },
-          tests: self['tests']&.map { |test| { concept_id: test_type_id(test) } },
+          tests: self['tests_map']&.map { |test| { concept_id: test.concept_id } },
           requesting_clinician:,
           date: start_date,
           target_lab: facility_name(self['receiving_facility']),
