@@ -61,7 +61,7 @@ module Lab
         INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
           AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
         WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
-        AND ca.concept_id IN (#{concept_set.select(:concept_id).to_sql})
+        AND ca.concept_id IN (#{concept_set.select(:concept_set).to_sql})
         GROUP BY ca.concept_id
       SQL
     end
