@@ -8,10 +8,9 @@ module Lab
       result.children.map do |measure|
         value, value_type = read_value(measure)
         concept_name = ConceptName.find_by_concept_id(measure.concept_id)
-        
         program_id = ""
         if measure.obs_id.present?
-          obs = Observation.find(measure.obs_id)
+          obs = Observation.unscope(where: :obs_group_id).find(measure.obs_id)
           encounter = Encounter.find(obs.encounter_id)
           program_id = encounter.program_id
         end
