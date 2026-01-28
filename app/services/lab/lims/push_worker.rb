@@ -51,7 +51,7 @@ module Lab
         mapping = Lab::LimsOrderMapping.find_by(order_id: order.order_id)
 
         ActiveRecord::Base.transaction do
-          if mapping && !order.voided.zero?
+          if mapping && ![0, false].include?(order.voided)
             Rails.logger.info("Deleting order ##{order_dto['accession_number']} from LIMS")
             lims_api.delete_order(mapping.lims_id, order_dto)
             mapping.destroy

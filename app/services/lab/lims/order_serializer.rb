@@ -144,7 +144,7 @@ module Lab
         end
 
         def format_test_status_trail(order)
-          tests = order.voided.zero? ? order.tests : Lab::LabOrderSerializer.voided_tests(order)
+          tests = [0, false].include?(order.voided) ? order.tests : Lab::LabOrderSerializer.voided_tests(order)
           tests.each_with_object({}) do |test, trail|
             test_name = format_test_name(::Concept.find(test.value_coded).test_catalogue_name)
 
@@ -155,7 +155,7 @@ module Lab
               updated_by: find_user(test.creator)
             }
 
-            unless test.voided.zero?
+            unless [0, false].include?(test.voided)
               current_test_trail[test.date_voided.strftime('%Y%m%d%H%M%S')] = {
                 status: 'Voided',
                 updated_by: find_user(test.voided_by)
