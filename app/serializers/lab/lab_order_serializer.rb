@@ -21,7 +21,7 @@ module Lab
           order_date: order.date_created,
           location_id: encounter.location_id,
           program_id: encounter.program_id,
-          program_name: program.name,
+          program_name: program&.name,
           # order_date: order.start_date,
           patient_id: order.patient_id,
           accession_number: order.accession_number,
