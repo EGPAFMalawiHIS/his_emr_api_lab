@@ -234,7 +234,7 @@ module Lab
         encounter.encounter_type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
         encounter.encounter_datetime = order_params[:date] || Date.today
         encounter.visit = Visit.find_by_uuid(visit) if Encounter.column_names.include?('visit_id')
-        encounter.provider_id = User.current&.person.id if Encounter.column_names.include?('provider_id')
+        encounter.provider_id = User.current&.person&.id if Encounter.column_names.include?('provider_id')
         encounter.program_id = order_params[:program_id] if Encounter.column_names.include?('program_id') && order_params[:program_id].present?
         encounter.save!
         encounter.reload
