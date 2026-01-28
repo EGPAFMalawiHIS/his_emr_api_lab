@@ -216,7 +216,7 @@ module Lab
           end
 
           next if test.result || test_results['results'].blank?
-          
+
           result_date = Time.now
           measures = test_results['results'].map do |indicator, value|
             measure = find_measure(order, indicator, value)
