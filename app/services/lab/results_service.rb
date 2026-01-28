@@ -20,7 +20,11 @@ module Lab
         serializer = {}
         results_obs = {}
         ActiveRecord::Base.transaction do
-          test = Lab::LabTest.find(test_id) rescue nil
+          test = begin
+            Lab::LabTest.find(test_id)
+          rescue StandardError
+            nil
+          end
           test = Lab::LabTest.find_by_uuid(test_id) if test.blank?
           encounter = find_encounter(test, encounter_id: params[:encounter_id],
                                            encounter_uuid: params[:encounter],
@@ -37,7 +41,7 @@ module Lab
 
         # force commit all transactions
         ActiveRecord::Base.connection.commit_db_transaction
-        
+
         # delay job by a second
         ProcessLabResultJob.set(wait: 1.second).perform_later(results_obs.id, serializer, result_enter_by)
 
@@ -132,7 +136,8 @@ module Lab
       def add_measure_to_results(results_obs, params, date)
         validate_measure_params(params)
 
-        concept_id = params[:indicator][:concept_id] || Concept.find_concept_by_uuid(params.dig(:indicator, :concept))&.id
+        concept_id = params[:indicator][:concept_id] || Concept.find_concept_by_uuid(params.dig(:indicator,
+                                                                                                :concept))&.id
 
         Observation.create!(
           person_id: results_obs.person_id,
