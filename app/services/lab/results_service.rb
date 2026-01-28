@@ -59,8 +59,8 @@ module Lab
       def precess_notification_message(result, values, result_enter_by)
         order = Order.find(result.order_id)
         data = { Type: result_enter_by,
-                 Specimen: ConceptName.find_by(concept_id: order.concept_id)&.name,
-                 'Test type': ConceptName.find_by(concept_id: result.test.value_coded)&.name,
+                 Specimen: get_test_catalog_name(order.concept_id) || ConceptName.find_by(concept_id: order.concept_id)&.name,
+                 'Test type': get_test_catalog_name(result.test.value_coded) || ConceptName.find_by(concept_id: result.test.value_coded)&.name,
                  'Accession number': order&.accession_number,
                  'Orde date': Order.columns.include?('start_date') ? order.start_date : order.date_created,
                  'ARV-Number': find_arv_number(result.person_id),
@@ -180,6 +180,13 @@ module Lab
         when 'false' then false
         else raise InvalidParameterError, "Invalid boolean value: #{string}"
         end
+      end
+
+      def get_test_catalog_name(concept_id)
+        return nil unless concept_id
+
+        ::ConceptAttribute.find_by(concept_id:,
+                                   attribute_type: ConceptAttributeType.test_catalogue_name)&.value_reference
       end
     end
   end
