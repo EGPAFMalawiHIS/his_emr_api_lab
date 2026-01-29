@@ -42,8 +42,8 @@ module Lab
         # force commit all transactions
         ActiveRecord::Base.connection.commit_db_transaction
 
-        # delay job by a second
-        ProcessLabResultJob.set(wait: 1.second).perform_later(results_obs.id, serializer, result_enter_by)
+        # Execute job synchronously
+        ProcessLabResultJob.perform_now(results_obs.id, serializer, result_enter_by)
 
         Rails.logger.info("Lab::ResultsService: Result created for test #{test_id} #{serializer}")
         serializer
@@ -62,7 +62,7 @@ module Lab
                  Specimen: get_test_catalog_name(order.concept_id) || ConceptName.find_by(concept_id: order.concept_id)&.name,
                  'Test type': get_test_catalog_name(result.test.value_coded) || ConceptName.find_by(concept_id: result.test.value_coded)&.name,
                  'Accession number': order&.accession_number,
-                 'Orde date': Order.columns.include?('start_date') ? order.start_date : order.date_created,
+                 order_date: Order.columns.include?('start_date') ? order.start_date : order.date_created,
                  'ARV-Number': find_arv_number(result.person_id),
                  PatientID: result.person_id,
                  'Ordered By': Order.columns.include?('provider_id') ? order&.provider&.person&.name : Person.find(order.creator)&.name,
