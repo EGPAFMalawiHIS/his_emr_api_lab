@@ -29,7 +29,7 @@ require 'lab/lab_test'
 require 'lab/lims_order_mapping'
 require 'lab/lims_failed_import'
 
-require_relative 'api/couch_db_api'
+require_relative 'api/couchdb_api'
 require_relative 'config'
 require_relative 'pull_worker'
 require_relative 'utils'
