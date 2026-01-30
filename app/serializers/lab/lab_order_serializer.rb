@@ -3,14 +3,19 @@
 module Lab
   module LabOrderSerializer
     def self.serialize_order(order, tests: nil, requesting_clinician: nil, reason_for_test: nil, target_lab: nil, comment_to_fulfiller: nil)
-      tests ||= order.voided == 1 ? voided_tests(order) : order.tests
+      # Unscope location to get tests regardless of current location
+      tests ||= if order.voided == 1
+                  voided_tests(order)
+                else
+                  order.tests.unscope(where: :location_id)
+                end
       requesting_clinician ||= order.requesting_clinician
       comment_to_fulfiller ||= order.comment_to_fulfiller
       reason_for_test ||= order.reason_for_test
       target_lab = target_lab&.value_text || order.target_lab&.value_text || Location.current_health_center&.name
 
       encounter = Encounter.find_by_encounter_id(order.encounter_id)
-      program = Program.find_by_program_id(encounter.program_id)
+      program = Program.find_by_program_id(encounter&.program_id)
 
       ActiveSupport::HashWithIndifferentAccess.new(
         {
@@ -19,8 +24,8 @@ module Lab
           order_id: order.order_id, # Deprecated: Link to :id
           encounter_id: order.encounter_id,
           order_date: order.date_created,
-          location_id: encounter.location_id,
-          program_id: encounter.program_id,
+          location_id: encounter&.location_id,
+          program_id: encounter&.program_id,
           program_name: program&.name,
           # order_date: order.start_date,
           patient_id: order.patient_id,
