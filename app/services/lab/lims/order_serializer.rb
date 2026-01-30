@@ -17,7 +17,7 @@ module Lab
           Lims::OrderDto.new(
             _id: Lab::LimsOrderMapping.find_by(order: order)&.lims_id || serialized_order.accession_number,
             tracking_number: serialized_order.accession_number,
-            sending_facility: current_facility_name,
+            sending_facility: current_facility_name(order),
             receiving_facility: serialized_order.target_lab,
             tests: serialized_order.tests.map { |test| format_test_name(test.name) },
             tests_map: serialized_order.tests,
@@ -32,7 +32,7 @@ module Lab
             sample_statuses: format_sample_status_trail(order),
             test_statuses: format_test_status_trail(order),
             who_order_test: format_orderer(order),
-            districy: current_district, # yes districy [sic]...
+            districy: current_district(order), # yes districy [sic]...
             priority: format_sample_priority(serialized_order.reason_for_test.name),
             date_created: serialized_order.order_date,
             test_results: format_test_results(serialized_order),
@@ -127,7 +127,9 @@ module Lab
           user = User.find(order.discontinued_by) if Order.columns_hash.key?('discontinued_by') && user.blank?
 
           drawn_by = PersonName.find_by_person_id(user.user_id)
-          drawn_date = order.discontinued_date || order.start_date if ['discontinued_date', 'start_date'].all? { |column| order.respond_to?(column) }
+          drawn_date = order.discontinued_date || order.start_date if %w[discontinued_date start_date].all? do |column|
+            order.respond_to?(column)
+          end
           drawn_date ||= order.date_created
 
           [
@@ -208,7 +210,7 @@ module Lab
         end
 
         def format_test_name(test_name)
-          return test_name
+          test_name
         end
 
         def format_sample_priority(priority)
@@ -217,16 +219,26 @@ module Lab
           priority&.titleize
         end
 
-        def current_health_center
-          health_center = Location.current_health_center
-          raise 'Current health center not set' unless health_center
+        def current_health_center(order)
+          # Get location from order creator (every creator is tied to a location)
+          creator = User.unscoped.find_by(user_id: order.creator)
+          health_center = creator&.location
+
+          # Fallback to Location.current if creator doesn't have a location
+          health_center ||= Location.current
+
+          # Fallback to GlobalProperty if Location.current is not set
+          health_center ||= Location.current_health_center
+
+          raise 'Health center not found for order creator and Location.current not set' unless health_center
 
           health_center
         end
 
-        def current_district
-          district = current_health_center.city_village \
-                       || current_health_center.parent&.name \
+        def current_district(order)
+          health_center = current_health_center(order)
+          district = health_center.city_village \
+                       || health_center.parent&.name \
                        || GlobalProperty.find_by_property('current_health_center_district')&.property_value
 
           return district if district
@@ -238,8 +250,8 @@ module Lab
           Config.application['district']
         end
 
-        def current_facility_name
-          current_health_center.name
+        def current_facility_name(order)
+          current_health_center(order).name
         end
 
         def find_user(user_id)

@@ -46,11 +46,14 @@ module Lab
         user = User.find_by_username('lab_daemon')
         return user if user
 
-        god_user = User.first
+        god_user = User.unscope(where: :location_id).first
         User.current = god_user
         person = Person.create!(creator: god_user.user_id, birthdate: '1980-01-01')
         PersonName.create!(person: person, given_name: 'Lab', family_name: 'Daemon', creator: god_user.user_id)
-        User.create!(username: 'lab_daemon', person:, creator: god_user.user_id)
+        user = User.create!(username: 'lab_daemon', person:, creator: god_user.user_id)
+        user.location = Location.first
+        user.save!
+        user
       end
 
       def self.parse_date(str_date, fallback_date = nil)
