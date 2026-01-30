@@ -123,8 +123,10 @@ module Lab
         def format_sample_status_trail(order)
           return [] if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
 
-          user = User.find(order.creator)
-          user = User.find(order.discontinued_by) if Order.columns_hash.key?('discontinued_by') && user.blank?
+          user = User.unscope(where: :location_id).find(order.creator)
+          if Order.columns_hash.key?('discontinued_by') && user.blank?
+            user = User.unscope(where: :location_id).find(order.discontinued_by)
+          end
 
           drawn_by = PersonName.find_by_person_id(user.user_id)
           drawn_date = order.discontinued_date || order.start_date if %w[discontinued_date start_date].all? do |column|
@@ -187,7 +189,7 @@ module Lab
               next
             end
 
-            test_creator = User.find(result_obs.creator)
+            test_creator = User.unscope(where: :location_id).find(result_obs.creator)
             test_creator_name = PersonName.find_by_person_id(test_creator.person_id)
 
             results[format_test_name(test.name)] = {
@@ -255,7 +257,7 @@ module Lab
         end
 
         def find_user(user_id)
-          user = User.find(user_id)
+          user = User.unscope(where: :location_id).find(user_id)
           person_name = PersonName.find_by(person_id: user.person_id)
           phone_number = PersonAttribute.find_by(type: PersonAttributeType.where(name: 'Cell phone number'),
                                                  person_id: user.person_id)
