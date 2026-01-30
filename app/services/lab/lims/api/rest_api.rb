@@ -341,7 +341,7 @@ module Lab
         def nlims_order_exists?(tracking_number)
           response = in_authenticated_session do |headers|
             Rails.logger.info("Verifying order ##{tracking_number}")
-            RestClient.get(expand_uri("orders/#{tracking_number}", api_version: 'v2'), headers)
+            RestClient.get(expand_uri("orders/#{tracking_number}/exists", api_version: 'v2'), headers)
           end
 
           Rails.logger.info("Order ##{tracking_number} verified... Parsing...")
