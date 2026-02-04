@@ -2,7 +2,7 @@
 
 require 'logger_multiplexor'
 
-require_relative 'api/couchdb_api'
+# require_relative 'api/couchdb_api'
 
 module Lab
   module Lims
@@ -13,7 +13,7 @@ module Lab
         User.current = Utils.lab_user
 
         fork(&method(:start_push_worker))
-        # fork(&method(:start_pull_worker))
+        fork(&method(:start_pull_worker))
         fork(&method(:start_acknowledgement_worker))
         fork(&method(:start_realtime_pull_worker)) if realtime_updates_enabled?
 

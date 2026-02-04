@@ -23,7 +23,7 @@ module Lab
         lims_api.consume_orders(from: last_seq, limit: batch_size, **) do |order_dto, context|
           logger.debug("Retrieved order ##{order_dto[:tracking_number]}: #{order_dto}")
 
-          patient = find_patient_by_nhid(order_dto[:patient][:id])
+          patient = find_patient_by_nhid(order_dto[:patient][:id], order_dto[:tracking_number])
           unless patient
             logger.debug("Discarding order: Non local patient ##{order_dto[:patient][:id]} on order ##{order_dto[:tracking_number]}")
             order_rejected(order_dto, "Patient NPID, '#{order_dto[:patient][:id]}', didn't match any local NPIDs")
@@ -58,7 +58,7 @@ module Lab
       end
 
       def process_order(order_dto)
-        patient = find_patient_by_nhid(order_dto[:patient][:id])
+        patient = find_patient_by_nhid(order_dto[:patient][:id], order_dto[:tracking_number])
         unless patient
           logger.debug("Discarding order: Non local patient ##{order_dto[:patient][:id]} on order ##{order_dto[:tracking_number]}")
           order_rejected(order_dto, "Patient NPID, '#{order_dto[:patient][:id]}', didn't match any local NPIDs")
@@ -107,7 +107,7 @@ module Lab
 
       private
 
-      def find_patient_by_nhid(nhid)
+      def find_patient_by_nhid(nhid, accession_number)
         national_id_type = PatientIdentifierType.where(name: ['National id', 'Old Identification Number'])
         identifiers = PatientIdentifier.where(type: national_id_type, identifier: nhid)
                                        .joins('INNER JOIN person ON person.person_id = patient_identifier.patient_id AND person.voided  = 0')
@@ -126,10 +126,10 @@ module Lab
         patients = Patient.where(patient_id: identifiers.select(:patient_id))
                           .distinct(:patient_id)
                           .all
+        order = Order.find_by(patient_id: patients.select(:patient_id), accession_number: accession_number)
+        raise Lab::Lims::LimsException, "Order #{accession_number} does not exists for patient #{nhid}" if order.nil?
 
-        raise Lab::Lims::DuplicateNHID, "Duplicate National Health ID: #{nhid}" if patients.size > 1
-
-        patients.first
+        order.patient
       end
 
       ##
@@ -216,7 +216,7 @@ module Lab
           end
 
           next if test.result || test_results['results'].blank?
-          
+
           result_date = Time.now
           measures = test_results['results'].map do |indicator, value|
             measure = find_measure(order, indicator, value)

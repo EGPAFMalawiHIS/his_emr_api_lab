@@ -22,7 +22,7 @@ module Lab
           logger.debug("Found #{acknowledgements.size} acknowledgements...")
           acknowledgements.each do |acknowledgement|
             Lab::AcknowledgementService.push_acknowledgement(acknowledgement, @lims_api)
-          rescue GatewayError => e
+          rescue StandardError => e
             logger.error("Failed to push acknowledgement ##{acknowledgement.order_id}: #{e.class} - #{e.message}")
           end
 

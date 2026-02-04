@@ -96,7 +96,8 @@ class Auto12Epl
     "#{last_name}, #{first_name}#{middle_initial.nil? ? '' : " #{middle_initial}"}"
   end
 
-  def generate_small_specimen_label(last_name, first_name, gender, col_date_time, tests, acc_num, number_of_copies = print_copies)
+  def generate_small_specimen_label(last_name, first_name, gender, col_date_time, tests, acc_num, arv_number, number_of_copies = print_copies)
+    arv_display = tests.match?(/vl/i) ? arv_number : ''
     <<~TEXT
       N
       R216,0
@@ -104,7 +105,7 @@ class Auto12Epl
       S1
       A100,6,0,1,1,1,N,"#{first_name}, #{last_name} - #{gender}"
       B120,40,0,1A,1,2,48,N,"#{acc_num}"
-      A100,100,0,1,1,1,N,"#{acc_num}"
+      A100,100,0,1,1,1,N,"#{acc_num}    #{arv_display}"
       A100,118,0,1,1,1,N,"#{col_date_time}"
       A100,140,0,1,1,1,N,"#{tests}"
       P#{number_of_copies}
@@ -113,45 +114,22 @@ class Auto12Epl
 
   # The main function to generate the EPL
   def generate_epl(last_name, first_name, middle_initial, pid, dob, age, gender, col_date_time, col_name, tests, stat,
-                   acc_num, schema_track, number_of_copies = print_copies)
-    # format text and set margin
-    if stat.nil?
-      name_text = truncate_name(last_name, first_name, middle_initial, false)
-      pid_dob_age_gender_text = full_justify(pid, "#{dob} #{age} #{gender}", @element_font, WIDTH_ELEMENT)
-      l_margin = L_MARGIN
-      l_margin_barcode = L_MARGIN_BARCODE
-    else
-      name_text = truncate_name(last_name, first_name, middle_initial, true)
-      pid_dob_age_gender_text = full_justify(pid, "#{dob} #{age} #{gender}", @element_font, STAT_WIDTH_ELEMENT)
-      stat_element_text = pad_stat_w_space(stat)
-      l_margin = L_MARGIN_W_STAT
-      l_margin_barcode = L_MARGIN_BARCODE_W_STAT
-    end
-    barcode_human_text = "#{acc_num} * #{schema_track.gsub(/-/i, '')}"
-    collector_element_text = "Col: #{col_date_time} #{col_name}"
-    tests_element_text = tests
-
-    # generate EPL statements
-    name_element = generate_ascii_element(to_dots(l_margin), to_dots(HEIGHT_MARGIN), 0, @element_font, false, name_text)
-    pid_dob_age_gender_element = generate_ascii_element(to_dots(l_margin),
-                                                        to_dots(HEIGHT_MARGIN + HEIGHT_ELEMENT + HEIGHT_ELEMENT_SPACE), 0, @element_font, false, pid_dob_age_gender_text)
-    barcode_human_element = generate_ascii_element(to_dots(l_margin_barcode),
-                                                   to_dots(HEIGHT_MARGIN + HEIGHT_ELEMENT + HEIGHT_ELEMENT_SPACE + HEIGHT_ELEMENT + HEIGHT_ELEMENT_SPACE + HEIGHT_BARCODE), 0, @barcode_human_font, false, barcode_human_text)
-    collector_element = generate_ascii_element(to_dots(l_margin),
-                                               to_dots(HEIGHT_MARGIN + HEIGHT_ELEMENT + HEIGHT_ELEMENT_SPACE + HEIGHT_ELEMENT + HEIGHT_ELEMENT_SPACE + HEIGHT_BARCODE + HEIGHT_BARCODE_HUMAN + HEIGHT_ELEMENT_SPACE), 0, @element_font, false, collector_element_text)
-    tests_element = generate_ascii_element(to_dots(l_margin),
-                                           to_dots(HEIGHT_MARGIN + HEIGHT_ELEMENT + HEIGHT_ELEMENT_SPACE + HEIGHT_ELEMENT + HEIGHT_ELEMENT_SPACE + HEIGHT_BARCODE + HEIGHT_BARCODE_HUMAN + HEIGHT_ELEMENT_SPACE + HEIGHT_ELEMENT + HEIGHT_ELEMENT_SPACE), 0, @element_font, false, tests_element_text)
-    barcode_element = generate_barcode_element(to_dots(l_margin_barcode),
-                                               to_dots(HEIGHT_MARGIN + HEIGHT_ELEMENT + HEIGHT_ELEMENT_SPACE + HEIGHT_ELEMENT + HEIGHT_ELEMENT_SPACE), to_dots(HEIGHT_BARCODE) - 4, schema_track)
-    stat_element = generate_ascii_element(to_dots(L_MARGIN) + FONT_Y_DOTS.at(@element_font - 1) + FONT_PAD_DOTS,
-                                          to_dots(HEIGHT_MARGIN), 1, @element_font, true, stat_element_text)
-
-    # combine EPL statements
-    if stat.nil?
-      "\nN\nR216,0\nZT\nS1\n#{name_element}\n#{pid_dob_age_gender_element}\n#{barcode_element}\n#{barcode_human_element}\n#{collector_element}\n#{tests_element}\nP#{number_of_copies}\n"
-    else
-      "\nN\nR216,0\nZT\nS1\n#{name_element}\n#{pid_dob_age_gender_element}\n#{barcode_element}\n#{barcode_human_element}\n#{collector_element}\n#{tests_element}\n#{stat_element}\nP#{number_of_copies}\n"
-    end
+                   acc_num, schema_track, arv_number, number_of_copies = print_copies)
+    # Show ARV number only if test contains 'vl' (case insensitive)
+    arv_display = tests.match?(/vl/i) ? arv_number : ''
+    
+    <<~TEXT
+      N
+      R130,0
+      ZT
+      S1
+      A100,6,0,1,1,1,N,"#{last_name} #{first_name} (#{age})"
+      B100,30,0,1A,2,2,37,N,"#{acc_num}"
+      A100,80,0,1,1,1,N,"#{acc_num}   #{arv_display}"
+      A100,100,0,1,1,1,N,"#{col_date_time}	#{tests}"
+      A80,6,1,1,1,1,R," #{stat} "
+      P#{number_of_copies}
+    TEXT
   end
 
   # Add spaces before and after the stat text so that black bars appear across the left edge of label

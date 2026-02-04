@@ -3,7 +3,8 @@
 # This controller handles creation and authentication of LIMS User
 module Lab
   class UsersController < ::ApplicationController
-    skip_before_action :authenticate
+     _callbacks = _process_action_callbacks.map(&:filter)
+    skip_before_action :authenticate if _callbacks.include?(:authenticate)
     # create a LIMS User that will be responsible for sending lab results
     def create
       user_params = params.permit(:username, :password)

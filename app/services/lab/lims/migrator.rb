@@ -60,8 +60,8 @@ module Lab
       ##
       # A Lab::Lims::Api object that supports crawling of a LIMS CouchDB instance.
       class CouchDbMigratorApi < Lab::Lims::Api::CouchdbApi
-        def initialize(*args, processes: 1, on_merge_processes: nil, **kwargs)
-          super(*args, **kwargs)
+        def initialize(*, processes: 1, on_merge_processes: nil, **)
+          super(*, **)
 
           @processes = processes
           @on_merge_processes = on_merge_processes

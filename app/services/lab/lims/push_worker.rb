@@ -10,6 +10,7 @@ module Lab
       include Utils # for logger
 
       SECONDS_TO_WAIT_FOR_ORDERS = 30
+      START_DATE = Time.parse('2024-09-03').freeze
 
       def initialize(lims_api)
         @lims_api = lims_api
@@ -23,8 +24,6 @@ module Lab
           logger.debug("Found #{orders.size} orders...")
           orders.each do |order|
             push_order(order)
-          rescue GatewayError => e
-            logger.error("Failed to push order ##{order.accession_number}: #{e.class} - #{e.message}")
           rescue StandardError => e
             logger.error("Failed to push order ##{order.id}: #{order&.accession_number} : #{e.class} - #{e.message}")
           end
@@ -52,8 +51,8 @@ module Lab
         mapping = Lab::LimsOrderMapping.find_by(order_id: order.order_id)
 
         ActiveRecord::Base.transaction do
-          if mapping && !order.voided.zero?
-            Rails.logger.info("Deleting order ##{order_dto[:accession_number]} from LIMS")
+          if mapping && ![0, false].include?(order.voided)
+            Rails.logger.info("Deleting order ##{order_dto['accession_number']} from LIMS")
             lims_api.delete_order(mapping.lims_id, order_dto)
             mapping.destroy
           elsif mapping
@@ -103,6 +102,7 @@ module Lab
         Rails.logger.debug('Looking for new orders that need to be created in LIMS...')
         Lab::LabOrder.where.not(order_id: Lab::LimsOrderMapping.all.select(:order_id))
                      .where("accession_number IS NOT NULL AND accession_number !=''")
+                     .where(date_created: START_DATE..(Date.today + 1.day))
                      .order(date_created: :desc)
       end
 

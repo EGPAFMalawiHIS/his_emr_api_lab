@@ -2,6 +2,10 @@
 
 module Lab
   class LabResult < Observation
+    def children
+      Observation.where(obs_group_id: obs_id, voided: 0)
+    end
+    
     alias measures children
 
     default_scope do

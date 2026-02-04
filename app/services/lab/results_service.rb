@@ -20,8 +20,14 @@ module Lab
         serializer = {}
         results_obs = {}
         ActiveRecord::Base.transaction do
-          test = Lab::LabTest.find(test_id)
+          test = begin
+            Lab::LabTest.find(test_id)
+          rescue StandardError
+            nil
+          end
+          test = Lab::LabTest.find_by_uuid(test_id) if test.blank?
           encounter = find_encounter(test, encounter_id: params[:encounter_id],
+                                           encounter_uuid: params[:encounter],
                                            date: params[:date]&.to_date,
                                            provider_id: params[:provider_id])
 
@@ -32,10 +38,20 @@ module Lab
 
           serializer = Lab::ResultSerializer.serialize(results_obs)
         end
-        process_acknowledgement(results_obs, result_enter_by)
-        precess_notification_message(results_obs, serializer, result_enter_by)
+
+        # force commit all transactions
+        ActiveRecord::Base.connection.commit_db_transaction
+
+        # Execute job synchronously
+        ProcessLabResultJob.perform_now(results_obs.id, serializer, result_enter_by)
+
         Rails.logger.info("Lab::ResultsService: Result created for test #{test_id} #{serializer}")
         serializer
+      end
+
+      def process_result_completion(results_obs, serializer, result_enter_by)
+        process_acknowledgement(results_obs, result_enter_by)
+        precess_notification_message(results_obs, serializer, result_enter_by)
       end
 
       private
@@ -43,12 +59,13 @@ module Lab
       def precess_notification_message(result, values, result_enter_by)
         order = Order.find(result.order_id)
         data = { Type: result_enter_by,
-                 'Test type': ConceptName.find_by(concept_id: result.test.value_coded)&.name,
+                 Specimen: get_test_catalog_name(order.concept_id) || ConceptName.find_by(concept_id: order.concept_id)&.name,
+                 'Test type': get_test_catalog_name(result.test.value_coded) || ConceptName.find_by(concept_id: result.test.value_coded)&.name,
                  'Accession number': order&.accession_number,
-                 'Orde date': order&.start_date,
+                 order_date: Order.columns.include?('start_date') ? order.start_date : order.date_created,
                  'ARV-Number': find_arv_number(result.person_id),
                  PatientID: result.person_id,
-                 'Ordered By': order&.provider&.person&.name,
+                 'Ordered By': Order.columns.include?('provider_id') ? order&.provider&.person&.name : Person.find(order.creator)&.name,
                  Result: values }.as_json
         NotificationService.new.create_notification(result_enter_by, data)
       end
@@ -66,22 +83,30 @@ module Lab
                          .first&.identifier
       end
 
-      def find_encounter(test, encounter_id: nil, date: nil, provider_id: nil)
+      def find_encounter(test, encounter_id: nil, encounter_uuid: nil, date: nil, provider_id: nil)
         return Encounter.find(encounter_id) if encounter_id
+        return Encounter.find_by_uuid(encounter_uuid) if encounter_uuid
 
-        Encounter.create!(
-          patient_id: test.person_id,
-          program_id: test.encounter.program_id,
-          type: EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME),
-          encounter_datetime: date || Date.today,
-          provider_id: provider_id || User.current.user_id
-        )
+        lab_encounter_type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
+
+        encounter = Encounter.new
+        encounter.patient_id = test.person_id
+        encounter.program_id = test.encounter.program_id if Encounter.column_names.include?('program_id')
+        encounter.visit_id = test.encounter.visit_id if Encounter.column_names.include?('visit_id')
+        # Use bracket notation to set the encounter_type column directly (bypasses association)
+        # This handles both Integer and EncounterType object
+        encounter_type_value = lab_encounter_type.is_a?(Integer) ? lab_encounter_type : lab_encounter_type.encounter_type_id
+        encounter[:encounter_type] = encounter_type_value
+        encounter.encounter_datetime = date || Date.today
+        encounter.provider_id = provider_id || User.current.user_id if Encounter.column_names.include?('provider_id')
+        encounter.save!
+        encounter.reload
+        encounter
       end
 
       # Creates the parent observation for results to which the different measures are attached
       def create_results_obs(encounter, test, date, comments = nil)
         void_existing_results_obs(encounter, test)
-
         Lab::LabResult.create!(
           person_id: encounter.patient_id,
           encounter_id: encounter.encounter_id,
@@ -111,11 +136,14 @@ module Lab
       def add_measure_to_results(results_obs, params, date)
         validate_measure_params(params)
 
+        concept_id = params[:indicator][:concept_id] || Concept.find_concept_by_uuid(params.dig(:indicator,
+                                                                                                :concept))&.id
+
         Observation.create!(
           person_id: results_obs.person_id,
           encounter_id: results_obs.encounter_id,
           order_id: results_obs.order_id,
-          concept_id: params[:indicator][:concept_id],
+          concept_id: concept_id,
           obs_group_id: results_obs.obs_id,
           obs_datetime: date&.to_datetime || DateTime.now,
           **make_measure_value(params)
@@ -125,8 +153,8 @@ module Lab
       def validate_measure_params(params)
         raise InvalidParameterError, 'measures.value is required' if params[:value].blank?
 
-        if params[:indicator]&.[](:concept_id).blank?
-          raise InvalidParameterError, 'measures.indicator.concept_id is required'
+        if params[:indicator]&.[](:concept_id).blank? && params[:indicator]&.[](:concept).blank?
+          raise InvalidParameterError, 'measures.indicator.concept_id or concept is required'
         end
 
         params
@@ -152,6 +180,13 @@ module Lab
         when 'false' then false
         else raise InvalidParameterError, "Invalid boolean value: #{string}"
         end
+      end
+
+      def get_test_catalog_name(concept_id)
+        return nil unless concept_id
+
+        ::ConceptAttribute.find_by(concept_id:,
+                                   attribute_type: ConceptAttributeType.test_catalogue_name)&.value_reference
       end
     end
   end
