@@ -307,13 +307,12 @@ module Lab
       # Examples of reasons include: Routine, Targeted, Confirmatory, Repeat, or Stat.
       def add_reason_for_test(order, params)
         reason = params[:reason_for_test_id] || params[:reason_for_test]
-
         reason = Concept.find(reason)
         create_order_observation(
           order,
           Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME,
           params[:date],
-          value_coded: reason
+          value_coded: reason.concept_id
         )
       end
 
