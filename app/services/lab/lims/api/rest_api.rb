@@ -227,7 +227,7 @@ module Lab
           {
             order: {
               tracking_number: order_dto.fetch(:tracking_number),
-              district: current_district,
+              district: order_dto.fetch(:districy),
               health_facility_name: order_dto.fetch(:sending_facility),
               sending_facility: order_dto.fetch(:sending_facility),
               arv_number: order_dto.fetch(:patient).fetch(:arv_number),
@@ -283,20 +283,6 @@ module Lab
             sample_type: order_dto.fetch(:sample_type_map),
             updated_by: status.fetch(:updated_by)
           }
-        end
-
-        def current_district
-          health_centre = Location.current_health_center
-          raise 'Current health centre not set' unless health_centre
-
-          district = health_centre.district || Lab::Lims::Config.application['district']
-
-          unless district
-            health_centre_name = "##{health_centre.id} - #{health_centre.name}"
-            raise "Current health centre district not set: #{health_centre_name}"
-          end
-
-          district
         end
 
         ##
@@ -678,7 +664,7 @@ module Lab
   def make_create_params(order_dto)
     {
       tracking_number: order_dto.fetch(:tracking_number),
-      district: current_district,
+      district: order_dto.fetch(:districy),
       health_facility_name: order_dto.fetch(:sending_facility),
       first_name: order_dto.fetch(:patient).fetch(:first_name),
       last_name: order_dto.fetch(:patient).fetch(:last_name),
@@ -714,20 +700,6 @@ module Lab
       specimen_type: order_dto.fetch(:sample_type),
       status: 'specimen_collected'
     }
-  end
-
-  def current_district
-    health_centre = Location.current_health_center
-    raise 'Current health centre not set' unless health_centre
-
-    district = health_centre.district || Lab::Lims::Config.application['district']
-
-    unless district
-      health_centre_name = "##{health_centre.id} - #{health_centre.name}"
-      raise "Current health centre district not set: #{health_centre_name}"
-    end
-
-    district
   end
 
   ##
