@@ -281,7 +281,14 @@ module Lab
             status: 'specimen_collected',
             time_updated: date_updated,
             sample_type: order_dto.fetch(:sample_type_map),
-            updated_by: status.fetch(:updated_by)
+            updated_by: status.fetch(:updated_by),
+            status_trail: [
+              updated_by: {
+                first_name: status.fetch(:updated_by).fetch(:first_name),
+                last_name: status.fetch(:updated_by).fetch(:last_name),
+                id_number: status.fetch(:updated_by).fetch(:id)
+              }
+            ]
           }
         end
 
