@@ -18,11 +18,10 @@ module Lab
           order_type_id: order.order_type_id,
           order_id: order.order_id, # Deprecated: Link to :id
           encounter_id: order.encounter_id,
-          order_date: order.date_created,
+          order_date: order.start_date,
           location_id: encounter.location_id,
           program_id: encounter.program_id,
           program_name: program&.name,
-          # order_date: order.start_date,
           patient_id: order.patient_id,
           accession_number: order.accession_number,
           specimen: {

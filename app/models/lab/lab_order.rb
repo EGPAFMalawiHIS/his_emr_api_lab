@@ -35,6 +35,11 @@ module Lab
             class_name: 'Observation',
             foreign_key: :order_id
 
+    has_one :comment_to_fulfiller,
+            make_obs_concept_filter(Lab::Metadata::COMMENT_TO_FULFILLER_CONCEPT_NAME),
+            class_name: 'Observation',
+            foreign_key: :order_id
+
     has_one :mapping,
             class_name: '::Lab::LimsOrderMapping',
             foreign_key: :order_id
@@ -55,6 +60,7 @@ module Lab
       includes(:reason_for_test,
                :requesting_clinician,
                :target_lab,
+               :comment_to_fulfiller,
                tests: [:result])
     end
   end
