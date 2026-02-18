@@ -53,9 +53,13 @@ module Lab
           location ||= Location.current_health_center
 
           # Last fallback: try to get from order's observation encounter
+          # Use unscoped to find observations/encounters across all locations
           if location.nil? && order.present?
-            obs = Observation.find_by(order_id: order.order_id)
-            location = obs&.encounter&.location if obs.respond_to?(:encounter) && obs.encounter.respond_to?(:location)
+            obs = Observation.unscoped.find_by(order_id: order.order_id)
+            if obs.respond_to?(:encounter) && obs.encounter.respond_to?(:location)
+              encounter = Encounter.unscoped.find_by(encounter_id: obs.encounter_id)
+              location = encounter&.location
+            end
           end
 
           raise 'Current health center not set' unless location
@@ -134,8 +138,8 @@ module Lab
         def format_sample_status_trail(order)
           return [] if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
 
-          user = User.find(order.creator)
-          user = User.find(order.discontinued_by) if Order.columns_hash.key?('discontinued_by') && user.blank?
+          user = User.unscoped.find(order.creator)
+          user = User.unscoped.find(order.discontinued_by) if Order.columns_hash.key?('discontinued_by') && user.blank?
 
           drawn_by = PersonName.find_by_person_id(user.user_id)
           drawn_date = order.discontinued_date || order.start_date if %w[discontinued_date start_date].all? do |column|
@@ -192,13 +196,15 @@ module Lab
           order.tests&.each_with_object({}) do |test, results|
             next if test.result.nil? || test.result.empty?
 
-            result_obs = Observation.find_by(obs_id: test.result.first.id)
+            # Use unscoped to find observations across locations
+            result_obs = Observation.unscoped.find_by(obs_id: test.result.first.id)
             unless result_obs
               Rails.logger.warn("Observation with obs_id=#{test.result.first.id} not found for test #{test.name} in order #{order.accession_number}")
               next
             end
 
-            test_creator = User.find(result_obs.creator)
+            # Use unscoped to find user regardless of location
+            test_creator = User.unscoped.find(result_obs.creator)
             test_creator_name = PersonName.find_by_person_id(test_creator.person_id)
 
             results[format_test_name(test.name)] = {
@@ -247,7 +253,7 @@ module Lab
         end
 
         def find_user(user_id)
-          user = User.find(user_id)
+          user = User.unscoped.find(user_id)
           person_name = PersonName.find_by(person_id: user.person_id)
           phone_number = PersonAttribute.find_by(type: PersonAttributeType.where(name: 'Cell phone number'),
                                                  person_id: user.person_id)

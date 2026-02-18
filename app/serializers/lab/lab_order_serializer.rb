@@ -9,7 +9,8 @@ module Lab
       reason_for_test ||= order.reason_for_test
       target_lab = target_lab&.value_text || order.target_lab&.value_text || Location.current_health_center&.name
 
-      encounter = Encounter.find_by_encounter_id(order.encounter_id)
+      # Use unscoped to find encounter across all locations
+      encounter = Encounter.unscoped.find_by_encounter_id(order.encounter_id)
       program = Program.find_by_program_id(encounter.program_id)
 
       ActiveSupport::HashWithIndifferentAccess.new(

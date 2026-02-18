@@ -330,7 +330,8 @@ module Lab
       end
 
       def create_order_observation(order, concept_name, date, **values)
-        creator = User.find_by(username: 'lab_daemon')
+        # Use unscoped to find user regardless of location context
+        creator = User.unscoped.find_by(username: 'lab_daemon')
         User.current ||= creator
         Observation.create!(
           order:,

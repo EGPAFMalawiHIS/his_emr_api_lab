@@ -43,7 +43,8 @@ module Lab
       end
 
       def self.lab_user
-        user = User.find_by_username('lab_daemon')
+        # Use unscoped to find user regardless of location context
+        user = User.unscoped.find_by_username('lab_daemon')
         return user if user
 
         god_user = User.first
