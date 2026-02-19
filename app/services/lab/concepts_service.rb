@@ -34,10 +34,11 @@ module Lab
 
       unless specimen_type
         return ActiveRecord::Base.connection.select_all <<~SQL
-          SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
+          SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code, c.uuid
             FROM concept_attribute ca
           INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
             AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
+          INNER JOIN concept c ON c.concept_id = ca.concept_id
           WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
           AND ca.concept_id IN (#{test_types.select(:concept_id).to_sql})
           GROUP BY ca.concept_id
@@ -56,10 +57,11 @@ module Lab
       )
 
       return ActiveRecord::Base.connection.select_all <<~SQL
-        SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
+        SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code, c.uuid
           FROM concept_attribute ca
         INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
           AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
+        INNER JOIN concept c ON c.concept_id = ca.concept_id
         WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
         AND ca.concept_id IN (#{concept_set.select(:concept_set).to_sql})
         GROUP BY ca.concept_id
@@ -72,10 +74,11 @@ module Lab
 
       unless test_type
         return ActiveRecord::Base.connection.select_all <<~SQL
-          SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
+          SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code, c.uuid
             FROM concept_attribute ca
           INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
             AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
+          INNER JOIN concept c ON c.concept_id = ca.concept_id
           WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
           AND ca.concept_id IN (#{specimen_types.select(:concept_id).to_sql})
           GROUP BY ca.concept_id
@@ -94,10 +97,11 @@ module Lab
       )
 
       return ActiveRecord::Base.connection.select_all <<~SQL
-        SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
+        SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code, c.uuid
           FROM concept_attribute ca
         INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
           AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
+        INNER JOIN concept c ON c.concept_id = ca.concept_id
         WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
         AND ca.concept_id IN (#{concept_set.pluck(:concept_id).push(0).join(',')})
         GROUP BY ca.concept_id
@@ -114,15 +118,16 @@ module Lab
       measures = ConceptSet.find_members_by_name(Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
                            .select(:concept_id)
 
-      sets = ConceptSet.where(concept_set: measures, concept_id: test)
+      sets = ConceptSet.where(concept_set: test, concept_id: measures)
 
       return ActiveRecord::Base.connection.select_all <<~SQL
-        SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code
+        SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code, c.uuid
           FROM concept_attribute ca
           INNER JOIN concept_attribute ca2 ON ca.concept_id = ca2.concept_id
             AND ca2.attribute_type_id = #{ConceptAttributeType.nlims_code.concept_attribute_type_id}
+          INNER JOIN concept c ON c.concept_id = ca.concept_id
           WHERE ca.attribute_type_id = #{ConceptAttributeType.test_catalogue_name.concept_attribute_type_id}
-          AND ca.concept_id IN (#{sets.pluck(:concept_set).push(0).join(',')})
+          AND ca.concept_id IN (#{sets.pluck(:concept_id).push(0).join(',')})
           GROUP BY ca.concept_id
       SQL
     end
