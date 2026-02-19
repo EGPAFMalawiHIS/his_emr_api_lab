@@ -259,7 +259,8 @@ module Lab
         order.date_created = params[:date]&.to_date || Date.today if order.respond_to?(:date_created)
         order.start_date = params[:date]&.to_date || Date.today if order.respond_to?(:start_date)
         order.auto_expire_date = params[:end_date]
-        order.comment_to_fulfiller = params[:comment_to_fulfiller] if params[:comment_to_fulfiller]
+        # Note: comment_to_fulfiller is a has_one association, not a field
+        # It will be created via add_comment_to_fulfiller method
         order.accession_number = access_number
         order.orderer = User.current&.user_id
 
