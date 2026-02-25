@@ -77,21 +77,21 @@ module Lab
         def consume_orders(*_args, patient_id: nil, **_kwargs)
           orders_pending_updates(patient_id).each do |order|
             order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
-            
+
             # Always fetch the full order from NLIMS to get status trails
             begin
               lims_order = find_lims_order(order.accession_number)
               patch_order_dto_with_lims_order!(order_dto, lims_order)
-              
+
               Rails.logger.debug("NLIMS order structure for #{order.accession_number}:")
               Rails.logger.debug("  Has 'order' key: #{lims_order.key?('order')}")
               Rails.logger.debug("  Has 'data' key: #{lims_order.key?('data')}")
               Rails.logger.debug("  Top level keys: #{lims_order.keys.inspect}")
-              
+
               # Also extract status trails from the NLIMS order
               # Note: NLIMS might return order data under 'order' or 'data.order'
               order_data = lims_order['order'] || lims_order.dig('data', 'order') || lims_order
-              
+
               if order_data && order_data['status_trail']
                 Rails.logger.info("Found #{order_data['status_trail'].size} order status trail entries from NLIMS")
                 order_dto[:sample_statuses] ||= []
@@ -114,7 +114,7 @@ module Lab
                 Rails.logger.warn("No order status_trail found in NLIMS response for #{order.accession_number}")
                 Rails.logger.debug("Order data keys: #{order_data&.keys&.inspect}")
               end
-              
+
               # Extract test status trails from NLIMS tests
               tests_data = lims_order['tests'] || lims_order.dig('data', 'tests') || []
               if tests_data.is_a?(Array)
@@ -122,10 +122,10 @@ module Lab
                 order_dto['test_statuses'] ||= {}
                 tests_data.each do |test|
                   next unless test['status_trail'].is_a?(Array)
-                  
+
                   test_name = test.dig('test_type', 'name')
                   next unless test_name
-                  
+
                   Rails.logger.debug("  Found #{test['status_trail'].size} status trail entries for test #{test_name}")
                   order_dto['test_statuses'][test_name] ||= {}
                   test['status_trail'].each do |trail|
@@ -142,7 +142,7 @@ module Lab
             rescue RestClient::NotFound
               Rails.logger.warn("Order ##{order.accession_number} not found in NLIMS, using local data only")
             end
-            
+
             # Try to fetch results if available
             if order_dto['test_results'].empty?
               begin

@@ -3,33 +3,38 @@
 ## Issues Fixed
 
 ### 1. Missing initial status trails when creating orders locally
+
 **Problem**: When orders were created locally (not from NLIMS), they had no order_status and test_status, resulting in null values and empty arrays.
 
 **Solution**: Added automatic creation of initial status trails:
+
 - **Order status trail**: Created with status "ordered" when `order_test` is called
 - **Test status trails**: Created for each test with status "ordered" when tests are created
 - Both include timestamp and user information (first name, last name, user ID)
 
 **Files Modified**:
+
 - [orders_service.rb](app/services/lab/orders_service.rb):
   - Added `create_initial_order_status_trail` method
   - Calls it in `order_test` after order creation
   - Reloads order with status trails before serialization
-  
 - [tests_service.rb](app/services/lab/tests_service.rb):
   - Added `create_initial_test_status_trail` method
   - Calls it in `create_tests` for each test created
 
 ### 2. Status trails not extracted from NLIMS when pulling orders
+
 **Problem**: When the lab order job (UpdatePatientOrdersJob) pulled orders from NLIMS, it wasn't extracting and saving the status trail information from the NLIMS response, even when tests had no results yet.
 
 **Solution**: Enhanced PullWorker to extract and save status trails from NLIMS:
+
 - Extracts order status trails from `sample_statuses` in NLIMS order data
 - Extracts test status trails from `test_statuses` for each test
 - Saves all status trail entries to the database
 - Prevents duplicate entries using existence checks
 
 **Files Modified**:
+
 - [pull_worker.rb](app/services/lab/lims/pull_worker.rb):
   - Added `save_status_trails_from_nlims` method (called from both `create_order` and `update_order`)
   - Added `save_order_status_trails` method to process order status trails
@@ -40,6 +45,7 @@
 ## Data Flow
 
 ### When Creating a New Order Locally:
+
 ```
 1. OrdersService.order_test called
 2. Order created in database
@@ -51,6 +57,7 @@
 ```
 
 ### When Pulling from NLIMS:
+
 ```
 1. UpdatePatientOrdersJob runs
 2. PullWorker.pull_orders fetches order data from NLIMS
@@ -66,18 +73,22 @@
 ## API Response Format
 
 ### Before Fix:
+
 ```json
 {
   "order_status": null,
   "order_status_trail": [],
-  "tests": [{
-    "test_status": null,
-    "test_status_trail": []
-  }]
+  "tests": [
+    {
+      "test_status": null,
+      "test_status_trail": []
+    }
+  ]
 }
 ```
 
 ### After Fix:
+
 ```json
 {
   "order_status": {
@@ -131,16 +142,18 @@
 Test the implementation by:
 
 1. **Create a new order locally**:
+
    ```ruby
    POST /lab/orders
    # Response should include order_status and test_status
    ```
 
 2. **Pull orders from NLIMS**:
+
    ```ruby
    # Trigger UpdatePatientOrdersJob
    Lab::UpdatePatientOrdersJob.perform_now(patient_id)
-   
+
    # Verify status trails are populated
    order = Lab::LabOrder.includes(:status_trails, tests: [:status_trails]).first
    order.status_trails # Should have entries from NLIMS

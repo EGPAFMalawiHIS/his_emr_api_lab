@@ -305,7 +305,7 @@ module Lab
         logger.debug("Order DTO keys: #{order_dto.keys.inspect}")
         logger.debug("Order DTO sample_statuses type: #{order_dto[:sample_statuses].class}")
         logger.debug("Order DTO sample_statuses content: #{order_dto[:sample_statuses].inspect}")
-        
+
         # Extract order status trail from sample_statuses (NLIMS uses sample_statuses for order status)
         # Note: sample_statuses is an array of single-key hashes
         if order_dto[:sample_statuses].is_a?(Array)
@@ -327,7 +327,7 @@ module Lab
       def save_order_status_trails(order, sample_statuses)
         logger.debug("Saving order status trails for order ##{order['order_id'] || order[:order_id]}")
         logger.debug("Sample statuses: #{sample_statuses.inspect}")
-        
+
         # sample_statuses is an array of single-key hashes like:
         # [{ "20260225120000" => { "status" => "Drawn", ... } }, { "20260225130000" => { ... } }]
         sample_statuses.each do |trail_entry|
@@ -344,7 +344,7 @@ module Lab
             end
 
             order_id = order['order_id'] || order[:order_id] || order['id'] || order[:id]
-            
+
             # Skip if this exact status trail entry already exists
             if Lab::OrderStatusTrail.exists?(order_id: order_id, status: status_data['status'], timestamp: timestamp)
               logger.debug("Order status trail already exists: #{status_data['status']} at #{timestamp}")
@@ -352,7 +352,7 @@ module Lab
             end
 
             updated_by = status_data['updated_by'] || {}
-            
+
             begin
               trail = Lab::OrderStatusTrail.create!(
                 order_id: order_id,
