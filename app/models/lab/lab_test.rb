@@ -11,9 +11,15 @@ module Lab
             class_name: 'Lab::LabResult',
             foreign_key: :obs_group_id
 
+    has_many :status_trails,
+             class_name: '::Lab::TestStatusTrail',
+             foreign_key: :test_id,
+             primary_key: :obs_id,
+             dependent: :destroy
+
     def void(reason)
       result&.void(reason)
-      super(reason)
+      super
     end
   end
 end

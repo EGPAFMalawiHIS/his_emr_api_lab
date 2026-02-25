@@ -29,12 +29,11 @@ module Lab
       def create_tests(order, date, tests_params)
         raise InvalidParameterError, 'tests are required' if tests_params.nil? || tests_params.empty?
 
-        
         Lab::LabTest.transaction do
           tests_params.map do |params|
             concept_id = params[:concept_id]
             concept_id = Concept.find_concept_by_uuid(params[:concept]).id if concept_id.nil?
-            
+
             test = Lab::LabTest.create!(
               concept_id: ConceptName.find_by_name!(Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                                      .concept_id,
@@ -44,6 +43,9 @@ module Lab
               obs_datetime: date&.to_time || Time.now,
               value_coded: concept_id
             )
+
+            # Create initial test status trail
+            create_initial_test_status_trail(test, date)
 
             Lab::TestSerializer.serialize(test, order:)
           end
@@ -99,6 +101,21 @@ module Lab
           date,
           value_coded: test_type_id
         )
+      end
+
+      def create_initial_test_status_trail(test, date)
+        Lab::TestStatusTrail.create!(
+          test_id: test.obs_id,
+          status_id: 1,
+          status: 'ordered',
+          timestamp: date || test.obs_datetime || Time.now,
+          updated_by_first_name: User.current&.person&.names&.first&.given_name,
+          updated_by_last_name: User.current&.person&.names&.first&.family_name,
+          updated_by_id: User.current&.user_id&.to_s,
+          updated_by_phone_number: nil
+        )
+      rescue StandardError => e
+        Rails.logger.warn("Failed to create initial test status trail: #{e.message}")
       end
     end
   end

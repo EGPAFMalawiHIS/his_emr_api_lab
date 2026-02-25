@@ -60,7 +60,13 @@ module Lab
 
           attach_test_method(order, order_params) if order_params[:test_method]
 
+          # Create initial order status trail
+          create_initial_order_status_trail(order)
+
           Lab::TestsService.create_tests(order, order_params[:date], order_params[:tests])
+
+          # Reload order to include status trails and tests
+          order = Lab::LabOrder.prefetch_relationships.find(order.order_id)
 
           Lab::LabOrderSerializer.serialize_order(
             order, requesting_clinician: add_requesting_clinician(order, order_params),
@@ -102,14 +108,16 @@ module Lab
 
         if reason_for_test
           Rails.logger.debug("Updating reason for test on order ##{order.order_id}")
-          update_reason_for_test(order, Concept.find(reason_for_test)&.id, force_update: params.fetch('force_update', false))
+          update_reason_for_test(order, Concept.find(reason_for_test)&.id,
+                                 force_update: params.fetch('force_update', false))
         end
 
         Lab::LabOrderSerializer.serialize_order(order)
       end
 
       def void_order(order_id, reason)
-        order = Lab::LabOrder.includes(%i[requesting_clinician reason_for_test target_lab comment_to_fulfiller], tests: [:result])
+        order = Lab::LabOrder.includes(%i[requesting_clinician reason_for_test target_lab comment_to_fulfiller],
+                                       tests: [:result])
                              .find(order_id)
 
         order.requesting_clinician&.void(reason)
@@ -140,14 +148,55 @@ module Lab
             value_text: order_params['status'],
             creator: User.current.id
           )
+
+          # Save order status trail if available
+          save_order_status_trail(order, order_params) if order_params['status']
         end
         create_rejection_notification(order_params) if order_params['status'] == 'test-rejected'
       end
 
       def update_order_result(order_params)
-        order = find_order(order_params['tracking_number'])
+        # Extract tracking number from nested structure if present
+        tracking_number = order_params['tracking_number'] || order_params.dig('order', 'tracking_number')
+        order = find_order(tracking_number)
+
         order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
-        patch_order_dto_with_lims_results!(order_dto, order_params['results'])
+
+        # Handle results if present in the old format
+        patch_order_dto_with_lims_results!(order_dto, order_params['results']) if order_params['results']
+
+        # Handle test results in NLIMS format
+        if order_params['tests']
+          # Extract test results from NLIMS tests payload
+          test_results = {}
+          order_params['tests'].each do |test_data|
+            test_name = test_data.dig('test_type', 'name')
+            next unless test_name && test_data['test_results']
+
+            test_results[test_name] = {
+              'results' => test_data['test_results'].each_with_object({}) do |result, formatted|
+                measure_name = result.dig('measure', 'name')
+                result_value = result.dig('result', 'value')
+                next unless measure_name && result_value
+
+                formatted[measure_name] = { 'result_value' => result_value }
+              end,
+              'result_date' => test_data['test_results'].first&.dig('result', 'result_date'),
+              'result_entered_by' => {}
+            }
+          end
+
+          patch_order_dto_with_lims_results!(order_dto, test_results) unless test_results.empty?
+        end
+
+        # Save order status trail if available from NLIMS
+        if order_params['order'] && order_params['order']['status_trail']
+          save_order_status_trails_from_nlims(order, order_params['order']['status_trail'])
+        end
+
+        # Save test status trails if available from NLIMS
+        save_test_status_trails_from_nlims(order, order_params['tests']) if order_params['tests']
+
         Lab::Lims::PullWorker.new(nil).process_order(order_dto)
       end
 
@@ -160,13 +209,15 @@ module Lab
           last_order_date: Lab::LabOrder.last&.start_date&.to_date,
           lab_orders: []
         }
-        data[:lab_orders] = orders.map do |order|
-          Lab::LabOrderSerializer.serialize_order(
-            order, requesting_clinician: order.requesting_clinician,
-                   reason_for_test: order.reason_for_test,
-                   target_lab: order.target_lab
-          )
-        end if include_data
+        if include_data
+          data[:lab_orders] = orders.map do |order|
+            Lab::LabOrderSerializer.serialize_order(
+              order, requesting_clinician: order.requesting_clinician,
+                     reason_for_test: order.reason_for_test,
+                     target_lab: order.target_lab
+            )
+          end
+        end
         data
       end
 
@@ -174,14 +225,14 @@ module Lab
 
       def create_rejection_notification(order_params)
         order = find_order order_params['tracking_number']
-        data = { 'type': 'LIMS',
-                 'specimen': ConceptName.find_by(concept_id: order.concept_id)&.name,
-                 'accession_number': order&.accession_number,
-                 'order_date': order&.start_date,
-                 'arv_number': find_arv_number(order.patient_id),
-                 'patient_id': result.person_id,
-                 'ordered_by': order&.provider&.person&.name,
-                 'rejection_reason': order_params['comments'] }.as_json
+        data = { type: 'LIMS',
+                 specimen: ConceptName.find_by(concept_id: order.concept_id)&.name,
+                 accession_number: order&.accession_number,
+                 order_date: order&.start_date,
+                 arv_number: find_arv_number(order.patient_id),
+                 patient_id: result.person_id,
+                 ordered_by: order&.provider&.person&.name,
+                 rejection_reason: order_params['comments'] }.as_json
         NotificationService.new.create_notification('LIMS', data)
       end
 
@@ -235,7 +286,9 @@ module Lab
         encounter.encounter_datetime = order_params[:date] || Date.today
         encounter.visit = Visit.find_by_uuid(visit) if Encounter.column_names.include?('visit_id')
         encounter.provider_id = User.current&.person&.id if Encounter.column_names.include?('provider_id')
-        encounter.program_id = order_params[:program_id] if Encounter.column_names.include?('program_id') && order_params[:program_id].present?
+        if Encounter.column_names.include?('program_id') && order_params[:program_id].present?
+          encounter.program_id = order_params[:program_id]
+        end
         encounter.save!
         encounter.reload
       end
@@ -355,7 +408,10 @@ module Lab
 
         return if order.reason_for_test&.value_coded == concept_id
 
-        raise InvalidParameterError, "Can't change reason for test once set" if order.reason_for_test&.value_coded && !force_update
+        if order.reason_for_test&.value_coded && !force_update
+          raise InvalidParameterError,
+                "Can't change reason for test once set"
+        end
 
         order.reason_for_test&.delete
         date = order.start_date if order.respond_to?(:start_date)
@@ -366,6 +422,99 @@ module Lab
       def void_order_status(order, concept)
         Observation.where(order_id: order.id, concept_id: concept.concept_id).each do |obs|
           obs.void('New Status Received from LIMS')
+        end
+      end
+
+      def create_initial_order_status_trail(order)
+        Lab::OrderStatusTrail.create!(
+          order_id: order.order_id,
+          status_id: 1,
+          status: 'ordered',
+          timestamp: order.start_date || order.date_created || Time.now,
+          updated_by_first_name: User.current&.person&.names&.first&.given_name,
+          updated_by_last_name: User.current&.person&.names&.first&.family_name,
+          updated_by_id: User.current&.user_id&.to_s,
+          updated_by_phone_number: nil
+        )
+      rescue StandardError => e
+        Rails.logger.warn("Failed to create initial order status trail: #{e.message}")
+      end
+
+      def save_order_status_trail(order, status_params)
+        Lab::OrderStatusTrail.create!(
+          order_id: order.order_id,
+          status_id: status_params['status_id'] || 0,
+          status: status_params['status'],
+          timestamp: status_params['status_time'] || Time.now,
+          updated_by_first_name: status_params.dig('updated_by', 'first_name'),
+          updated_by_last_name: status_params.dig('updated_by', 'last_name'),
+          updated_by_id: status_params.dig('updated_by', 'id'),
+          updated_by_phone_number: status_params.dig('updated_by', 'phone_number')
+        )
+      end
+
+      def save_order_status_trails_from_nlims(order, status_trail)
+        return unless status_trail.is_a?(Array)
+
+        status_trail.each do |trail_entry|
+          # Skip if this exact status trail entry already exists
+          next if Lab::OrderStatusTrail.exists?(
+            order_id: order.order_id,
+            status_id: trail_entry['status_id'],
+            timestamp: trail_entry['timestamp']
+          )
+
+          Lab::OrderStatusTrail.create!(
+            order_id: order.order_id,
+            status_id: trail_entry['status_id'],
+            status: trail_entry['status'],
+            timestamp: trail_entry['timestamp'],
+            updated_by_first_name: trail_entry.dig('updated_by', 'first_name'),
+            updated_by_last_name: trail_entry.dig('updated_by', 'last_name'),
+            updated_by_id: trail_entry.dig('updated_by', 'id'),
+            updated_by_phone_number: trail_entry.dig('updated_by', 'phone_number')
+          )
+        end
+      end
+
+      def save_test_status_trails_from_nlims(order, tests)
+        return unless tests.is_a?(Array)
+
+        tests.each do |test_data|
+          next unless test_data['status_trail'].is_a?(Array)
+
+          # Find the test by test_type
+          test_name = test_data.dig('test_type', 'name')
+          next unless test_name
+
+          # Find concept for this test
+          concept = Lab::Lims::Utils.find_concept_by_name(test_name)
+          next unless concept
+
+          # Find the test observation
+          test = order.tests.find_by(value_coded: concept.concept_id)
+          next unless test
+
+          # Save each status trail entry
+          test_data['status_trail'].each do |trail_entry|
+            # Skip if this exact status trail entry already exists
+            next if Lab::TestStatusTrail.exists?(
+              test_id: test.obs_id,
+              status_id: trail_entry['status_id'],
+              timestamp: trail_entry['timestamp']
+            )
+
+            Lab::TestStatusTrail.create!(
+              test_id: test.obs_id,
+              status_id: trail_entry['status_id'],
+              status: trail_entry['status'],
+              timestamp: trail_entry['timestamp'],
+              updated_by_first_name: trail_entry.dig('updated_by', 'first_name'),
+              updated_by_last_name: trail_entry.dig('updated_by', 'last_name'),
+              updated_by_id: trail_entry.dig('updated_by', 'id'),
+              updated_by_phone_number: trail_entry.dig('updated_by', 'phone_number')
+            )
+          end
         end
       end
     end

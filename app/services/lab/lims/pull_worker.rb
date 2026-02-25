@@ -191,6 +191,11 @@ module Lab
       def create_order(patient, order_dto)
         logger.debug("Creating order ##{order_dto['_id']}")
         order = OrdersService.order_test(order_dto.to_order_service_params(patient_id: patient.patient_id))
+
+        # Extract and save status trails from NLIMS
+        save_status_trails_from_nlims(order, order_dto)
+
+        # Update results if present
         update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
 
         order
@@ -200,6 +205,11 @@ module Lab
         logger.debug("Updating order ##{order_dto['_id']}")
         order = OrdersService.update_order(order_id, order_dto.to_order_service_params(patient_id: patient.patient_id)
                                                               .merge(force_update: 'true'))
+
+        # Extract and save status trails from NLIMS
+        save_status_trails_from_nlims(order, order_dto)
+
+        # Update results if present
         update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
 
         order
@@ -288,6 +298,128 @@ module Lab
         id = result_entered_by['id'] # Looks like a user_id of some sort
 
         "#{id}:#{first_name} #{last_name}:#{phone_number}"
+      end
+
+      def save_status_trails_from_nlims(order, order_dto)
+        logger.debug("Saving status trails from NLIMS for order ##{order['order_id'] || order[:order_id]}")
+        logger.debug("Order DTO keys: #{order_dto.keys.inspect}")
+        logger.debug("Order DTO sample_statuses type: #{order_dto[:sample_statuses].class}")
+        logger.debug("Order DTO sample_statuses content: #{order_dto[:sample_statuses].inspect}")
+        
+        # Extract order status trail from sample_statuses (NLIMS uses sample_statuses for order status)
+        # Note: sample_statuses is an array of single-key hashes
+        if order_dto[:sample_statuses].is_a?(Array)
+          logger.debug("Found sample_statuses: #{order_dto[:sample_statuses].size} entries")
+          save_order_status_trails(order, order_dto[:sample_statuses])
+        else
+          logger.warn("No sample_statuses found or not an Array: #{order_dto[:sample_statuses].class}")
+        end
+
+        # Extract test status trails from test_statuses
+        if order_dto['test_statuses'].is_a?(Hash)
+          logger.debug("Found test_statuses: #{order_dto['test_statuses'].keys.size} entries")
+          save_test_status_trails(order, order_dto['test_statuses'])
+        else
+          logger.debug("No test_statuses found or not a Hash: #{order_dto['test_statuses'].class}")
+        end
+      end
+
+      def save_order_status_trails(order, sample_statuses)
+        logger.debug("Saving order status trails for order ##{order['order_id'] || order[:order_id]}")
+        logger.debug("Sample statuses: #{sample_statuses.inspect}")
+        
+        # sample_statuses is an array of single-key hashes like:
+        # [{ "20260225120000" => { "status" => "Drawn", ... } }, { "20260225130000" => { ... } }]
+        sample_statuses.each do |trail_entry|
+          # Each trail_entry is a hash with one timestamp key
+          trail_entry.each_pair do |timestamp_key, status_data|
+            next unless status_data.is_a?(Hash) && status_data['status']
+
+            # Parse timestamp (format: YYYYMMDDHHmmss)
+            begin
+              timestamp = DateTime.strptime(timestamp_key, '%Y%m%d%H%M%S')
+            rescue StandardError => e
+              logger.warn("Failed to parse timestamp '#{timestamp_key}': #{e.message}")
+              next
+            end
+
+            order_id = order['order_id'] || order[:order_id] || order['id'] || order[:id]
+            
+            # Skip if this exact status trail entry already exists
+            if Lab::OrderStatusTrail.exists?(order_id: order_id, status: status_data['status'], timestamp: timestamp)
+              logger.debug("Order status trail already exists: #{status_data['status']} at #{timestamp}")
+              next
+            end
+
+            updated_by = status_data['updated_by'] || {}
+            
+            begin
+              trail = Lab::OrderStatusTrail.create!(
+                order_id: order_id,
+                status_id: status_data['status_id'] || 0,
+                status: status_data['status'],
+                timestamp: timestamp,
+                updated_by_first_name: updated_by['first_name'],
+                updated_by_last_name: updated_by['last_name'],
+                updated_by_id: updated_by['id'],
+                updated_by_phone_number: updated_by['phone_number']
+              )
+              logger.info("Created order status trail: #{trail.status} at #{trail.timestamp}")
+            rescue StandardError => e
+              logger.error("Failed to save order status trail: #{e.message}")
+              logger.error("  Order ID: #{order_id}")
+              logger.error("  Status: #{status_data['status']}")
+              logger.error("  Timestamp: #{timestamp}")
+            end
+          end
+        end
+      end
+
+      def save_test_status_trails(order, test_statuses)
+        test_statuses.each do |test_name, statuses|
+          next unless statuses.is_a?(Hash)
+
+          # Find the test by name
+          test_concept = Utils.find_concept_by_name(Utils.translate_test_name(test_name))
+          next unless test_concept
+
+          test = Lab::LabTest.find_by(order_id: order['order_id'], value_coded: test_concept.concept_id)
+          next unless test
+
+          # Process each status in the trail
+          statuses.each do |timestamp_key, status_data|
+            next unless status_data.is_a?(Hash) && status_data['status']
+
+            # Parse timestamp (format: YYYYMMDDHHmmss)
+            begin
+              timestamp = DateTime.strptime(timestamp_key, '%Y%m%d%H%M%S')
+            rescue StandardError => e
+              logger.warn("Failed to parse timestamp '#{timestamp_key}': #{e.message}")
+              next
+            end
+
+            # Skip if this exact status trail entry already exists
+            next if Lab::TestStatusTrail.exists?(
+              test_id: test.obs_id,
+              status: status_data['status'],
+              timestamp: timestamp
+            )
+
+            updated_by = status_data['updated_by'] || {}
+            Lab::TestStatusTrail.create!(
+              test_id: test.obs_id,
+              status_id: status_data['status_id'] || 0,
+              status: status_data['status'],
+              timestamp: timestamp,
+              updated_by_first_name: updated_by['first_name'],
+              updated_by_last_name: updated_by['last_name'],
+              updated_by_id: updated_by['id'],
+              updated_by_phone_number: updated_by['phone_number']
+            )
+          rescue StandardError => e
+            logger.warn("Failed to save test status trail for #{test_name}: #{e.message}")
+          end
+        end
       end
 
       def save_failed_import(order_dto, reason, diff = nil)

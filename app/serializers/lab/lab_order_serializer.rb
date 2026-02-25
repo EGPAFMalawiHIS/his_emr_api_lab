@@ -36,6 +36,8 @@ module Lab
             name: concept_name(reason_for_test&.value_coded)
           },
           delivery_mode: order&.lims_acknowledgement_status&.acknowledgement_type,
+          order_status: latest_order_status(order),
+          order_status_trail: serialize_order_status_trail(order),
           tests: tests.map do |test|
             result_obs = test.children.first
 
@@ -45,7 +47,9 @@ module Lab
               uuid: test.uuid,
               name: concept_name(test.value_coded),
               test_method: test_method(order, test.value_coded),
-              result: result_obs && ResultSerializer.serialize(result_obs)
+              result: result_obs && ResultSerializer.serialize(result_obs),
+              test_status: latest_test_status(test),
+              test_status_trail: serialize_test_status_trail(test)
             }
           end
         }
@@ -73,6 +77,52 @@ module Lab
       concept = ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                            .select(:concept_id)
       LabTest.unscoped.where(concept:, order:, voided: true)
+    end
+
+    def self.latest_order_status(order)
+      latest_trail = order.status_trails.order(timestamp: :desc).first
+      return nil unless latest_trail
+
+      {
+        status_id: latest_trail.status_id,
+        status: latest_trail.status,
+        timestamp: latest_trail.timestamp,
+        updated_by: latest_trail.updated_by
+      }
+    end
+
+    def self.serialize_order_status_trail(order)
+      order.status_trails.order(timestamp: :asc).map do |trail|
+        {
+          status_id: trail.status_id,
+          status: trail.status,
+          timestamp: trail.timestamp,
+          updated_by: trail.updated_by
+        }
+      end
+    end
+
+    def self.latest_test_status(test)
+      latest_trail = test.status_trails.order(timestamp: :desc).first
+      return nil unless latest_trail
+
+      {
+        status_id: latest_trail.status_id,
+        status: latest_trail.status,
+        timestamp: latest_trail.timestamp,
+        updated_by: latest_trail.updated_by
+      }
+    end
+
+    def self.serialize_test_status_trail(test)
+      test.status_trails.order(timestamp: :asc).map do |trail|
+        {
+          status_id: trail.status_id,
+          status: trail.status,
+          timestamp: trail.timestamp,
+          updated_by: trail.updated_by
+        }
+      end
     end
   end
 end

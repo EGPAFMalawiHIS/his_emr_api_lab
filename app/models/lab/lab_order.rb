@@ -44,12 +44,18 @@ module Lab
             class_name: '::Lab::LimsOrderMapping',
             foreign_key: :order_id
 
+    has_many :status_trails,
+             class_name: '::Lab::OrderStatusTrail',
+             foreign_key: :order_id,
+             primary_key: :order_id,
+             dependent: :destroy
+
     default_scope do
       joins(:order_type)
         .merge(OrderType.where(name: [
-          Lab::Metadata::ORDER_TYPE_NAME, 
-          Lab::Metadata::HTS_ORDER_TYPE_NAME
-        ]))
+                                 Lab::Metadata::ORDER_TYPE_NAME,
+                                 Lab::Metadata::HTS_ORDER_TYPE_NAME
+                               ]))
         .where.not(concept_id: ConceptName.where(name: 'Tests ordered').select(:concept_id))
     end
 
@@ -61,7 +67,8 @@ module Lab
                :requesting_clinician,
                :target_lab,
                :comment_to_fulfiller,
-               tests: [:result])
+               :status_trails,
+               tests: %i[result status_trails])
     end
   end
 end
