@@ -74,8 +74,8 @@ module Lab
           { tracking_number: order_dto[:tracking_number] }
         end
 
-        def consume_orders(*_args, patient_id: nil, **_kwargs)
-          orders_pending_updates(patient_id).each do |order|
+        def consume_orders(*_args, patient_id: nil, start_date: nil, **_kwargs)
+          orders_pending_updates(patient_id, start_date: start_date).each do |order|
             order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
             if order_dto['priority'].nil? || order_dto['sample_type'].casecmp?('not_specified')
               patch_order_dto_with_lims_order!(order_dto, find_lims_order(order.accession_number))
@@ -510,43 +510,47 @@ module Lab
           }
         end
 
-        def orders_pending_updates(patient_id = nil)
+        def orders_pending_updates(patient_id = nil, start_date: nil)
           Rails.logger.info('Looking for orders that need to be updated...')
           orders = {}
 
-          orders_without_specimen(patient_id).each { |order| orders[order.order_id] = order }
-          orders_without_results(patient_id).each { |order| orders[order.order_id] = order }
-          orders_without_reason(patient_id).each { |order| orders[order.order_id] = order }
+          orders_without_specimen(patient_id, start_date: start_date).each { |order| orders[order.order_id] = order }
+          orders_without_results(patient_id, start_date: start_date).each { |order| orders[order.order_id] = order }
+          orders_without_reason(patient_id, start_date: start_date).each { |order| orders[order.order_id] = order }
 
           orders.values
         end
 
-        def orders_without_specimen(patient_id = nil)
+        def orders_without_specimen(patient_id = nil, start_date: nil)
           Rails.logger.debug('Looking for orders without a specimen')
           unknown_specimen = ConceptName.where(name: Lab::Metadata::UNKNOWN_SPECIMEN)
                                         .select(:concept_id)
           orders = Lab::LabOrder.where(concept_id: unknown_specimen)
                                 .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
           orders = orders.where(patient_id:) if patient_id
+          orders = orders.where('orders.date_created >= ?', start_date) if start_date
 
           orders
         end
 
-        def orders_without_results(patient_id = nil)
+        def orders_without_results(patient_id = nil, start_date: nil)
           Rails.logger.debug('Looking for orders without a result')
           # Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
           #                         .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id).where("pulled_at IS NULL"))
-          Lab::OrdersSearchService.find_orders_without_results(patient_id:)
-                                  .where(order_id: Lab::LimsOrderMapping.select(:order_id))
+          orders = Lab::OrdersSearchService.find_orders_without_results(patient_id:)
+                                           .where(order_id: Lab::LimsOrderMapping.select(:order_id))
+          orders = orders.where('orders.date_created >= ?', start_date) if start_date
+          orders
         end
 
-        def orders_without_reason(patient_id = nil)
+        def orders_without_reason(patient_id = nil, start_date: nil)
           Rails.logger.debug('Looking for orders without a reason for test')
           orders = Lab::LabOrder.joins(:reason_for_test)
                                 .merge(Observation.where(value_coded: nil, value_text: nil))
                                 .limit(1000)
                                 .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
           orders = orders.where(patient_id:) if patient_id
+          orders = orders.where('orders.date_created >= ?', start_date) if start_date
 
           orders
         end
