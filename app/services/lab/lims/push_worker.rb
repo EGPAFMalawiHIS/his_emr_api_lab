@@ -5,15 +5,16 @@ module Lab
     ##
     # Pushes all local orders to a LIMS Api object.
     class PushWorker
-      attr_reader :lims_api
+      attr_reader :lims_api, :start_date
 
       include Utils # for logger
 
       SECONDS_TO_WAIT_FOR_ORDERS = 30
       START_DATE = Time.parse('2024-09-03').freeze
 
-      def initialize(lims_api)
+      def initialize(lims_api, start_date: nil)
         @lims_api = lims_api
+        @start_date = start_date
       end
 
       def push_orders(batch_size: 1000, wait: false)
@@ -81,8 +82,8 @@ module Lab
 
       def void_order_in_lims(order_id)
         order = Lab::LabOrder.joins(order_type: { name: 'Lab' })
-        .unscoped
-        .find(order_id)
+                             .unscoped
+                             .find(order_id)
         order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
         Rails.logger.info("Deleting order ##{order_dto[:accession_number]} from LIMS")
         lims_api.delete_order('', order_dto)
@@ -100,10 +101,16 @@ module Lab
 
       def new_orders
         Rails.logger.debug('Looking for new orders that need to be created in LIMS...')
-        Lab::LabOrder.where.not(order_id: Lab::LimsOrderMapping.all.select(:order_id))
-                     .where("accession_number IS NOT NULL AND accession_number !=''")
-                     .where(date_created: START_DATE..(Date.today + 1.day))
-                     .order(date_created: :desc)
+        query = Lab::LabOrder.where.not(order_id: Lab::LimsOrderMapping.all.select(:order_id))
+                             .where("accession_number IS NOT NULL AND accession_number !=''")
+
+        query = if start_date
+                  query.where('orders.date_created >= ?', start_date)
+                else
+                  query.where('orders.date_created >= ? AND orders.date_created <= ?', START_DATE, Date.today + 1.day)
+                end
+
+        query.order(date_created: :desc)
       end
 
       def updated_orders
