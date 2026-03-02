@@ -426,30 +426,27 @@ module Lab
       end
 
       def create_initial_order_status_trail(order)
-        Lab::OrderStatusTrail.create!(
-          order_id: order.order_id,
-          status_id: 1,
-          status: 'ordered',
+        create_order_status_observation(
+          order: order,
+          status: 'Drawn',
           timestamp: order.start_date || order.date_created || Time.now,
-          updated_by_first_name: User.current&.person&.names&.first&.given_name,
-          updated_by_last_name: User.current&.person&.names&.first&.family_name,
-          updated_by_id: User.current&.user_id&.to_s,
-          updated_by_phone_number: nil
+          updated_by: {
+            'first_name' => User.current&.person&.names&.first&.given_name,
+            'last_name' => User.current&.person&.names&.first&.family_name,
+            'id' => User.current&.user_id&.to_s,
+            'phone_number' => nil
+          }
         )
       rescue StandardError => e
         Rails.logger.warn("Failed to create initial order status trail: #{e.message}")
       end
 
       def save_order_status_trail(order, status_params)
-        Lab::OrderStatusTrail.create!(
-          order_id: order.order_id,
-          status_id: status_params['status_id'] || 0,
+        create_order_status_observation(
+          order: order,
           status: status_params['status'],
           timestamp: status_params['status_time'] || Time.now,
-          updated_by_first_name: status_params.dig('updated_by', 'first_name'),
-          updated_by_last_name: status_params.dig('updated_by', 'last_name'),
-          updated_by_id: status_params.dig('updated_by', 'id'),
-          updated_by_phone_number: status_params.dig('updated_by', 'phone_number')
+          updated_by: status_params['updated_by'] || {}
         )
       end
 
@@ -457,22 +454,11 @@ module Lab
         return unless status_trail.is_a?(Array)
 
         status_trail.each do |trail_entry|
-          # Skip if this exact status trail entry already exists
-          next if Lab::OrderStatusTrail.exists?(
-            order_id: order.order_id,
-            status_id: trail_entry['status_id'],
-            timestamp: trail_entry['timestamp']
-          )
-
-          Lab::OrderStatusTrail.create!(
-            order_id: order.order_id,
-            status_id: trail_entry['status_id'],
+          create_order_status_observation(
+            order: order,
             status: trail_entry['status'],
             timestamp: trail_entry['timestamp'],
-            updated_by_first_name: trail_entry.dig('updated_by', 'first_name'),
-            updated_by_last_name: trail_entry.dig('updated_by', 'last_name'),
-            updated_by_id: trail_entry.dig('updated_by', 'id'),
-            updated_by_phone_number: trail_entry.dig('updated_by', 'phone_number')
+            updated_by: trail_entry['updated_by'] || {}
           )
         end
       end
@@ -497,25 +483,88 @@ module Lab
 
           # Save each status trail entry
           test_data['status_trail'].each do |trail_entry|
-            # Skip if this exact status trail entry already exists
-            next if Lab::TestStatusTrail.exists?(
-              test_id: test.obs_id,
-              status_id: trail_entry['status_id'],
-              timestamp: trail_entry['timestamp']
-            )
-
-            Lab::TestStatusTrail.create!(
-              test_id: test.obs_id,
-              status_id: trail_entry['status_id'],
+            create_test_status_observation(
+              test: test,
               status: trail_entry['status'],
               timestamp: trail_entry['timestamp'],
-              updated_by_first_name: trail_entry.dig('updated_by', 'first_name'),
-              updated_by_last_name: trail_entry.dig('updated_by', 'last_name'),
-              updated_by_id: trail_entry.dig('updated_by', 'id'),
-              updated_by_phone_number: trail_entry.dig('updated_by', 'phone_number')
+              updated_by: trail_entry['updated_by'] || {}
             )
           end
         end
+      end
+
+      # Creates an observation for order status trail using obs table
+      def create_order_status_observation(order:, status:, timestamp:, updated_by: {})
+        # Find concept
+        order_status_concept = ConceptName.find_by(name: 'Lab Order Status')&.concept
+
+        unless order_status_concept
+          Rails.logger.warn("Missing Lab Order Status concept")
+          return
+        end
+
+        # Check if this exact status already exists
+        return if Observation.exists?(
+          person_id: order.patient_id,
+          order_id: order.order_id,
+          concept_id: order_status_concept.concept_id,
+          value_text: status,
+          obs_datetime: timestamp
+        )
+
+        # Create status observation
+        Observation.create!(
+          person_id: order.patient_id,
+          encounter_id: order.encounter_id,
+          order_id: order.order_id,
+          concept_id: order_status_concept.concept_id,
+          value_text: status,  # Store status as text
+          obs_datetime: timestamp,
+          comments: updated_by.to_json,
+          creator: User.current&.user_id || 1,
+          date_created: Time.now,
+          uuid: SecureRandom.uuid
+        )
+      rescue StandardError => e
+        Rails.logger.error("Failed to create order status observation: #{e.message}")
+        Rails.logger.error(e.backtrace.first(5).join("\n"))
+      end
+
+      # Creates an observation for test status trail using obs table
+      def create_test_status_observation(test:, status:, timestamp:, updated_by: {})
+        # Find concept
+        test_status_concept = ConceptName.find_by(name: 'Lab Test Status')&.concept
+
+        unless test_status_concept
+          Rails.logger.warn("Missing Lab Test Status concept")
+          return
+        end
+
+        # Check if this exact status already exists
+        return if Observation.exists?(
+          person_id: test.person_id,
+          obs_group_id: test.obs_id,
+          concept_id: test_status_concept.concept_id,
+          value_text: status,
+          obs_datetime: timestamp
+        )
+
+        # Create status observation
+        Observation.create!(
+          person_id: test.person_id,
+          encounter_id: test.encounter_id,
+          obs_group_id: test.obs_id, # Link to parent test observation
+          concept_id: test_status_concept.concept_id,
+          value_text: status,  # Store status as text
+          obs_datetime: timestamp,
+          comments: updated_by.to_json,
+          creator: User.current&.user_id || 1,
+          date_created: Time.now,
+          uuid: SecureRandom.uuid
+        )
+      rescue StandardError => e
+        Rails.logger.error("Failed to create test status observation: #{e.message}")
+        Rails.logger.error(e.backtrace.first(5).join("\n"))
       end
     end
   end

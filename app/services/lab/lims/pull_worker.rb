@@ -328,6 +328,20 @@ module Lab
         logger.debug("Saving order status trails for order ##{order['order_id'] || order[:order_id]}")
         logger.debug("Sample statuses: #{sample_statuses.inspect}")
 
+        # Find concept
+        order_status_concept = ConceptName.find_by(name: 'Lab Order Status')&.concept
+        unless order_status_concept
+          logger.error('Lab Order Status concept not found')
+          return
+        end
+
+        order_id = order['order_id'] || order[:order_id] || order['id'] || order[:id]
+        lab_order = Lab::LabOrder.find_by(order_id: order_id)
+        unless lab_order
+          logger.error("Order not found: #{order_id}")
+          return
+        end
+
         # sample_statuses is an array of single-key hashes like:
         # [{ "20260225120000" => { "status" => "Drawn", ... } }, { "20260225130000" => { ... } }]
         sample_statuses.each do |trail_entry|
@@ -335,36 +349,43 @@ module Lab
           trail_entry.each_pair do |timestamp_key, status_data|
             next unless status_data.is_a?(Hash) && status_data['status']
 
-            # Parse timestamp (format: YYYYMMDDHHmmss)
+            # Parse timestamp (format: YYYYMMDDHHmmss) - already in local timezone from NLIMS conversion
+            # Use Time.zone.strptime to prevent Rails from converting timezone during save
             begin
-              timestamp = DateTime.strptime(timestamp_key, '%Y%m%d%H%M%S')
+              timestamp = Time.zone.strptime(timestamp_key, '%Y%m%d%H%M%S')
             rescue StandardError => e
               logger.warn("Failed to parse timestamp '#{timestamp_key}': #{e.message}")
               next
             end
 
-            order_id = order['order_id'] || order[:order_id] || order['id'] || order[:id]
-
-            # Skip if this exact status trail entry already exists
-            if Lab::OrderStatusTrail.exists?(order_id: order_id, status: status_data['status'], timestamp: timestamp)
-              logger.debug("Order status trail already exists: #{status_data['status']} at #{timestamp}")
+            # Skip if this status has already been recorded for this order (regardless of timestamp)
+            if Observation.exists?(
+              person_id: lab_order.patient_id,
+              order_id: order_id,
+              concept_id: order_status_concept.concept_id,
+              value_text: status_data['status'],
+              voided: 0
+            )
+              logger.debug("Order status already recorded: #{status_data['status']} for order ##{order_id}")
               next
             end
 
             updated_by = status_data['updated_by'] || {}
 
             begin
-              trail = Lab::OrderStatusTrail.create!(
+              Observation.create!(
+                person_id: lab_order.patient_id,
+                encounter_id: lab_order.encounter_id,
                 order_id: order_id,
-                status_id: status_data['status_id'] || 0,
-                status: status_data['status'],
-                timestamp: timestamp,
-                updated_by_first_name: updated_by['first_name'],
-                updated_by_last_name: updated_by['last_name'],
-                updated_by_id: updated_by['id'],
-                updated_by_phone_number: updated_by['phone_number']
+                concept_id: order_status_concept.concept_id,
+                value_text: status_data['status'], # Store status as text
+                obs_datetime: timestamp,
+                comments: updated_by.to_json,
+                creator: User.current&.user_id || 1,
+                date_created: Time.now,
+                uuid: SecureRandom.uuid
               )
-              logger.info("Created order status trail: #{trail.status} at #{trail.timestamp}")
+              logger.info("Created order status trail: #{status_data['status']} at #{timestamp}")
             rescue StandardError => e
               logger.error("Failed to save order status trail: #{e.message}")
               logger.error("  Order ID: #{order_id}")
@@ -376,6 +397,13 @@ module Lab
       end
 
       def save_test_status_trails(order, test_statuses)
+        # Find test status concept
+        test_status_concept = ConceptName.find_by(name: 'Lab Test Status')&.concept
+        unless test_status_concept
+          logger.error('Lab Test Status concept not found')
+          return
+        end
+
         test_statuses.each do |test_name, statuses|
           next unless statuses.is_a?(Hash)
 
@@ -390,34 +418,43 @@ module Lab
           statuses.each do |timestamp_key, status_data|
             next unless status_data.is_a?(Hash) && status_data['status']
 
-            # Parse timestamp (format: YYYYMMDDHHmmss)
+            # Parse timestamp (format: YYYYMMDDHHmmss) - already in local timezone from NLIMS conversion
+            # Use Time.zone.strptime to prevent Rails from converting timezone during save
             begin
-              timestamp = DateTime.strptime(timestamp_key, '%Y%m%d%H%M%S')
+              timestamp = Time.zone.strptime(timestamp_key, '%Y%m%d%H%M%S')
             rescue StandardError => e
               logger.warn("Failed to parse timestamp '#{timestamp_key}': #{e.message}")
               next
             end
 
-            # Skip if this exact status trail entry already exists
-            next if Lab::TestStatusTrail.exists?(
-              test_id: test.obs_id,
-              status: status_data['status'],
-              timestamp: timestamp
+            # Skip if this status has already been recorded for this test (regardless of timestamp)
+            next if Observation.exists?(
+              person_id: test.person_id,
+              obs_group_id: test.obs_id,
+              concept_id: test_status_concept.concept_id,
+              value_text: status_data['status'],
+              voided: 0
             )
 
             updated_by = status_data['updated_by'] || {}
-            Lab::TestStatusTrail.create!(
-              test_id: test.obs_id,
-              status_id: status_data['status_id'] || 0,
-              status: status_data['status'],
-              timestamp: timestamp,
-              updated_by_first_name: updated_by['first_name'],
-              updated_by_last_name: updated_by['last_name'],
-              updated_by_id: updated_by['id'],
-              updated_by_phone_number: updated_by['phone_number']
-            )
-          rescue StandardError => e
-            logger.warn("Failed to save test status trail for #{test_name}: #{e.message}")
+
+            begin
+              Observation.create!(
+                person_id: test.person_id,
+                encounter_id: test.encounter_id,
+                obs_group_id: test.obs_id,
+                concept_id: test_status_concept.concept_id,
+                value_text: status_data['status'], # Store status as text
+                obs_datetime: timestamp,
+                comments: updated_by.to_json,
+                creator: User.current&.user_id || 1,
+                date_created: Time.now,
+                uuid: SecureRandom.uuid
+              )
+              logger.info("Created test status trail: #{status_data['status']} at #{timestamp} for #{test_name}")
+            rescue StandardError => e
+              logger.error("Failed to save test status trail for #{test_name}: #{e.message}")
+            end
           end
         end
       end
