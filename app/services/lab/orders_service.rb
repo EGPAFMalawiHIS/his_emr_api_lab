@@ -368,6 +368,148 @@ module Lab
           obs.void('New Status Received from LIMS')
         end
       end
+
+      def create_initial_order_status_trail(order)
+        create_order_status_observation(
+          order: order,
+          status: 'Drawn',
+          timestamp: order.start_date || order.date_created || Time.now,
+          updated_by: {
+            'first_name' => User.current&.person&.names&.first&.given_name,
+            'last_name' => User.current&.person&.names&.first&.family_name,
+            'id' => User.current&.user_id&.to_s,
+            'phone_number' => nil
+          }
+        )
+      rescue StandardError => e
+        Rails.logger.warn("Failed to create initial order status trail: #{e.message}")
+      end
+
+      def save_order_status_trail(order, status_params)
+        create_order_status_observation(
+          order: order,
+          status: status_params['status'],
+          timestamp: status_params['status_time'] || Time.now,
+          updated_by: status_params['updated_by'] || {}
+        )
+      end
+
+      def save_order_status_trails_from_nlims(order, status_trail)
+        return unless status_trail.is_a?(Array)
+
+        status_trail.each do |trail_entry|
+          create_order_status_observation(
+            order: order,
+            status: trail_entry['status'],
+            timestamp: trail_entry['timestamp'],
+            updated_by: trail_entry['updated_by'] || {}
+          )
+        end
+      end
+
+      def save_test_status_trails_from_nlims(order, tests)
+        return unless tests.is_a?(Array)
+
+        tests.each do |test_data|
+          next unless test_data['status_trail'].is_a?(Array)
+
+          # Find the test by test_type
+          test_name = test_data.dig('test_type', 'name')
+          next unless test_name
+
+          # Find concept for this test
+          concept = Lab::Lims::Utils.find_concept_by_name(test_name)
+          next unless concept
+
+          # Find the test observation
+          test = order.tests.find_by(value_coded: concept.concept_id)
+          next unless test
+
+          # Save each status trail entry
+          test_data['status_trail'].each do |trail_entry|
+            create_test_status_observation(
+              test: test,
+              status: trail_entry['status'],
+              timestamp: trail_entry['timestamp'],
+              updated_by: trail_entry['updated_by'] || {}
+            )
+          end
+        end
+      end
+
+      # Creates an observation for order status trail using obs table
+      def create_order_status_observation(order:, status:, timestamp:, updated_by: {})
+        # Find concept
+        order_status_concept = ConceptName.find_by(name: 'Lab Order Status')&.concept
+
+        unless order_status_concept
+          Rails.logger.warn("Missing Lab Order Status concept")
+          return
+        end
+
+        # Check if this exact status already exists
+        return if Observation.exists?(
+          person_id: order.patient_id,
+          order_id: order.order_id,
+          concept_id: order_status_concept.concept_id,
+          value_text: status,
+          obs_datetime: timestamp
+        )
+
+        # Create status observation
+        Observation.create!(
+          person_id: order.patient_id,
+          encounter_id: order.encounter_id,
+          order_id: order.order_id,
+          concept_id: order_status_concept.concept_id,
+          value_text: status,  # Store status as text
+          obs_datetime: timestamp,
+          comments: updated_by.to_json,
+          creator: User.current&.user_id || 1,
+          date_created: Time.now,
+          uuid: SecureRandom.uuid
+        )
+      rescue StandardError => e
+        Rails.logger.error("Failed to create order status observation: #{e.message}")
+        Rails.logger.error(e.backtrace.first(5).join("\n"))
+      end
+
+      # Creates an observation for test status trail using obs table
+      def create_test_status_observation(test:, status:, timestamp:, updated_by: {})
+        # Find concept
+        test_status_concept = ConceptName.find_by(name: 'Lab Test Status')&.concept
+
+        unless test_status_concept
+          Rails.logger.warn("Missing Lab Test Status concept")
+          return
+        end
+
+        # Check if this exact status already exists
+        return if Observation.exists?(
+          person_id: test.person_id,
+          obs_group_id: test.obs_id,
+          concept_id: test_status_concept.concept_id,
+          value_text: status,
+          obs_datetime: timestamp
+        )
+
+        # Create status observation
+        Observation.create!(
+          person_id: test.person_id,
+          encounter_id: test.encounter_id,
+          obs_group_id: test.obs_id, # Link to parent test observation
+          concept_id: test_status_concept.concept_id,
+          value_text: status,  # Store status as text
+          obs_datetime: timestamp,
+          comments: updated_by.to_json,
+          creator: User.current&.user_id || 1,
+          date_created: Time.now,
+          uuid: SecureRandom.uuid
+        )
+      rescue StandardError => e
+        Rails.logger.error("Failed to create test status observation: #{e.message}")
+        Rails.logger.error(e.backtrace.first(5).join("\n"))
+      end
     end
   end
 end

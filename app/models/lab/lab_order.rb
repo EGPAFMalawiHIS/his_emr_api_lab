@@ -44,6 +44,16 @@ module Lab
             class_name: '::Lab::LimsOrderMapping',
             foreign_key: :order_id
 
+    # Status trails are stored as observations with concept 'Lab Order Status'
+    has_many :status_trail_observations,
+             lambda {
+               joins(:concept)
+                 .merge(Concept.joins(:concept_names).where(concept_names: { name: 'Lab Order Status' }))
+                 .order(obs_datetime: :asc)
+             },
+             class_name: 'Observation',
+             foreign_key: :order_id
+
     default_scope do
       joins(:order_type)
         .merge(OrderType.where(name: [
@@ -61,7 +71,8 @@ module Lab
                :requesting_clinician,
                :target_lab,
                :comment_to_fulfiller,
-               tests: [:result])
+               :status_trail_observations,
+               tests: %i[result status_trail_observations])
     end
   end
 end

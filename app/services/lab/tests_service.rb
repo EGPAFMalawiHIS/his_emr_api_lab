@@ -100,6 +100,37 @@ module Lab
           value_coded: test_type_id
         )
       end
+
+      def create_initial_test_status_trail(test, date)
+        # Find concept
+        test_status_concept = ConceptName.find_by(name: 'Lab Test Status')&.concept
+
+        unless test_status_concept
+          Rails.logger.warn('Missing Lab Test Status concept')
+          return
+        end
+
+        # Create status observation with 'Drawn' as initial status
+        Observation.create!(
+          person_id: test.person_id,
+          encounter_id: test.encounter_id,
+          obs_group_id: test.obs_id, # Link to parent test observation
+          concept_id: test_status_concept.concept_id,
+          value_text: 'Drawn', # Store status as text
+          obs_datetime: date || test.obs_datetime || Time.now,
+          comments: {
+            'first_name' => User.current&.person&.names&.first&.given_name,
+            'last_name' => User.current&.person&.names&.first&.family_name,
+            'id' => User.current&.user_id&.to_s,
+            'phone_number' => nil
+          }.to_json,
+          creator: User.current&.user_id || 1,
+          date_created: Time.now,
+          uuid: SecureRandom.uuid
+        )
+      rescue StandardError => e
+        Rails.logger.warn("Failed to create initial test status trail: #{e.message}")
+      end
     end
   end
 end
