@@ -39,7 +39,7 @@ module Lab
           order_status: latest_order_status(order),
           order_status_trail: serialize_order_status_trail(order),
           tests: tests.map do |test|
-            result_obs = test.children.first
+            result_obs = test.result
 
             {
               id: test.obs_id,
