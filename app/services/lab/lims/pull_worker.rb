@@ -359,7 +359,7 @@ module Lab
             end
 
             # Skip if this status has already been recorded for this order (regardless of timestamp)
-            if Observation.exists?(
+            if Observation.unscoped.exists?(
               person_id: lab_order.patient_id,
               order_id: order_id,
               concept_id: order_status_concept.concept_id,
@@ -428,7 +428,7 @@ module Lab
             end
 
             # Skip if this status has already been recorded for this test (regardless of timestamp)
-            next if Observation.exists?(
+            next if Observation.unscoped.exists?(
               person_id: test.person_id,
               obs_group_id: test.obs_id,
               concept_id: test_status_concept.concept_id,

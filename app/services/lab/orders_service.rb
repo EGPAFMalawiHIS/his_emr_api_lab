@@ -312,7 +312,7 @@ module Lab
         order.date_created = params[:date]&.to_date || Date.today if order.respond_to?(:date_created)
         order.start_date = params[:date]&.to_date || Date.today if order.respond_to?(:start_date)
         order.auto_expire_date = params[:end_date]
-        # Note: comment_to_fulfiller is a has_one association, not a field
+        # NOTE: comment_to_fulfiller is a has_one association, not a field
         # It will be created via add_comment_to_fulfiller method
         order.accession_number = access_number
         order.orderer = User.current&.user_id
@@ -500,17 +500,18 @@ module Lab
         order_status_concept = ConceptName.find_by(name: 'Lab Order Status')&.concept
 
         unless order_status_concept
-          Rails.logger.warn("Missing Lab Order Status concept")
+          Rails.logger.warn('Missing Lab Order Status concept')
           return
         end
 
         # Check if this exact status already exists
-        return if Observation.exists?(
+        return if Observation.unscoped.exists?(
           person_id: order.patient_id,
           order_id: order.order_id,
           concept_id: order_status_concept.concept_id,
           value_text: status,
-          obs_datetime: timestamp
+          obs_datetime: timestamp,
+          voided: 0
         )
 
         # Create status observation
@@ -519,7 +520,7 @@ module Lab
           encounter_id: order.encounter_id,
           order_id: order.order_id,
           concept_id: order_status_concept.concept_id,
-          value_text: status,  # Store status as text
+          value_text: status, # Store status as text
           obs_datetime: timestamp,
           comments: updated_by.to_json,
           creator: User.current&.user_id || 1,
@@ -537,17 +538,18 @@ module Lab
         test_status_concept = ConceptName.find_by(name: 'Lab Test Status')&.concept
 
         unless test_status_concept
-          Rails.logger.warn("Missing Lab Test Status concept")
+          Rails.logger.warn('Missing Lab Test Status concept')
           return
         end
 
         # Check if this exact status already exists
-        return if Observation.exists?(
+        return if Observation.unscoped.exists?(
           person_id: test.person_id,
           obs_group_id: test.obs_id,
           concept_id: test_status_concept.concept_id,
           value_text: status,
-          obs_datetime: timestamp
+          obs_datetime: timestamp,
+          voided: 0
         )
 
         # Create status observation
@@ -556,7 +558,7 @@ module Lab
           encounter_id: test.encounter_id,
           obs_group_id: test.obs_id, # Link to parent test observation
           concept_id: test_status_concept.concept_id,
-          value_text: status,  # Store status as text
+          value_text: status, # Store status as text
           obs_datetime: timestamp,
           comments: updated_by.to_json,
           creator: User.current&.user_id || 1,

@@ -111,6 +111,17 @@ module Lab
           return
         end
 
+        timestamp = date || test.obs_datetime || Time.now
+
+        # Check if 'Drawn' status already exists for this test
+        return if Observation.unscoped.exists?(
+          person_id: test.person_id,
+          obs_group_id: test.obs_id,
+          concept_id: test_status_concept.concept_id,
+          value_text: 'Drawn',
+          voided: 0
+        )
+
         # Create status observation with 'Drawn' as initial status
         Observation.create!(
           person_id: test.person_id,
@@ -118,7 +129,8 @@ module Lab
           obs_group_id: test.obs_id, # Link to parent test observation
           concept_id: test_status_concept.concept_id,
           value_text: 'Drawn', # Store status as text
-          obs_datetime: date || test.obs_datetime || Time.now,
+          obs_datetime: timestamp,
+          status: 'FINAL',
           comments: {
             'first_name' => User.current&.person&.names&.first&.given_name,
             'last_name' => User.current&.person&.names&.first&.family_name,
