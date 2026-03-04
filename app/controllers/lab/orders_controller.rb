@@ -52,7 +52,8 @@ module Lab
     end
 
     def order_status
-      order_params = params.permit(:tracking_number, :status, :status_time, :comments)
+      order_params = params.permit(:tracking_number, :status, :status_time, :comments, :status_id,
+                                    updated_by: [:first_name, :last_name, :id, :phone_number])
       OrdersService.update_order_status(order_params)
       render json: { message: "Status for order #{order_params['tracking_number']} successfully updated" }, status: :ok
     end
