@@ -247,6 +247,7 @@ module Lab
 
         concept = params.dig(:specimen, :concept)
         concept ||= params.dig(:specimen, :concept_id)
+        concept ||= unknown_concept_id
 
         order_type = nil
         order_type = OrderType.find_by_order_type_id!(params[:order_type_id])&.id if params[:order_type_id].present?
@@ -348,7 +349,7 @@ module Lab
       end
 
       def unknown_concept_id
-        ConceptName.find_by_name!('Unknown').concept
+        ConceptName.find_by_name!('Unknown').concept_id
       end
 
       def update_reason_for_test(order, concept_id, force_update: false)
