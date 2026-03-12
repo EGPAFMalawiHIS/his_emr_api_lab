@@ -130,7 +130,6 @@ module Lab
           concept_id: test_status_concept.concept_id,
           value_text: 'Drawn', # Store status as text
           obs_datetime: timestamp,
-          status: 'FINAL',
           comments: {
             'first_name' => User.current&.person&.names&.first&.given_name,
             'last_name' => User.current&.person&.names&.first&.family_name,
