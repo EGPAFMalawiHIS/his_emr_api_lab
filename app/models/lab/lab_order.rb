@@ -8,6 +8,11 @@ module Lab
 
         -> { where(concept:) }
       end
+
+      # Cache the concept ID to avoid lookups in association scopes
+      def order_status_concept_id
+        @order_status_concept_id ||= ConceptName.find_by(name: 'Lab Order Status')&.concept_id
+      end
     end
 
     has_many :tests,
@@ -44,12 +49,20 @@ module Lab
             class_name: '::Lab::LimsOrderMapping',
             foreign_key: :order_id
 
+    # Status trails are stored as observations with concept 'Lab Order Status'
+    has_many :status_trail_observations,
+             lambda {
+               unscoped.where(voided: 0, concept_id: Lab::LabOrder.order_status_concept_id).order(obs_datetime: :asc)
+             },
+             class_name: 'Observation',
+             foreign_key: :order_id
+
     default_scope do
       joins(:order_type)
         .merge(OrderType.where(name: [
-          Lab::Metadata::ORDER_TYPE_NAME, 
-          Lab::Metadata::HTS_ORDER_TYPE_NAME
-        ]))
+                                 Lab::Metadata::ORDER_TYPE_NAME,
+                                 Lab::Metadata::HTS_ORDER_TYPE_NAME
+                               ]))
         .where.not(concept_id: ConceptName.where(name: 'Tests ordered').select(:concept_id))
     end
 
@@ -57,11 +70,13 @@ module Lab
     scope :not_drawn, -> { where(concept_id: ConceptName.where(name: 'Unknown').select(:concept_id)) }
 
     def self.prefetch_relationships
-      includes(:reason_for_test,
-               :requesting_clinician,
-               :target_lab,
-               :comment_to_fulfiller,
-               tests: [:result])
+      # NOTE: status_trail_observations and test results are not preloaded due to
+      # Rails limitations with eager loading unscoped associations. They load on-demand instead.
+      preload(:reason_for_test,
+              :requesting_clinician,
+              :target_lab,
+              :comment_to_fulfiller,
+              :tests)
     end
   end
 end
