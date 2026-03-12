@@ -10,7 +10,7 @@ module Lab
       target_lab = target_lab&.value_text || order.target_lab&.value_text || Location.current_health_center&.name
 
       encounter = Encounter.find_by_encounter_id(order.encounter_id)
-      program = Program.find_by_program_id(encounter.program_id)
+      program = Program.find_by_program_id(encounter&.program_id)
 
       ActiveSupport::HashWithIndifferentAccess.new(
         {
@@ -19,8 +19,8 @@ module Lab
           order_id: order.order_id, # Deprecated: Link to :id
           encounter_id: order.encounter_id,
           order_date: order.start_date,
-          location_id: encounter.location_id,
-          program_id: encounter.program_id,
+          location_id: encounter&.location_id,
+          program_id: encounter&.program_id,
           program_name: program&.name,
           patient_id: order.patient_id,
           accession_number: order.accession_number,
