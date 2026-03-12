@@ -14,9 +14,12 @@ module Lab
                                         date_received: params[:date_received])
       end
 
-      def acknowledgements_pending_sync(batch_size)
-        Lab::LabAcknowledgement.where(pushed: false)
-                               .limit(batch_size)
+      def acknowledgements_pending_sync(batch_size, start_date: nil)
+        query = Lab::LabAcknowledgement.joins(:order).where(pushed: false)
+
+        query = query.where('orders.date_created >= ?', start_date) if start_date
+
+        query.limit(batch_size)
       end
 
       def push_acknowledgement(acknowledgement, lims_api)
@@ -30,7 +33,8 @@ module Lab
             Rails.logger.info("Updating acknowledgement ##{acknowledgement_dto[:tracking_number]} in LIMS")
             response = lims_api.acknowledge(acknowledgement_dto)
             Rails.logger.info("Info #{response}")
-            if ['results already delivered for test name given', 'test result acknowledged successfully', 'test result already acknowledged electronically at facility'].include?(response['message'])
+            if ['results already delivered for test name given', 'test result acknowledged successfully',
+                'test result already acknowledged electronically at facility'].include?(response['message'])
               acknowledgement.pushed = true
               acknowledgement.date_pushed = Time.now
               acknowledgement.save!
