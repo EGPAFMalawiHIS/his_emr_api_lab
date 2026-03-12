@@ -22,25 +22,25 @@ For details on how to perform these operations please see the
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'lab', git: 'https://github.com/EGPAFMalawiHIS/HIS-EMR-API-Lab', branch: 'development'
+gem 'his_emr_api_lab', git: 'https://github.com/EGPAFMalawiHIS/HIS-EMR-API-Lab', branch: 'development'
 ```
 
 And then execute:
 
 ```bash
-$ bundle install lab
+$ bundle install 
 ```
 
 Or install it yourself as:
 
 ```bash
-$ gem install lab
+$ gem install his_emr_api_lab
 ```
 
 Finally run:
 
 ```bash
-$ bundle exec rails lab:install
+$ bundle exec rails his_emr_api_lab:install
 ```
 
 ## Configuration
@@ -65,6 +65,19 @@ style guide. We don't necessarily look for strict adherence to the guidelines
 but too much a departure from it is frowned upon. For example, you will be forgiven
 for writing a method with 15 to 20 lines if you clearly justify why you couldn't
 break that method into multiple smaller methods.
+
+## Publishing
+
+To publish a new version of the gem, first update the version number in
+`lib/lab/version.rb` and then run the following command:
+
+```bash
+$ gem build his_emr_api_lab.gemspec
+$ gem push his_emr_api_lab-<version>.gem  
+```
+Make sure to replace `<version>` with the version number you set in `lib/lab/version.rb`.
+
+NB: You need to have an account on [rubygems.org](https://rubygems.org/) and permission to publish gems.
 
 ## License
 
