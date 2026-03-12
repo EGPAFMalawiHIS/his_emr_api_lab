@@ -9,9 +9,8 @@ module Lab
       reason_for_test ||= order.reason_for_test
       target_lab = target_lab&.value_text || order.target_lab&.value_text || Location.current_health_center&.name
 
-      # Use unscoped to find encounter across all locations
-      encounter = Encounter.unscoped.find_by_encounter_id(order.encounter_id)
-      program = Program.find_by_program_id(encounter.program_id)
+      encounter = Encounter.find_by_encounter_id(order.encounter_id)
+      program = Program.find_by_program_id(encounter&.program_id)
 
       ActiveSupport::HashWithIndifferentAccess.new(
         {
@@ -20,8 +19,8 @@ module Lab
           order_id: order.order_id, # Deprecated: Link to :id
           encounter_id: order.encounter_id,
           order_date: order.start_date,
-          location_id: encounter.location_id,
-          program_id: encounter.program_id,
+          location_id: encounter&.location_id,
+          program_id: encounter&.program_id,
           program_name: program&.name,
           patient_id: order.patient_id,
           accession_number: order.accession_number,
@@ -37,8 +36,10 @@ module Lab
             name: concept_name(reason_for_test&.value_coded)
           },
           delivery_mode: order&.lims_acknowledgement_status&.acknowledgement_type,
+          order_status: latest_order_status(order),
+          order_status_trail: serialize_order_status_trail(order),
           tests: tests.map do |test|
-            result_obs = test.children.first
+            result_obs = test.result
 
             {
               id: test.obs_id,
@@ -46,7 +47,9 @@ module Lab
               uuid: test.uuid,
               name: concept_name(test.value_coded),
               test_method: test_method(order, test.value_coded),
-              result: result_obs && ResultSerializer.serialize(result_obs)
+              result: result_obs && ResultSerializer.serialize(result_obs),
+              test_status: latest_test_status(test),
+              test_status_trail: serialize_test_status_trail(test)
             }
           end
         }
@@ -74,6 +77,73 @@ module Lab
       concept = ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                            .select(:concept_id)
       LabTest.unscoped.where(concept:, order:, voided: true)
+    end
+
+    def self.latest_order_status(order)
+      # Query obs table for latest order status
+      latest_obs = order.status_trail_observations.last
+      return nil unless latest_obs
+
+      updated_by = parse_comments_json(latest_obs.comments)
+
+      {
+        status_id: 0, # status_id not used with text values
+        status: latest_obs.value_text,
+        timestamp: latest_obs.obs_datetime,
+        updated_by: updated_by
+      }
+    end
+
+    def self.serialize_order_status_trail(order)
+      # Query obs table for order status trail
+      order.status_trail_observations.map do |obs|
+        updated_by = parse_comments_json(obs.comments)
+
+        {
+          status_id: 0, # status_id not used with text values
+          status: obs.value_text,
+          timestamp: obs.obs_datetime,
+          updated_by: updated_by
+        }
+      end
+    end
+
+    def self.latest_test_status(test)
+      # Query obs table for latest test status
+      latest_obs = test.status_trail_observations.last
+      return nil unless latest_obs
+
+      updated_by = parse_comments_json(latest_obs.comments)
+
+      {
+        status_id: 0, # status_id not used with text values
+        status: latest_obs.value_text,
+        timestamp: latest_obs.obs_datetime,
+        updated_by: updated_by
+      }
+    end
+
+    def self.serialize_test_status_trail(test)
+      # Query obs table for test status trail
+      test.status_trail_observations.map do |obs|
+        updated_by = parse_comments_json(obs.comments)
+
+        {
+          status_id: 0, # status_id not used with text values
+          status: obs.value_text,
+          timestamp: obs.obs_datetime,
+          updated_by: updated_by
+        }
+      end
+    end
+
+    # Helper to parse updated_by from obs comments field
+    def self.parse_comments_json(comments)
+      return {} if comments.blank?
+
+      JSON.parse(comments)
+    rescue JSON::ParserError
+      {}
     end
   end
 end

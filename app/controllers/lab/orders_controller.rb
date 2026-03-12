@@ -2,6 +2,7 @@
 
 module Lab
   class OrdersController < ApplicationController
+    skip_before_action :authenticate, only: %i[order_status order_result summary]
     before_action :authenticate_request, only: %i[order_status order_result summary]
 
     def create
@@ -52,7 +53,8 @@ module Lab
     end
 
     def order_status
-      order_params = params.permit(:tracking_number, :status, :status_time, :comments)
+      order_params = params.permit(:tracking_number, :status, :status_time, :comments, :status_id,
+                                    updated_by: [:first_name, :last_name, :id, :phone_number])
       OrdersService.update_order_status(order_params)
       render json: { message: "Status for order #{order_params['tracking_number']} successfully updated" }, status: :ok
     end
@@ -76,8 +78,26 @@ module Lab
     private
 
     def authenticate_request
-      decoded_user = authorize_request
-      user(decoded_user)
+      header = request.headers['Authorization']
+      content = header.split(' ')
+      auth_scheme = content.first
+      unless header
+        errors = ['Authorization token required']
+        render json: { errors: errors }, status: :unauthorized
+        return false
+      end
+      unless auth_scheme == 'Bearer'
+        errors = ['Authorization token bearer scheme required']
+        render json: { errors: errors }, status: :unauthorized
+        return false
+      end
+      process_token(content.last)
+    end
+
+    def process_token(token)
+      browser = Browser.new(request.user_agent)
+      decoded = Lab::JsonWebTokenService.decode(token, request.remote_ip + browser.name + browser.version)
+      user(decoded)
     end
 
     def user(decoded)
