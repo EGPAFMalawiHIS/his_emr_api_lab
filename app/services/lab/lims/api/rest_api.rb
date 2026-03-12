@@ -294,7 +294,7 @@ module Lab
           {
             order: {
               tracking_number: order_dto.fetch(:tracking_number),
-              district: current_district,
+              district: order_dto.fetch(:districy),
               health_facility_name: order_dto.fetch(:sending_facility),
               sending_facility: order_dto.fetch(:sending_facility),
               arv_number: order_dto.fetch(:patient).fetch(:arv_number),
@@ -348,22 +348,15 @@ module Lab
             status: 'specimen_collected',
             time_updated: date_updated,
             sample_type: order_dto.fetch(:sample_type_map),
-            updated_by: status.fetch(:updated_by)
+            updated_by: status.fetch(:updated_by),
+            status_trail: [
+              updated_by: {
+                first_name: status.fetch(:updated_by).fetch(:first_name),
+                last_name: status.fetch(:updated_by).fetch(:last_name),
+                id_number: status.fetch(:updated_by).fetch(:id)
+              }
+            ]
           }
-        end
-
-        def current_district
-          health_centre = Location.current_health_center
-          raise 'Current health centre not set' unless health_centre
-
-          district = health_centre.district || Lab::Lims::Config.application['district']
-
-          unless district
-            health_centre_name = "##{health_centre.id} - #{health_centre.name}"
-            raise "Current health centre district not set: #{health_centre_name}"
-          end
-
-          district
         end
 
         ##
@@ -511,23 +504,25 @@ module Lab
           order_dto['test_results'].each do |test_name, results|
             Rails.logger.info("Pushing result for order ##{order_dto['tracking_number']}")
             in_authenticated_session do |headers|
-              params = make_update_test_params(order_dto['tracking_number'], test_name, results)
+              params = make_update_test_params(order_dto, test_name, results)
 
-              RestClient.post(expand_uri("tests/#{order_dto['tracking_number']}", api_version: 'v2'), params, headers)
+              RestClient.put(expand_uri("tests/#{order_dto['tracking_number']}", api_version: 'v2'), params, headers)
             end
           end
         end
 
-        def make_update_test_params(_tracking_number, test, results, test_status = 'Drawn')
+        def make_update_test_params(order_dto, test, results, test_status = 'Drawn')
+          # Find the concept from the test name (which is a string)
+          concept = ::ConceptName.find_by(name: test)&.concept
           {
             test_status:,
             time_updated: results['result_date'],
             test_type: {
-              name: ::Concept.find(test.concept_id).test_catalogue_name,
-              nlims_code: ::Concept.find(test.concept_id).nlims_code
+              name: concept&.test_catalogue_name,
+              nlims_code: concept&.nlims_code
             },
-            test_results: results['results'].map do |measure, _value|
-              measure_name, measure_value = measure
+            test_results: results['results'].map do |measure_name, value|
+              measure_value = value['result_value']
               {
                 measure: {
                   name: measure_name,
@@ -537,6 +532,18 @@ module Lab
                 result: {
                   value: measure_value,
                   result_date: results['result_date']
+                }
+              }
+            end,
+            status_trail: order_dto['sample_statuses'].map do |trail_entry|
+              date, status = trail_entry.each_pair.first
+              {
+                status: status['status'],
+                timestamp: date,
+                updated_by: {
+                  first_name: status.fetch('updated_by').fetch('first_name'),
+                  last_name: status.fetch('updated_by').fetch('last_name'),
+                  id_number: status.fetch('updated_by').fetch('id')
                 }
               }
             end
@@ -763,7 +770,7 @@ module Lab
   def make_create_params(order_dto)
     {
       tracking_number: order_dto.fetch(:tracking_number),
-      district: current_district,
+      district: order_dto.fetch(:districy),
       health_facility_name: order_dto.fetch(:sending_facility),
       first_name: order_dto.fetch(:patient).fetch(:first_name),
       last_name: order_dto.fetch(:patient).fetch(:last_name),
@@ -799,20 +806,6 @@ module Lab
       specimen_type: order_dto.fetch(:sample_type),
       status: 'specimen_collected'
     }
-  end
-
-  def current_district
-    health_centre = Location.current_health_center
-    raise 'Current health centre not set' unless health_centre
-
-    district = health_centre.district || Lab::Lims::Config.application['district']
-
-    unless district
-      health_centre_name = "##{health_centre.id} - #{health_centre.name}"
-      raise "Current health centre district not set: #{health_centre_name}"
-    end
-
-    district
   end
 
   ##

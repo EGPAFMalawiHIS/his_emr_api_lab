@@ -65,7 +65,7 @@ module Lab
                  order_date: Order.columns.include?('start_date') ? order.start_date : order.date_created,
                  'ARV-Number': find_arv_number(result.person_id),
                  PatientID: result.person_id,
-                 'Ordered By': Order.columns.include?('provider_id') ? order&.provider&.person&.name : Person.find(order.creator)&.name,
+                 'Ordered By': Order.columns.include?('provider_id') ? order&.provider&.person&.name : Person.find(User.unscoped.find(order.creator).person_id)&.name,
                  Result: values }.as_json
         NotificationService.new.create_notification(result_enter_by, data)
       end

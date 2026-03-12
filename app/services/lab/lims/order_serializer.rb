@@ -14,15 +14,17 @@ module Lab
 
         def serialize_order(order)
           serialized_order = Lims::Utils.structify(Lab::LabOrderSerializer.serialize_order(order))
+          location = get_location(serialized_order.location_id, order)
+
           Lims::OrderDto.new(
             _id: Lab::LimsOrderMapping.find_by(order: order)&.lims_id || serialized_order.accession_number,
             tracking_number: serialized_order.accession_number,
-            sending_facility: current_facility_name,
+            sending_facility: location.name,
             receiving_facility: serialized_order.target_lab,
             tests: serialized_order.tests.map { |test| format_test_name(test.name) },
             tests_map: serialized_order.tests,
             patient: format_patient(serialized_order.patient_id),
-            order_location: format_order_location(serialized_order.encounter_id),
+            order_location: location.name,
             sample_type: format_sample_type(serialized_order.specimen.name),
             sample_type_map: {
               name: format_sample_type(serialized_order.specimen.name),
@@ -32,7 +34,7 @@ module Lab
             sample_statuses: format_sample_status_trail(order),
             test_statuses: format_test_status_trail(order),
             who_order_test: format_orderer(order),
-            districy: current_district, # yes districy [sic]...
+            districy: get_district(location), # yes districy [sic]...
             priority: format_sample_priority(serialized_order.reason_for_test.name),
             date_created: serialized_order.order_date,
             test_results: format_test_results(serialized_order),
@@ -43,13 +45,26 @@ module Lab
 
         private
 
-        def format_order_location(encounter_id)
-          location_id = Encounter.select(:location_id).where(encounter_id:)
-          location = Location.select(:name)
-                             .where(location_id:)
-                             .first
+        def get_location(location_id, order)
+          # Try to get location from the location_id first
+          location = Location.find_by(location_id: location_id) if location_id.present?
 
-          location&.name
+          # Fallback to current health center
+          location ||= Location.current_health_center
+
+          # Last fallback: try to get from order's observation encounter
+          # Use unscoped to find observations/encounters across all locations
+          if location.nil? && order.present?
+            obs = Observation.unscoped.find_by(order_id: order.order_id)
+            if obs.respond_to?(:encounter) && obs.encounter.respond_to?(:location)
+              encounter = Encounter.unscoped.find_by(encounter_id: obs.encounter_id)
+              location = encounter&.location
+            end
+          end
+
+          raise 'Current health center not set' unless location
+
+          location
         end
 
         # Format patient into a structure that LIMS expects
@@ -123,11 +138,13 @@ module Lab
         def format_sample_status_trail(order)
           return [] if order.concept_id == ConceptName.find_by_name!('Unknown').concept_id
 
-          user = User.find(order.creator)
-          user = User.find(order.discontinued_by) if Order.columns_hash.key?('discontinued_by') && user.blank?
+          user = User.unscoped.find(order.creator)
+          user = User.unscoped.find(order.discontinued_by) if Order.columns_hash.key?('discontinued_by') && user.blank?
 
           drawn_by = PersonName.find_by_person_id(user.user_id)
-          drawn_date = order.discontinued_date || order.start_date if ['discontinued_date', 'start_date'].all? { |column| order.respond_to?(column) }
+          drawn_date = order.discontinued_date || order.start_date if %w[discontinued_date start_date].all? do |column|
+            order.respond_to?(column)
+          end
           drawn_date ||= order.date_created
 
           [
@@ -179,13 +196,15 @@ module Lab
           order.tests&.each_with_object({}) do |test, results|
             next if test.result.nil? || test.result.empty?
 
-            result_obs = Observation.find_by(obs_id: test.result.first.id)
+            # Use unscoped to find observations across locations
+            result_obs = Observation.unscoped.find_by(obs_id: test.result.first.id)
             unless result_obs
               Rails.logger.warn("Observation with obs_id=#{test.result.first.id} not found for test #{test.name} in order #{order.accession_number}")
               next
             end
 
-            test_creator = User.find(result_obs.creator)
+            # Use unscoped to find user regardless of location
+            test_creator = User.unscoped.find(result_obs.creator)
             test_creator_name = PersonName.find_by_person_id(test_creator.person_id)
 
             results[format_test_name(test.name)] = {
@@ -208,7 +227,7 @@ module Lab
         end
 
         def format_test_name(test_name)
-          return test_name
+          test_name
         end
 
         def format_sample_priority(priority)
@@ -217,16 +236,11 @@ module Lab
           priority&.titleize
         end
 
-        def current_health_center
-          health_center = Location.current_health_center
-          raise 'Current health center not set' unless health_center
+        def get_district(location)
+          return nil unless location
 
-          health_center
-        end
-
-        def current_district
-          district = current_health_center.city_village \
-                       || current_health_center.parent&.name \
+          district = location.city_village \
+                       || location.parent&.name \
                        || GlobalProperty.find_by_property('current_health_center_district')&.property_value
 
           return district if district
@@ -238,12 +252,8 @@ module Lab
           Config.application['district']
         end
 
-        def current_facility_name
-          current_health_center.name
-        end
-
         def find_user(user_id)
-          user = User.find(user_id)
+          user = User.unscoped.find(user_id)
           person_name = PersonName.find_by(person_id: user.person_id)
           phone_number = PersonAttribute.find_by(type: PersonAttributeType.where(name: 'Cell phone number'),
                                                  person_id: user.person_id)
