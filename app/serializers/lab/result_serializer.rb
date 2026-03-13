@@ -12,8 +12,8 @@ module Lab
         program_id = ''
         if measure.obs_id.present?
           obs = Observation.unscope(where: :obs_group_id).find(measure.obs_id)
-          encounter = Encounter.find(obs.encounter_id)
-          program_id = encounter.program_id
+          encounter = Encounter.find_by(encounter_id: obs&.encounter_id)
+          program_id = encounter&.program_id
         end
 
         {
