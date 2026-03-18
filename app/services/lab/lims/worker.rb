@@ -12,6 +12,9 @@ module Lab
       def self.start(start_date: nil)
         User.current = Utils.lab_user
 
+        # Eager load classes before forking to avoid autoloading issues in child processes
+        Rails.application.eager_load! if defined?(Rails) && Rails.env.development?
+
         fork { start_push_worker(start_date: start_date) }
         fork { start_pull_worker(start_date: start_date) }
         fork { start_acknowledgement_worker(start_date: start_date) }
