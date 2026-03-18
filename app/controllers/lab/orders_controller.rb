@@ -2,7 +2,7 @@
 
 module Lab
   class OrdersController < ApplicationController
-    skip_before_action :authenticate, only: %i[order_status order_result summary]
+    skip_before_action :authenticate, only: %i[order_status order_result summary], raise: false
     before_action :authenticate_request, only: %i[order_status order_result summary]
 
     def create
