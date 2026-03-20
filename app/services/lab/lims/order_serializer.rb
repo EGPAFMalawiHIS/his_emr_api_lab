@@ -20,7 +20,7 @@ module Lab
             _id: Lab::LimsOrderMapping.find_by(order: order)&.lims_id || serialized_order.accession_number,
             tracking_number: serialized_order.accession_number,
             sending_facility: location.name,
-            receiving_facility: serialized_order.target_lab,
+            receiving_facility: serialized_order.target_lab || location.name,
             tests: serialized_order.tests.map { |test| format_test_name(test.name) },
             tests_map: serialized_order.tests,
             patient: format_patient(serialized_order.patient_id),
