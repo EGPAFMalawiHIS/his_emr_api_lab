@@ -5,7 +5,8 @@ module Lab
   # Push an order to LIMS.
   class ProcessLabResultJob < ApplicationJob
     queue_as :default
-    def perform(results_obs_id, serializer, result_enter_by)
+    def perform(data)
+      results_obs_id, serializer, result_enter_by = data.values_at(:results_obs_id, :serializer, :result_enter_by)
       Rails.logger.info("Lab::ProcessLabResultJob: Processing result completion for #{serializer}")
       # set location context for the job based on the order's encounter to ensure proper context for any operations performed in the job
       results_obs = Lab::LabResult.unscoped.find(results_obs_id)
