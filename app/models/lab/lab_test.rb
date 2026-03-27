@@ -24,7 +24,7 @@ module Lab
     # They are linked via obs_group_id (this test obs is the parent)
     has_many :status_trail_observations,
              lambda {
-               unscoped.where(voided: 0, concept_id: Lab::LabTest.test_status_concept_id).order(obs_datetime: :asc)
+               unscoped.where(voided: 0, concept_id: Lab::LabTest.test_status_concept_id).order(date_created: :asc)
              },
              class_name: 'Observation',
              foreign_key: :obs_group_id,
