@@ -52,7 +52,7 @@ module Lab
     # Status trails are stored as observations with concept 'Lab Order Status'
     has_many :status_trail_observations,
              lambda {
-               unscoped.where(voided: 0, concept_id: Lab::LabOrder.order_status_concept_id).order(obs_datetime: :asc)
+               unscoped.where(voided: 0, concept_id: Lab::LabOrder.order_status_concept_id).order(date_created: :asc)
              },
              class_name: 'Observation',
              foreign_key: :order_id
