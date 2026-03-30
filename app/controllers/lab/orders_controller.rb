@@ -25,7 +25,7 @@ module Lab
     end
 
     def index
-      filters = params.permit(%i[patient_id patient accession_number date status])
+      filters = params.permit(%i[patient_id patient accession_number date status visit_id])
 
       id = filters[:patient_id] || filters[:patient]
 
