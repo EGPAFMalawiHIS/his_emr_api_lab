@@ -56,7 +56,7 @@ module Lab
       end
 
       def filter_orders_by_visit_id(orders:, visit_id: nil)
-        return orders unless visit_id
+        return orders unless visit_id.present?
 
         orders.joins(:encounter).where(encounter: { visit_id: visit_id })
       end
