@@ -11,7 +11,11 @@ module Lab
         OrdersService.order_test(order_params)
       end
 
-      orders.each { |order| Lab::PushOrderJob.perform_later(order.fetch(:order_id)) }
+      orders.each do |order|
+        Lab::PushOrderJob.perform_later(order.fetch(:order_id))
+      rescue StandardError => e
+        Rails.logger.error("Failed to enqueue PushOrderJob for order #{order.fetch(:order_id)}: #{e.message}")
+      end
 
       render json: orders, status: :created
     end
@@ -19,7 +23,12 @@ module Lab
     def update
       specimen = params.require(:specimen).slice(:concept_id)
       order = OrdersService.update_order(params[:id], specimen:, force_update: params[:force_update])
-      Lab::PushOrderJob.perform_later(order.fetch(:order_id))
+
+      begin
+        Lab::PushOrderJob.perform_later(order.fetch(:order_id))
+      rescue StandardError => e
+        Rails.logger.error("Failed to enqueue PushOrderJob for order #{order.fetch(:order_id)}: #{e.message}")
+      end
 
       render json: order
     end
@@ -31,7 +40,13 @@ module Lab
 
       patient = Patient.find(id) if filters[:patient_id] || filters[:patient]
 
-      Lab::UpdatePatientOrdersJob.perform_later(patient.id) if filters[:patient_id] || filters[:patient]
+      if filters[:patient_id] || filters[:patient]
+        begin
+          Lab::UpdatePatientOrdersJob.perform_later(patient.id)
+        rescue StandardError => e
+          Rails.logger.error("Failed to enqueue UpdatePatientOrdersJob for patient #{patient.id}: #{e.message}")
+        end
+      end
       orders = OrdersSearchService.find_orders(filters)
       begin
         render json: orders.reload, status: :ok
@@ -47,7 +62,12 @@ module Lab
 
     def destroy
       OrdersService.void_order(params[:id], params[:reason])
-      Lab::VoidOrderJob.perform_later(params[:id])
+
+      begin
+        Lab::VoidOrderJob.perform_later(params[:id])
+      rescue StandardError => e
+        Rails.logger.error("Failed to enqueue VoidOrderJob for order #{params[:id]}: #{e.message}")
+      end
 
       render status: :no_content
     end
