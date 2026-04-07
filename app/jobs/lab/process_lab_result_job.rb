@@ -12,6 +12,16 @@ module Lab
       encounter = Encounter.unscoped.find_by(encounter_id: results_obs.encounter_id)
       Location.current = Location.find(encounter.location_id) if encounter&.location_id
       Lab::ResultsService.process_result_completion(results_obs, serializer, result_enter_by)
+
+      # Publish notification that results have been processed
+      ActiveSupport::Notifications.instrument(
+        'lab.results_saved',
+        patient_id: results_obs.person_id,
+        order_id: results_obs.order_id,
+        result_id: results_obs.obs_id,
+        encounter_id: results_obs.encounter_id,
+        timestamp: Time.current
+      )
     end
   end
 end

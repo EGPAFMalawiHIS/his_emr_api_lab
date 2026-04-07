@@ -46,6 +46,17 @@ module Lab
         ProcessLabResultJob.perform_now(results_obs.id, serializer, result_enter_by)
 
         Rails.logger.info("Lab::ResultsService: Result created for test #{test_id} #{serializer}")
+
+        # Publish notification that results have been created
+        ActiveSupport::Notifications.instrument(
+          'lab.results_created',
+          patient_id: results_obs.person_id,
+          order_id: results_obs.order_id,
+          result_id: results_obs.obs_id,
+          test_id: test_id,
+          timestamp: Time.current
+        )
+
         serializer
       end
 

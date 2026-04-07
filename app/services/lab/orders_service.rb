@@ -50,6 +50,10 @@ module Lab
       # reason_for_test_id: is a concept_id for a (standard) reason of why the test is being carried out
       # requesting_clinician: Name of the clinician requesting the test (defaults to current user)
       def order_test(order_params)
+        serialized_order = nil
+        order_id = nil
+        patient_id = nil
+
         Order.transaction do
           encounter = find_encounter(order_params)
           if order_params[:accession_number].present? && check_tracking_number(order_params[:accession_number])
@@ -68,13 +72,29 @@ module Lab
           # Reload order to include status trails and tests
           order = Lab::LabOrder.prefetch_relationships.find(order.order_id)
 
-          Lab::LabOrderSerializer.serialize_order(
+          serialized_order = Lab::LabOrderSerializer.serialize_order(
             order, requesting_clinician: add_requesting_clinician(order, order_params),
                    reason_for_test: add_reason_for_test(order, order_params),
                    target_lab: add_target_lab(order, order_params),
                    comment_to_fulfiller: add_comment_to_fulfiller(order, order_params)
           )
+
+          # Store IDs for notification after transaction commits
+          order_id = order.order_id
+          patient_id = order.patient_id
         end
+
+        # Publish notification AFTER transaction commits
+        # This ensures the order is visible in the database before rebuilding
+        ActiveSupport::Notifications.instrument(
+          'lab.order_created',
+          patient_id: patient_id,
+          order_id: order_id,
+          accession_number: serialized_order[:accession_number],
+          timestamp: Time.current
+        )
+
+        serialized_order
       end
 
       def attach_test_method(order, order_params)
@@ -153,6 +173,16 @@ module Lab
           save_order_status_trail(order, order_params) if order_params['status']
         end
         create_rejection_notification(order_params) if order_params['status'] == 'test-rejected'
+
+        # Publish notification that order status has changed
+        ActiveSupport::Notifications.instrument(
+          'lab.order_status_changed',
+          patient_id: order.patient_id,
+          order_id: order.order_id,
+          new_status: order_params['status'],
+          tracking_number: order_params['tracking_number'],
+          timestamp: Time.current
+        )
       end
 
       def update_order_result(order_params)
