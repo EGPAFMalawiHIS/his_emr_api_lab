@@ -43,7 +43,11 @@ module Lab
         ActiveRecord::Base.connection.commit_db_transaction
 
         # Execute job synchronously
-        ProcessLabResultJob.perform_now(results_obs.id, serializer, result_enter_by)
+        begin
+          ProcessLabResultJob.perform_now(results_obs.id, serializer, result_enter_by)
+        rescue StandardError => e
+          Rails.logger.error("Lab::ResultsService: Error processing lab result job for test #{test_id}: #{e.message}")
+        end
 
         Rails.logger.info("Lab::ResultsService: Result created for test #{test_id} #{serializer}")
         serializer
