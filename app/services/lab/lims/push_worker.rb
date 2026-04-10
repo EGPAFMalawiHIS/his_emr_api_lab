@@ -118,23 +118,26 @@ module Lab
         last_updated = Lab::LimsOrderMapping.select('MAX(updated_at) AS last_updated')
                                             .first
                                             .last_updated
+        last_updated = start_date if start_date && last_updated < start_date
 
         Lab::LabOrder.left_joins(:results)
                      .joins(:mapping)
-                     .where('orders.discontinued_date > :last_updated
-                             OR obs.date_created > orders.date_created AND lab_lims_order_mappings.result_push_status = 0',
+                     .where('(orders.discontinued_date > :last_updated
+                             OR (obs.date_created > orders.date_created AND orders.date_created >= :last_updated)) AND lab_lims_order_mappings.result_push_status = 0',
                             last_updated:)
                      .group('orders.order_id')
                      .order(discontinued_date: :desc, date_created: :desc)
       end
 
       def voided_orders
+        # add date filter to avoid pushing voided orders that were created a long time ago
         Rails.logger.debug('Looking for voided orders that are being tracked by LIMS...')
-        Lab::LabOrder.unscoped
+        orders = Lab::LabOrder.unscoped
                      .where(order_type: OrderType.where(name: Lab::Metadata::ORDER_TYPE_NAME),
                             order_id: Lab::LimsOrderMapping.all.select(:order_id),
                             voided: 1)
-                     .order(date_voided: :desc)
+        orders = orders.where('orders.date_created >= ?', start_date) if start_date
+        orders.order(date_voided: :desc)
       end
 
       ##
