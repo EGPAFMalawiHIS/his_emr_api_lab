@@ -109,6 +109,7 @@ module Lab
         end
 
         def format_sample_type(name)
+          return 'not_specified' if name.nil?
           return 'not_specified' if name.casecmp?('Unknown')
 
           return 'CSF' if name.casecmp?('Cerebrospinal Fluid')
