@@ -9,43 +9,43 @@ module Lab
     ##
     # Pull/Push orders from/to the LIMS queue (Oops meant CouchDB).
     module Worker
-      def self.start
+      def self.start(start_date: nil)
         User.current = Utils.lab_user
 
-        fork(&method(:start_push_worker))
-        fork(&method(:start_pull_worker))
-        fork(&method(:start_acknowledgement_worker))
-        fork(&method(:start_realtime_pull_worker)) if realtime_updates_enabled?
+        fork { start_push_worker(start_date: start_date) }
+        fork { start_pull_worker(start_date: start_date) }
+        fork { start_acknowledgement_worker(start_date: start_date) }
+        fork { start_realtime_pull_worker(start_date: start_date) } if realtime_updates_enabled?
 
         Process.waitall
       end
 
-      def self.start_push_worker
+      def self.start_push_worker(start_date: nil)
         start_worker('push_worker') do
-          worker = PushWorker.new(lims_api)
+          worker = PushWorker.new(lims_api, start_date: start_date)
 
           worker.push_orders # (wait: true)
         end
       end
 
-      def self.start_acknowledgement_worker
+      def self.start_acknowledgement_worker(start_date: nil)
         start_worker('acknowledgement_worker') do
-          worker = AcknowledgementWorker.new(lims_api)
+          worker = AcknowledgementWorker.new(lims_api, start_date: start_date)
           worker.push_acknowledgement
         end
       end
 
-      def self.start_pull_worker
+      def self.start_pull_worker(start_date: nil)
         start_worker('pull_worker') do
-          worker = PullWorker.new(lims_api)
+          worker = PullWorker.new(lims_api, start_date: start_date)
 
           worker.pull_orders
         end
       end
 
-      def self.start_realtime_pull_worker
+      def self.start_realtime_pull_worker(start_date: nil)
         start_worker('realtime_pull_worker') do
-          worker = PullWorker.new(Lims::Api::WsApi.new(Lab::Lims::Config.updates_socket))
+          worker = PullWorker.new(Lims::Api::WsApi.new(Lab::Lims::Config.updates_socket), start_date: start_date)
 
           worker.pull_orders
         end
