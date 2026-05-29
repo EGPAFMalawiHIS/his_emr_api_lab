@@ -18,7 +18,7 @@ module Lab
           order_type_id: order.order_type_id,
           order_id: order.order_id, # Deprecated: Link to :id
           encounter_id: order.encounter_id,
-          visit_id: encounter&.visit_id,
+          **(Encounter.column_names.include?('visit_id') ? { visit_id: encounter&.visit_id } : {}),
           order_date: order.start_date,
           location_id: encounter&.location_id,
           program_id: encounter&.program_id,
