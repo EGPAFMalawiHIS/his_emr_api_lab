@@ -63,15 +63,21 @@ module Lab
       def process_result_completion(results_obs, serializer, result_enter_by)
         process_acknowledgement(results_obs, result_enter_by)
         precess_notification_message(results_obs, serializer, result_enter_by)
+      rescue StandardError => e
+        Rails.logger.error("Lab::ResultsService: Error in post-result processing: #{e.message}")
+        Rails.logger.error(e.backtrace.join("\n"))
+        # Don't re-raise - result is already saved
       end
 
       private
 
       def precess_notification_message(result, values, result_enter_by)
         order = Order.find(result.order_id)
+        test_concept_id = result.test&.value_coded
+
         data = { Type: result_enter_by,
                  Specimen: get_test_catalog_name(order.concept_id) || ConceptName.find_by(concept_id: order.concept_id)&.name,
-                 'Test type': get_test_catalog_name(result.test.value_coded) || ConceptName.find_by(concept_id: result.test.value_coded)&.name,
+                 'Test type': test_concept_id ? (get_test_catalog_name(test_concept_id) || ConceptName.find_by(concept_id: test_concept_id)&.name) : nil,
                  'Accession number': order&.accession_number,
                  order_date: Order.columns.include?('start_date') ? order.start_date : order.date_created,
                  'ARV-Number': find_arv_number(result.person_id),
