@@ -82,6 +82,9 @@ module Lab
         unescaped_name = CGI.unescapeHTML(name)
         attribute_type_id = ConceptAttributeType.test_catalogue_name.concept_attribute_type_id
 
+        attribute = ConceptAttribute.where('attribute_type_id = ? AND value_reference = ?', attribute_type_id, unescaped_name).first
+        return attribute.concept if attribute
+
         ConceptName.joins('INNER JOIN concept_attribute ON concept_attribute.concept_id = concept_name.concept_id')
                    .where('concept_attribute.attribute_type_id = ? AND concept_attribute.value_reference = ? AND concept_name.name = ?',
                           attribute_type_id, unescaped_name, unescaped_name)

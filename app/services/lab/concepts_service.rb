@@ -117,8 +117,13 @@ module Lab
       # From the members above, filter out only those concepts that are result indicators
       measures = ConceptSet.find_members_by_name(Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
                            .select(:concept_id)
+            # Get specimen types to exclude from results
+      specimen_types = ConceptSet.find_members_by_name(Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME)
+                                 .select(:concept_id)
 
+      # Find concepts that are linked to the test type AND are measures (but NOT specimens)
       sets = ConceptSet.where(concept_set: test, concept_id: measures)
+                       .where.not(concept_id: specimen_types)
 
       return ActiveRecord::Base.connection.select_all <<~SQL
         SELECT ca.concept_id, ca.value_reference as name, ca2.value_reference as nlims_code, c.uuid
