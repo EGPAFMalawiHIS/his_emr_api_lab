@@ -28,7 +28,18 @@ module Lab
             logger.error("Failed to push acknowledgement ##{acknowledgement.order_id}: #{e.class} - #{e.message}")
           end
 
-          break unless wait
+          # If no records found or not waiting, check if we should continue
+          if acknowledgements.empty?
+            break unless wait
+          elsif !wait && acknowledgements.size < batch_size
+            # Processed final partial batch in one-shot mode
+            logger.info("Processed final batch of #{acknowledgements.size} acknowledgements")
+            break
+          elsif !wait
+            # More records likely exist, continue processing
+            logger.info('Batch complete, checking for more acknowledgements...')
+            next
+          end
 
           logger.info('Waiting for acknowledgements...')
           sleep(Lab::Lims::Config.updates_poll_frequency)
