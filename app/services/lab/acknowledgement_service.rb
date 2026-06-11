@@ -14,12 +14,11 @@ module Lab
                                         date_received: params[:date_received])
       end
 
-      def acknowledgements_pending_sync(batch_size, start_date: nil)
+      def acknowledgements_pending_sync(batch_size, start_date: nil, last_order_id: 0)
         query = Lab::LabAcknowledgement.joins(:order).where(pushed: false)
-
+                                       .where('lims_acknowledgement_statuses.order_id > ?', last_order_id)
         query = query.where('orders.date_created >= ?', start_date) if start_date
-
-        query.limit(batch_size)
+        query.order('lims_acknowledgement_statuses.order_id ASC').limit(batch_size)
       end
 
       def push_acknowledgement(acknowledgement, lims_api)

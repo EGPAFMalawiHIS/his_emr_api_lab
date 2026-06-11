@@ -16,14 +16,17 @@ module Lab
       end
 
       def push_acknowledgement(batch_size: 1000, wait: false)
+        last_order_id = 0
         loop do
           logger.info('Looking for new acknowledgements to push to LIMS...')
           acknowledgements = Lab::AcknowledgementService.acknowledgements_pending_sync(batch_size,
-                                                                                       start_date: start_date).all
+                                                                                       start_date: start_date,
+                                                                                       last_order_id: last_order_id).all
 
           logger.debug("Found #{acknowledgements.size} acknowledgements...")
           acknowledgements.each do |acknowledgement|
             Lab::AcknowledgementService.push_acknowledgement(acknowledgement, @lims_api)
+            last_order_id = acknowledgement.order_id
           rescue StandardError => e
             logger.error("Failed to push acknowledgement ##{acknowledgement.order_id}: #{e.class} - #{e.message}")
           end
