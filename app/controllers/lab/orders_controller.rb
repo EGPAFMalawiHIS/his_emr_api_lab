@@ -58,6 +58,10 @@ module Lab
     def verify_tracking_number
       tracking_number = params.require(:accession_number)
       render json: { exists: OrdersService.check_tracking_number(tracking_number) }, status: :ok
+    rescue Lab::Lims::ValidationUnavailable => e
+      # Return 502 Bad Gateway to indicate the external service is unavailable
+      # This allows the frontend to prompt user for confirmation
+      render json: { errors: [e.message] }, status: :bad_gateway
     end
 
     def destroy
@@ -74,7 +78,7 @@ module Lab
 
     def order_status
       order_params = params.permit(:tracking_number, :status, :status_time, :comments, :status_id,
-                                    updated_by: [:first_name, :last_name, :id, :phone_number])
+                                   updated_by: %i[first_name last_name id phone_number])
       OrdersService.update_order_status(order_params)
       render json: { message: "Status for order #{order_params['tracking_number']} successfully updated" }, status: :ok
     end
