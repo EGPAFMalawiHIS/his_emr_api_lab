@@ -56,8 +56,14 @@ module Lab
 
         Order.transaction do
           encounter = find_encounter(order_params)
-          if order_params[:accession_number].present? && check_tracking_number(order_params[:accession_number])
-            raise 'Accession number already exists'
+          if order_params[:accession_number].present?
+            begin
+              raise 'Accession number already exists' if check_tracking_number(order_params[:accession_number])
+            rescue Lab::Lims::ValidationUnavailable => e
+              # Log warning but allow order creation to proceed
+              # User should have been prompted to confirm on the frontend
+              Rails.logger.warn("Creating order with unvalidated accession number: #{e.message}")
+            end
           end
 
           order = create_order(encounter, order_params)
@@ -364,6 +370,15 @@ module Lab
         # fetch from the rest api and check if it exists
         lims_api = Lab::Lims::ApiFactory.create_api
         lims_api.verify_tracking_number(accession_number).present?
+      rescue StandardError => e
+        # Log the error for debugging
+        Rails.logger.error("Failed to verify accession number with NLIMS: #{e.message}")
+        Rails.logger.error(e.backtrace.join("\n"))
+
+        # Raise a specific exception indicating validation is unavailable
+        # This allows the controller to handle it differently than "accession exists"
+        raise Lab::Lims::ValidationUnavailable,
+              "Failed to communicate with external service: #{e.message}"
       end
 
       ##
