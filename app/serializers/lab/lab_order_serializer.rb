@@ -71,7 +71,8 @@ module Lab
     def self.concept_name(concept_id)
       return concept_id unless concept_id
 
-      ::ConceptAttribute.find_by(concept_id:, attribute_type: ConceptAttributeType.test_catalogue_name)&.value_reference
+      ::ConceptAttribute.find_by(concept_id:, attribute_type: ConceptAttributeType.test_catalogue_name)&.value_reference ||
+        ::ConceptName.find_by_concept_id(concept_id)&.name
     end
 
     def self.voided_tests(order)
