@@ -74,6 +74,11 @@ module Lab
       def precess_notification_message(result, values, result_enter_by)
         order = Order.find(result.order_id)
         test_concept_id = result.test&.value_coded
+        uniq_checkers = {
+          test_type_id: test_concept_id,
+          order_id: order&.order_id,
+          specimen_id: order.concept_id
+        }
 
         data = { Type: result_enter_by,
                  Specimen: get_test_catalog_name(order.concept_id) || ConceptName.find_by(concept_id: order.concept_id)&.name,
@@ -84,7 +89,7 @@ module Lab
                  PatientID: result.person_id,
                  'Ordered By': Order.columns.include?('provider_id') ? order&.provider&.person&.name : Person.find(User.unscoped.find(order.creator).person_id)&.name,
                  Result: values }.as_json
-        NotificationService.new.create_notification(result_enter_by, data)
+        NotificationService.new.create_notification(result_enter_by, data, uniq_checkers: uniq_checkers)
       end
 
       def process_acknowledgement(results, results_enter_by)
