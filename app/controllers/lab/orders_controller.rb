@@ -2,6 +2,7 @@
 
 module Lab
   class OrdersController < ApplicationController
+    skip_before_action :authenticate, only: %i[order_status order_result summary], raise: false
     before_action :authenticate_request, only: %i[order_status order_result summary]
 
     def create
@@ -10,7 +11,11 @@ module Lab
         OrdersService.order_test(order_params)
       end
 
-      orders.each { |order| Lab::PushOrderJob.perform_later(order.fetch(:order_id)) }
+      orders.each do |order|
+        Lab::PushOrderJob.perform_later(order.fetch(:order_id))
+      rescue StandardError => e
+        Rails.logger.error("Failed to enqueue PushOrderJob for order #{order.fetch(:order_id)}: #{e.message}")
+      end
 
       render json: orders, status: :created
     end
@@ -18,19 +23,30 @@ module Lab
     def update
       specimen = params.require(:specimen).slice(:concept_id)
       order = OrdersService.update_order(params[:id], specimen:, force_update: params[:force_update])
-      Lab::PushOrderJob.perform_later(order.fetch(:order_id))
+
+      begin
+        Lab::PushOrderJob.perform_later(order.fetch(:order_id))
+      rescue StandardError => e
+        Rails.logger.error("Failed to enqueue PushOrderJob for order #{order.fetch(:order_id)}: #{e.message}")
+      end
 
       render json: order
     end
 
     def index
-      filters = params.permit(%i[patient_id patient accession_number date status])
+      filters = params.permit(%i[patient_id patient accession_number date status visit_id])
 
       id = filters[:patient_id] || filters[:patient]
 
       patient = Patient.find(id) if filters[:patient_id] || filters[:patient]
 
-      Lab::UpdatePatientOrdersJob.perform_later(patient.id) if filters[:patient_id] || filters[:patient]
+      if filters[:patient_id] || filters[:patient]
+        begin
+          Lab::UpdatePatientOrdersJob.perform_later(patient.id)
+        rescue StandardError => e
+          Rails.logger.error("Failed to enqueue UpdatePatientOrdersJob for patient #{patient.id}: #{e.message}")
+        end
+      end
       orders = OrdersSearchService.find_orders(filters)
       begin
         render json: orders.reload, status: :ok
@@ -42,17 +58,27 @@ module Lab
     def verify_tracking_number
       tracking_number = params.require(:accession_number)
       render json: { exists: OrdersService.check_tracking_number(tracking_number) }, status: :ok
+    rescue Lab::Lims::ValidationUnavailable => e
+      # Return 502 Bad Gateway to indicate the external service is unavailable
+      # This allows the frontend to prompt user for confirmation
+      render json: { errors: [e.message] }, status: :bad_gateway
     end
 
     def destroy
       OrdersService.void_order(params[:id], params[:reason])
-      Lab::VoidOrderJob.perform_later(params[:id])
+
+      begin
+        Lab::VoidOrderJob.perform_later(params[:id])
+      rescue StandardError => e
+        Rails.logger.error("Failed to enqueue VoidOrderJob for order #{params[:id]}: #{e.message}")
+      end
 
       render status: :no_content
     end
 
     def order_status
-      order_params = params.permit(:tracking_number, :status, :status_time, :comments)
+      order_params = params.permit(:tracking_number, :status, :status_time, :comments, :status_id,
+                                   updated_by: %i[first_name last_name id phone_number])
       OrdersService.update_order_status(order_params)
       render json: { message: "Status for order #{order_params['tracking_number']} successfully updated" }, status: :ok
     end
@@ -76,8 +102,26 @@ module Lab
     private
 
     def authenticate_request
-      decoded_user = authorize_request
-      user(decoded_user)
+      header = request.headers['Authorization']
+      content = header.split(' ')
+      auth_scheme = content.first
+      unless header
+        errors = ['Authorization token required']
+        render json: { errors: errors }, status: :unauthorized
+        return false
+      end
+      unless auth_scheme == 'Bearer'
+        errors = ['Authorization token bearer scheme required']
+        render json: { errors: errors }, status: :unauthorized
+        return false
+      end
+      process_token(content.last)
+    end
+
+    def process_token(token)
+      browser = Browser.new(request.user_agent)
+      decoded = Lab::JsonWebTokenService.decode(token, request.remote_ip + browser.name + browser.version)
+      user(decoded)
     end
 
     def user(decoded)

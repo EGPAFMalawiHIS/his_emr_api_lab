@@ -8,10 +8,22 @@ module Lab
       Rails.logger.info("Voiding order ##{order_id} in LIMS")
 
       User.current = Lab::Lims::Utils.lab_user
-      Location.current = Location.find_by_name('ART clinic')
+      # Set location from order's encounter to ensure proper context
+      order = Lab::LabOrder.unscoped.find(order_id)
+      encounter = Encounter.unscoped.find_by(encounter_id: order.encounter_id)
+      Location.current = Location.find(encounter.location_id) if encounter&.location_id
+      Location.current ||= Location.find_by_name('ART clinic')
 
       worker = Lab::Lims::PushWorker.new(Lab::Lims::ApiFactory.create_api)
-      worker.push_order(Lab::LabOrder.unscoped.find(order_id))
+      worker.push_order(order)
+
+      # Publish notification that order has been voided
+      ActiveSupport::Notifications.instrument(
+        'lab.order_voided',
+        patient_id: order.patient_id,
+        order_id: order.order_id,
+        timestamp: Time.current
+      )
     end
   end
 end

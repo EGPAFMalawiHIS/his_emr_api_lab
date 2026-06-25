@@ -5,7 +5,7 @@ module Lab
   module OrdersSearchService
     class << self
       def find_orders(filters)
-        extra_filters = pop_filters(filters, :date, :end_date, :status)
+        extra_filters = pop_filters(filters, :date, :end_date, :status, :visit_id)
 
         uuid = filters.delete(:patient)
         patient = Patient.find(uuid) if uuid
@@ -19,6 +19,7 @@ module Lab
 
         orders = filter_orders_by_status(orders: orders, status: extra_filters[:status])
         orders = filter_orders_by_date(orders: orders, date: extra_filters[:date], end_date: extra_filters[:end_date])
+        orders = filter_orders_by_visit_id(orders: orders, visit_id: extra_filters[:visit_id])
 
         orders.map { |order| Lab::LabOrderSerializer.serialize_order(order) }
       end
@@ -52,6 +53,12 @@ module Lab
         when 'drawn' then orders.where.not(concept_id: unknown_concept_id)
         else orders
         end
+      end
+
+      def filter_orders_by_visit_id(orders:, visit_id: nil)
+        return orders unless visit_id.present?
+
+        orders.joins(:encounter).where(encounter: { visit_id: visit_id })
       end
 
       def unknown_concept_id

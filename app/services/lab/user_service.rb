@@ -15,7 +15,8 @@ module Lab
       end
 
       def authenticate_user(username:, password:, user_agent:, request_ip:)
-        user = User.find_by_username username
+        # Use unscoped for authentication - should not be location-dependent
+        user = User.unscoped.find_by_username username
         encrypted_pass = Password.new(user.password)
         if encrypted_pass == password
           generate_token(user, user_agent, request_ip)
@@ -30,7 +31,7 @@ module Lab
       ##
       # Validate that the username doesn't already exists
       def validate(username:)
-        raise UnprocessableEntityError, 'Username already exists' if User.find_by_username username
+        raise UnprocessableEntityError, 'Username already exists' if User.unscoped.find_by_username username
       end
 
       def create_lims_person

@@ -74,18 +74,85 @@ module Lab
           { tracking_number: order_dto[:tracking_number] }
         end
 
-        def consume_orders(*_args, patient_id: nil, **_kwargs)
-          orders_pending_updates(patient_id).each do |order|
+        def consume_orders(*_args, patient_id: nil, start_date: nil, **_kwargs)
+          orders_pending_updates(patient_id, start_date: start_date).each do |order|
             order_dto = Lab::Lims::OrderSerializer.serialize_order(order)
-            if order_dto['priority'].nil? || order_dto['sample_type'].casecmp?('not_specified')
-              patch_order_dto_with_lims_order!(order_dto, find_lims_order(order.accession_number))
+
+            # Always fetch the full order from NLIMS to get status trails
+            begin
+              lims_order = find_lims_order(order.accession_number)
+              patch_order_dto_with_lims_order!(order_dto, lims_order)
+
+              Rails.logger.debug("NLIMS order structure for #{order.accession_number}:")
+              Rails.logger.debug("  Has 'order' key: #{lims_order.key?('order')}")
+              Rails.logger.debug("  Has 'data' key: #{lims_order.key?('data')}")
+              Rails.logger.debug("  Top level keys: #{lims_order.keys.inspect}")
+
+              # Also extract status trails from the NLIMS order
+              # Note: NLIMS might return order data under 'order' or 'data.order'
+              order_data = lims_order['order'] || lims_order.dig('data', 'order') || lims_order
+
+              if order_data && order_data['status_trail']
+                Rails.logger.info("Found #{order_data['status_trail'].size} order status trail entries from NLIMS")
+                order_dto[:sample_statuses] ||= []
+                # Convert NLIMS status trail to the format expected by PullWorker
+                # Note: sample_statuses must be an array of single-key hashes
+                order_data['status_trail'].each do |trail|
+                  # Convert ISO 8601 timestamp to YYYYMMDDHHmmss format
+                  timestamp_key = convert_timestamp_to_key(trail['timestamp'])
+                  order_dto[:sample_statuses] << {
+                    timestamp_key => {
+                      'status_id' => trail['status_id'],
+                      'status' => trail['status'],
+                      'updated_by' => trail['updated_by']
+                    }
+                  }
+                  Rails.logger.debug("  Added order status: #{trail['status']} at #{timestamp_key}")
+                end
+                Rails.logger.debug("Final sample_statuses: #{order_dto[:sample_statuses].inspect}")
+              else
+                Rails.logger.warn("No order status_trail found in NLIMS response for #{order.accession_number}")
+                Rails.logger.debug("Order data keys: #{order_data&.keys&.inspect}")
+              end
+
+              # Extract test status trails from NLIMS tests
+              tests_data = lims_order['tests'] || lims_order.dig('data', 'tests') || []
+              if tests_data.is_a?(Array)
+                Rails.logger.debug("Processing #{tests_data.size} tests from NLIMS")
+                order_dto['test_statuses'] ||= {}
+                tests_data.each do |test|
+                  next unless test['status_trail'].is_a?(Array)
+
+                  test_name = test.dig('test_type', 'name')
+                  next unless test_name
+
+                  Rails.logger.debug("  Found #{test['status_trail'].size} status trail entries for test #{test_name}")
+                  order_dto['test_statuses'][test_name] ||= {}
+                  test['status_trail'].each do |trail|
+                    # Convert ISO 8601 timestamp to YYYYMMDDHHmmss format
+                    timestamp_key = convert_timestamp_to_key(trail['timestamp'])
+                    order_dto['test_statuses'][test_name][timestamp_key] = {
+                      'status_id' => trail['status_id'],
+                      'status' => trail['status'],
+                      'updated_by' => trail['updated_by']
+                    }
+                  end
+                end
+              end
+            rescue RestClient::NotFound
+              Rails.logger.warn("Order ##{order.accession_number} not found in NLIMS, using local data only")
             end
+
+            # Try to fetch results if available
             if order_dto['test_results'].empty?
               begin
                 patch_order_dto_with_lims_results!(order_dto, find_lims_results(order.accession_number))
-              rescue InvalidParameters => e # LIMS responds with a 401 when a result is not found :(
-                Rails.logger.error("Failed to fetch results for ##{order.accession_number}: #{e.message}")
-                next
+              rescue InvalidParameters => e
+                Rails.logger.info("No results available for ##{order.accession_number}: #{e.message}")
+                # Don't skip - continue processing to save status trails
+              rescue RestClient::NotFound
+                Rails.logger.info("No results found for ##{order.accession_number}")
+                # Don't skip - continue processing to save status trails
               end
             end
 
@@ -227,7 +294,7 @@ module Lab
           {
             order: {
               tracking_number: order_dto.fetch(:tracking_number),
-              district: current_district,
+              district: order_dto.fetch(:districy),
               health_facility_name: order_dto.fetch(:sending_facility),
               sending_facility: order_dto.fetch(:sending_facility),
               arv_number: order_dto.fetch(:patient).fetch(:arv_number),
@@ -281,22 +348,15 @@ module Lab
             status: 'specimen_collected',
             time_updated: date_updated,
             sample_type: order_dto.fetch(:sample_type_map),
-            updated_by: status.fetch(:updated_by)
+            updated_by: status.fetch(:updated_by),
+            status_trail: [
+              updated_by: {
+                first_name: status.fetch(:updated_by).fetch(:first_name),
+                last_name: status.fetch(:updated_by).fetch(:last_name),
+                id_number: status.fetch(:updated_by).fetch(:id)
+              }
+            ]
           }
-        end
-
-        def current_district
-          health_centre = Location.current_health_center
-          raise 'Current health centre not set' unless health_centre
-
-          district = health_centre.district || Lab::Lims::Config.application['district']
-
-          unless district
-            health_centre_name = "##{health_centre.id} - #{health_centre.name}"
-            raise "Current health centre district not set: #{health_centre_name}"
-          end
-
-          district
         end
 
         ##
@@ -444,23 +504,25 @@ module Lab
           order_dto['test_results'].each do |test_name, results|
             Rails.logger.info("Pushing result for order ##{order_dto['tracking_number']}")
             in_authenticated_session do |headers|
-              params = make_update_test_params(order_dto['tracking_number'], test_name, results)
+              params = make_update_test_params(order_dto, test_name, results)
 
-              RestClient.post(expand_uri("tests/#{order_dto['tracking_number']}", api_version: 'v2'), params, headers)
+              RestClient.put(expand_uri("tests/#{order_dto['tracking_number']}", api_version: 'v2'), params, headers)
             end
           end
         end
 
-        def make_update_test_params(_tracking_number, test, results, test_status = 'Drawn')
+        def make_update_test_params(order_dto, test, results, test_status = 'Drawn')
+          # Find the concept from the test name (which is a string)
+          concept = ::ConceptName.find_by(name: test)&.concept
           {
             test_status:,
             time_updated: results['result_date'],
             test_type: {
-              name: ::Concept.find(test.concept_id).test_catalogue_name,
-              nlims_code: ::Concept.find(test.concept_id).nlims_code
+              name: concept&.test_catalogue_name,
+              nlims_code: concept&.nlims_code
             },
-            test_results: results['results'].map do |measure, _value|
-              measure_name, measure_value = measure
+            test_results: results['results'].map do |measure_name, value|
+              measure_value = value['result_value']
               {
                 measure: {
                   name: measure_name,
@@ -470,6 +532,18 @@ module Lab
                 result: {
                   value: measure_value,
                   result_date: results['result_date']
+                }
+              }
+            end,
+            status_trail: order_dto['sample_statuses'].map do |trail_entry|
+              date, status = trail_entry.each_pair.first
+              {
+                status: status['status'],
+                timestamp: date,
+                updated_by: {
+                  first_name: status.fetch('updated_by').fetch('first_name'),
+                  last_name: status.fetch('updated_by').fetch('last_name'),
+                  id_number: status.fetch('updated_by').fetch('id')
                 }
               }
             end
@@ -510,45 +584,63 @@ module Lab
           }
         end
 
-        def orders_pending_updates(patient_id = nil)
+        def orders_pending_updates(patient_id = nil, start_date: nil)
           Rails.logger.info('Looking for orders that need to be updated...')
           orders = {}
 
-          orders_without_specimen(patient_id).each { |order| orders[order.order_id] = order }
-          orders_without_results(patient_id).each { |order| orders[order.order_id] = order }
-          orders_without_reason(patient_id).each { |order| orders[order.order_id] = order }
+          orders_without_specimen(patient_id, start_date: start_date).each { |order| orders[order.order_id] = order }
+          orders_without_results(patient_id, start_date: start_date).each { |order| orders[order.order_id] = order }
+          orders_without_reason(patient_id, start_date: start_date).each { |order| orders[order.order_id] = order }
 
           orders.values
         end
 
-        def orders_without_specimen(patient_id = nil)
+        def orders_without_specimen(patient_id = nil, start_date: nil)
           Rails.logger.debug('Looking for orders without a specimen')
           unknown_specimen = ConceptName.where(name: Lab::Metadata::UNKNOWN_SPECIMEN)
                                         .select(:concept_id)
           orders = Lab::LabOrder.where(concept_id: unknown_specimen)
                                 .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
           orders = orders.where(patient_id:) if patient_id
+          orders = orders.where('orders.date_created >= ?', start_date) if start_date
 
           orders
         end
 
-        def orders_without_results(patient_id = nil)
+        def orders_without_results(patient_id = nil, start_date: nil)
           Rails.logger.debug('Looking for orders without a result')
           # Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
           #                         .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id).where("pulled_at IS NULL"))
-          Lab::OrdersSearchService.find_orders_without_results(patient_id:)
-                                  .where(order_id: Lab::LimsOrderMapping.select(:order_id))
+          orders = Lab::OrdersSearchService.find_orders_without_results(patient_id:)
+                                           .where(order_id: Lab::LimsOrderMapping.select(:order_id))
+          orders = orders.where('orders.date_created >= ?', start_date) if start_date
+          orders
         end
 
-        def orders_without_reason(patient_id = nil)
+        def orders_without_reason(patient_id = nil, start_date: nil)
           Rails.logger.debug('Looking for orders without a reason for test')
           orders = Lab::LabOrder.joins(:reason_for_test)
                                 .merge(Observation.where(value_coded: nil, value_text: nil))
                                 .limit(1000)
                                 .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id))
           orders = orders.where(patient_id:) if patient_id
+          orders = orders.where('orders.date_created >= ?', start_date) if start_date
 
           orders
+        end
+
+        # Converts ISO 8601 timestamp to YYYYMMDDHHmmss format
+        def convert_timestamp_to_key(timestamp)
+          return timestamp if timestamp.nil? || timestamp.empty?
+
+          begin
+            # Parse ISO 8601 timestamp and format as YYYYMMDDHHmmss
+            Time.parse(timestamp).strftime('%Y%m%d%H%M%S')
+          rescue StandardError => e
+            Rails.logger.warn("Failed to parse timestamp '#{timestamp}': #{e.message}")
+            # Fallback: remove all non-digits
+            timestamp.to_s.gsub(/\D/, '')
+          end
         end
       end
     end
@@ -678,7 +770,7 @@ module Lab
   def make_create_params(order_dto)
     {
       tracking_number: order_dto.fetch(:tracking_number),
-      district: current_district,
+      district: order_dto.fetch(:districy),
       health_facility_name: order_dto.fetch(:sending_facility),
       first_name: order_dto.fetch(:patient).fetch(:first_name),
       last_name: order_dto.fetch(:patient).fetch(:last_name),
@@ -714,20 +806,6 @@ module Lab
       specimen_type: order_dto.fetch(:sample_type),
       status: 'specimen_collected'
     }
-  end
-
-  def current_district
-    health_centre = Location.current_health_center
-    raise 'Current health centre not set' unless health_centre
-
-    district = health_centre.district || Lab::Lims::Config.application['district']
-
-    unless district
-      health_centre_name = "##{health_centre.id} - #{health_centre.name}"
-      raise "Current health centre district not set: #{health_centre_name}"
-    end
-
-    district
   end
 
   ##

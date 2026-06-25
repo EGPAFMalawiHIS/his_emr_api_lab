@@ -30,7 +30,14 @@ class Lab::NotificationService
   def create_notification(alert_type, alert_message)
     return if alert_type != 'LIMS'
 
-    lab = User.find_by(username: 'lab_daemon')
+    # Use unscoped to find user regardless of location context
+    lab = Lab::Lims::Utils.lab_user
+
+    unless lab
+      Rails.logger.warn('NotificationService: lab_daemon user not found, skipping notification creation')
+      return
+    end
+
     ActiveRecord::Base.transaction do
       alert = NotificationAlert.create!(text: alert_message.to_json, date_to_expire: Time.now + not_period.days,
                                         creator: lab, changed_by: lab, date_created: Time.now)
