@@ -27,22 +27,46 @@ class Lab::NotificationService
     end
   end
 
-  def create_notification(alert_type, alert_message)
+  def create_notification(alert_type, alert_message,
+                          uniq_checkers: { test_type_id: nil, order_id: nil, specimen_id: nil })
     return if alert_type != 'LIMS'
 
-    # Use unscoped to find user regardless of location context
-    lab = Lab::Lims::Utils.lab_user
+    test_type_id = uniq_checkers[:test_type_id]
+    order_id = uniq_checkers[:order_id]
+    specimen_id = uniq_checkers[:specimen_id]
 
+    return unless test_type_id.present? && order_id.present? && specimen_id.present?
+
+    lab = Lab::Lims::Utils.lab_user
     unless lab
       Rails.logger.warn('NotificationService: lab_daemon user not found, skipping notification creation')
       return
     end
 
     ActiveRecord::Base.transaction do
-      alert = NotificationAlert.create!(text: alert_message.to_json, date_to_expire: Time.now + not_period.days,
-                                        creator: lab, changed_by: lab, date_created: Time.now)
-      notify(alert, User.joins(:roles).uniq)
-      # ActionCable.server.broadcast('nlims_channel', alert)
+      # Atomic find or create - checks and creates in one operation
+      alert = NotificationAlert.find_or_create_by!(
+        test_type_id: test_type_id,
+        order_id: order_id,
+        specimen_id: specimen_id
+      ) do |new_alert|
+        # Only set these attributes on creation
+        new_alert.text = alert_message.to_json
+        new_alert.date_to_expire = Time.now + not_period.days
+        new_alert.creator = lab
+        new_alert.changed_by = lab
+        new_alert.date_created = Time.now
+      end
+
+      # Only notify if this is a new record (not a duplicate)
+      notify(alert, User.joins(:roles).uniq) if alert.previously_new_record?
+    rescue ActiveRecord::RecordNotUnique
+      # Handle race condition if unique constraint exists
+      Rails.logger.info("Duplicate notification prevented for test_type: #{test_type_id}, order: #{order_id}, specimen: #{specimen_id}")
+    rescue ActiveRecord::InvalidForeignKey => e
+      Rails.logger.error("Invalid foreign key: #{e.message}")
+    rescue StandardError => e
+      Rails.logger.error("Unexpected error: #{e.message}")
     end
   end
 
