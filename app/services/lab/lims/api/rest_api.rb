@@ -19,11 +19,12 @@ module Lab
         def create_order(order_dto)
           response = in_authenticated_session do |headers|
             Rails.logger.info("Pushing order ##{order_dto[:tracking_number]} to LIMS")
+            payload = make_create_params(order_dto)
             if order_dto['sample_type'].casecmp?('not_specified')
-              RestClient.post(expand_uri('orders/requests', api_version: 'v2'), make_create_params(order_dto),
-                              headers)
+              RestClient.post(expand_uri('orders/requests', api_version: 'v2'), payload.to_json,
+                              json_headers(headers))
             else
-              RestClient.post(expand_uri('orders', api_version: 'v2'), make_create_params(order_dto), headers)
+              RestClient.post(expand_uri('orders', api_version: 'v2'), payload.to_json, json_headers(headers))
             end
           end
 
@@ -54,7 +55,7 @@ module Lab
                               date_acknowledged: acknowledgement_dto[:date_acknowledged],
                               recipient_type: acknowledgement_dto[:recipient_type],
                               acknowledged_by: 'emr_at_facility'
-                            }, headers)
+                            }.to_json, json_headers(headers))
           end
           Rails.logger.info("Acknowledged order ##{acknowledgement_dto} in LIMS. Response: #{response}")
           JSON.parse(response)
@@ -66,7 +67,7 @@ module Lab
         def update_order(_id, order_dto)
           in_authenticated_session do |headers|
             RestClient.put(expand_uri("orders/#{order_dto[:tracking_number]}", api_version: 'v2'),
-                           make_update_params(order_dto), headers)
+                           make_update_params(order_dto).to_json, json_headers(headers))
           end
 
           update_order_results(order_dto)
@@ -176,7 +177,8 @@ module Lab
             in_authenticated_session do |headers|
               date_voided, voided_status = find_test_status(order_dto, test.name, 'Voided')
               params = make_void_test_params(tracking_number, test, voided_status['updated_by'], date_voided)
-              RestClient.put(expand_uri("tests/#{tracking_number}", api_version: 'v2'), params.to_json, headers)
+              RestClient.put(expand_uri("tests/#{tracking_number}", api_version: 'v2'), params.to_json,
+                             json_headers(headers))
             end
           end
         end
@@ -277,6 +279,10 @@ module Lab
           raise InvalidParameters, body['message']
         end
 
+        def json_headers(headers)
+          headers.merge('Content-Type' => 'application/json', 'Accept' => 'application/json')
+        end
+
         ##
         # Takes a LIMS API relative URI and converts it to a full URL.
         def expand_uri(uri, api_version: 'v1')
@@ -328,16 +334,31 @@ module Lab
               date_of_birth: order_dto.fetch(:patient).fetch(:dob)
             },
             tests: order_dto.fetch(:tests_map).map do |test|
-              concept = ::Concept.find(test.concept_id)
+              concept = test_type_concept(test)
               {
                 test_type: {
                   name: concept.test_catalogue_name,
                   nlims_code: concept.nlims_code,
                   method_of_testing: test&.test_method&.name
-                }
+                }.compact
               }
             end
           }
+        end
+
+        def test_type_concept(test)
+          concept = ::Concept.find(test.concept_id)
+          return concept if concept.nlims_code.to_s.match?(/\ANLIMS_TT_/)
+
+          parent_test_types = ConceptSet.where(concept_id: concept.concept_id).filter_map do |concept_set|
+            parent = ::Concept.find_by(concept_id: concept_set.concept_set)
+            parent if parent&.nlims_code.to_s.match?(/\ANLIMS_TT_/)
+          end.uniq(&:concept_id)
+
+          return parent_test_types.first if parent_test_types.one?
+
+          Rails.logger.warn("Could not resolve test type for concept ##{concept.concept_id} (#{concept.test_catalogue_name})")
+          concept
         end
 
         ##
@@ -506,7 +527,8 @@ module Lab
             in_authenticated_session do |headers|
               params = make_update_test_params(order_dto, test_name, results)
 
-              RestClient.put(expand_uri("tests/#{order_dto['tracking_number']}", api_version: 'v2'), params, headers)
+              RestClient.put(expand_uri("tests/#{order_dto['tracking_number']}", api_version: 'v2'), params.to_json,
+                             json_headers(headers))
             end
           end
         end

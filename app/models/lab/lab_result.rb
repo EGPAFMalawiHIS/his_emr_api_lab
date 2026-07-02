@@ -16,8 +16,9 @@ module Lab
 
     belongs_to :test,
                (lambda do
-                  where(concept: ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
-                                            .select(:concept_id))
+                  unscope(where: :location_id)
+                    .where(concept: ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
+                                               .select(:concept_id))
                 end),
                class_name: 'Observation',
                foreign_key: :obs_group_id

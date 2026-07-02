@@ -1,15 +1,21 @@
 # frozen_string_literal: true
 
+require_relative '../../services/lab/order_location_resolver'
+
 module Lab
   module LabOrderSerializer
     def self.serialize_order(order, tests: nil, requesting_clinician: nil, reason_for_test: nil, target_lab: nil, comment_to_fulfiller: nil)
-      tests ||= order.voided == 1 ? voided_tests(order) : order.tests
-      requesting_clinician ||= order.requesting_clinician
-      comment_to_fulfiller ||= order.comment_to_fulfiller
-      reason_for_test ||= order.reason_for_test
-      target_lab = target_lab&.value_text || order.target_lab&.value_text || Location.current_health_center&.name
+      tests ||= [1, true].include?(order.voided) ? voided_tests(order) : order_tests(order)
+      requesting_clinician ||= order_observation(order, Lab::Metadata::REQUESTING_CLINICIAN_CONCEPT_NAME)
+      comment_to_fulfiller ||= order_observation(order, Lab::Metadata::COMMENT_TO_FULFILLER_CONCEPT_NAME)
+      reason_for_test ||= order_observation(order, Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME)
 
-      encounter = Encounter.find_by_encounter_id(order.encounter_id)
+      encounter = Encounter.unscoped.find_by_encounter_id(order.encounter_id)
+      location = Lab::OrderLocationResolver.location_for_order(order, fallback_location_id: encounter&.location_id)
+      target_lab = target_lab&.value_text ||
+                   order_observation(order, Lab::Metadata::TARGET_LAB_CONCEPT_NAME)&.value_text ||
+                   location&.name ||
+                   Location.current_health_center&.name
       program = Program.find_by_program_id(encounter&.program_id)
 
       ActiveSupport::HashWithIndifferentAccess.new(
@@ -20,7 +26,7 @@ module Lab
           encounter_id: order.encounter_id,
           **(Encounter.column_names.include?('visit_id') ? { visit_id: encounter&.visit_id } : {}),
           order_date: order.start_date,
-          location_id: encounter&.location_id,
+          location_id: location&.location_id,
           program_id: encounter&.program_id,
           program_name: program&.name,
           patient_id: order.patient_id,
@@ -59,8 +65,10 @@ module Lab
 
     def self.test_method(order, _concept_id)
       obs = ::Observation
+            .unscoped
             .select(:value_coded)
-            .where(concept_id: ConceptName.find_by_name(Metadata::TEST_METHOD_CONCEPT_NAME).concept_id, order_id: order.id)
+            .where(concept_id: ConceptName.find_by_name(Metadata::TEST_METHOD_CONCEPT_NAME).concept_id, order_id: order.order_id)
+            .where(voided: 0)
             .first
       {
         concept_id: obs&.value_coded,
@@ -75,10 +83,25 @@ module Lab
         ::ConceptName.find_by_concept_id(concept_id)&.name
     end
 
+    def self.order_tests(order)
+      concept = ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
+                           .select(:concept_id)
+      LabTest.unscoped.where(concept_id: concept, order_id: order.order_id, voided: 0)
+             .order(:date_created, :obs_id)
+    end
+
     def self.voided_tests(order)
       concept = ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                            .select(:concept_id)
-      LabTest.unscoped.where(concept:, order:, voided: true)
+      LabTest.unscoped.where(concept_id: concept, order_id: order.order_id, voided: 1)
+             .order(:date_voided, :obs_id)
+    end
+
+    def self.order_observation(order, concept_name)
+      concept = ConceptName.where(name: concept_name).select(:concept_id)
+      Observation.unscoped.where(order_id: order.order_id, concept_id: concept, voided: 0)
+                 .order(:date_created, :obs_id)
+                 .first
     end
 
     def self.latest_order_status(order)

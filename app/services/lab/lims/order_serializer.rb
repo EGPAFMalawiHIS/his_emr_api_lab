@@ -3,6 +3,7 @@
 require_relative 'config'
 require_relative 'order_dto'
 require_relative 'utils'
+require_relative '../order_location_resolver'
 
 module Lab
   module Lims
@@ -46,21 +47,7 @@ module Lab
         private
 
         def get_location(location_id, order)
-          # Try to get location from the location_id first
-          location = Location.find_by(location_id: location_id) if location_id.present?
-
-          # Fallback to current health center
-          location ||= Location.current_health_center
-
-          # Last fallback: try to get from order's observation encounter
-          # Use unscoped to find observations/encounters across all locations
-          if location.nil? && order.present?
-            obs = Observation.unscoped.find_by(order_id: order.order_id)
-            if obs.respond_to?(:encounter) && obs.encounter.respond_to?(:location)
-              encounter = Encounter.unscoped.find_by(encounter_id: obs.encounter_id)
-              location = encounter&.location
-            end
-          end
+          location = Lab::OrderLocationResolver.location_for_order(order, fallback_location_id: location_id)
 
           raise 'Current health center not set' unless location
 
@@ -161,7 +148,7 @@ module Lab
         end
 
         def format_test_status_trail(order)
-          tests = [0, false].include?(order.voided) ? order.tests : Lab::LabOrderSerializer.voided_tests(order)
+          tests = [0, false].include?(order.voided) ? Lab::LabOrderSerializer.order_tests(order) : Lab::LabOrderSerializer.voided_tests(order)
           tests.each_with_object({}) do |test, trail|
             test_name = format_test_name(::Concept.find(test.value_coded).test_catalogue_name)
 
