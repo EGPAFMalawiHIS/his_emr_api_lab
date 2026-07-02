@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'order_location_resolver'
+
 module Lab
   ##
   # Manage tests that have been ordered through the ordering service.
@@ -29,6 +31,7 @@ module Lab
         raise InvalidParameterError, 'tests are required' if tests_params.nil? || tests_params.empty?
 
         Lab::LabTest.transaction do
+          location_id = Lab::OrderLocationResolver.location_id_for_order(order)
           tests_params.map do |params|
             concept_id = params[:concept_id]
             concept_id = Concept.find_concept_by_uuid(params[:concept]).id if concept_id.nil?
@@ -40,6 +43,7 @@ module Lab
               order_id: order.order_id,
               person_id: order.patient_id,
               obs_datetime: date&.to_time || Time.now,
+              location_id:,
               value_coded: concept_id
             )
 
@@ -123,6 +127,7 @@ module Lab
         )
 
         # Create status observation with 'Drawn' as initial status
+        location_id = Lab::OrderLocationResolver.location_id_for_test(test)
         Observation.create!(
           person_id: test.person_id,
           encounter_id: test.encounter_id,
@@ -137,6 +142,7 @@ module Lab
             'phone_number' => nil
           }.to_json,
           creator: User.current&.user_id || 1,
+          location_id:,
           date_created: Time.now,
           uuid: SecureRandom.uuid
         )

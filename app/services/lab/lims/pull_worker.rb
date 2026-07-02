@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../order_location_resolver'
+
 module Lab
   module Lims
     ##
@@ -191,7 +193,9 @@ module Lab
 
       def create_order(patient, order_dto)
         logger.debug("Creating order ##{order_dto['_id']}")
-        order = OrdersService.order_test(order_dto.to_order_service_params(patient_id: patient.patient_id))
+        params = order_dto.to_order_service_params(patient_id: patient.patient_id)
+        params[:location_id] ||= location_id_for_order_dto(order_dto)
+        order = OrdersService.order_test(params)
 
         # Extract and save status trails from NLIMS
         save_status_trails_from_nlims(order, order_dto)
@@ -204,8 +208,9 @@ module Lab
 
       def update_order(patient, order_id, order_dto)
         logger.debug("Updating order ##{order_dto['_id']}")
-        order = OrdersService.update_order(order_id, order_dto.to_order_service_params(patient_id: patient.patient_id)
-                                                              .merge(force_update: 'true'))
+        params = order_dto.to_order_service_params(patient_id: patient.patient_id)
+        params[:location_id] ||= Lab::OrderLocationResolver.location_id_for_order_id(order_id, facility_name: order_dto[:sending_facility])
+        order = OrdersService.update_order(order_id, params.merge(force_update: 'true'))
 
         # Extract and save status trails from NLIMS
         save_status_trails_from_nlims(order, order_dto)
@@ -245,6 +250,7 @@ module Lab
           ResultsService.create_results(test.id, { provider_id: User.current.person_id,
                                                    date: Utils.parse_date(test_results['result_date'] || result_date,
                                                                           order[:order_date].to_s),
+                                                   location_id: Lab::OrderLocationResolver.location_id_for_test(test),
                                                    comments: "LIMS import: Entered by: #{creator}",
                                                    measures: })
         end
@@ -255,7 +261,13 @@ module Lab
         test_concept = Utils.find_concept_by_name(test_name)
         raise "Unknown test name, #{test_name}!" unless test_concept
 
-        LabTest.find_by(order_id:, value_coded: test_concept.concept_id)
+        LabTest.unscoped.find_by(order_id:, value_coded: test_concept.concept_id, voided: 0)
+      end
+
+      def location_id_for_order_dto(order_dto)
+        local_order = Lab::LabOrder.unscoped.find_by(accession_number: order_dto[:tracking_number])
+
+        Lab::OrderLocationResolver.location_id_for_order(local_order, facility_name: order_dto[:sending_facility])
       end
 
       def find_measure(_order, indicator_name, value)
@@ -342,6 +354,7 @@ module Lab
           logger.error("Order not found: #{order_id}")
           return
         end
+        location_id = Lab::OrderLocationResolver.location_id_for_order(lab_order)
 
         # sample_statuses is an array of single-key hashes like:
         # [{ "20260225120000" => { "status" => "Drawn", ... } }, { "20260225130000" => { ... } }]
@@ -383,6 +396,7 @@ module Lab
                 obs_datetime: timestamp,
                 comments: updated_by.to_json,
                 creator: User.current&.user_id || 1,
+                location_id:,
                 date_created: Time.now,
                 uuid: SecureRandom.uuid
               )
@@ -412,8 +426,9 @@ module Lab
           test_concept = Utils.find_concept_by_name(Utils.translate_test_name(test_name))
           next unless test_concept
 
-          test = Lab::LabTest.find_by(order_id: order['order_id'], value_coded: test_concept.concept_id)
+          test = Lab::LabTest.unscoped.find_by(order_id: order['order_id'], value_coded: test_concept.concept_id, voided: 0)
           next unless test
+          location_id = Lab::OrderLocationResolver.location_id_for_test(test)
 
           # Process each status in the trail
           statuses.each do |timestamp_key, status_data|
@@ -449,6 +464,7 @@ module Lab
                 obs_datetime: timestamp,
                 comments: updated_by.to_json,
                 creator: User.current&.user_id || 1,
+                location_id:,
                 date_created: Time.now,
                 uuid: SecureRandom.uuid
               )

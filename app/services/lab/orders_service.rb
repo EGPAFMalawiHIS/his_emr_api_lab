@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'order_location_resolver'
+
 module Lab
   ##
   # Manage lab orders.
@@ -163,6 +165,7 @@ module Lab
         # find the order
         order = find_order(order_params['tracking_number'])
         concept = ConceptName.find_by_name Lab::Metadata::LAB_ORDER_STATUS_CONCEPT_NAME
+        location_id = Lab::OrderLocationResolver.location_id_for_order(order)
         ActiveRecord::Base.transaction do
           void_order_status(order, concept)
           Observation.create!(
@@ -172,7 +175,8 @@ module Lab
             order_id: order.id,
             obs_datetime: order_params['status_time'] || Time.now,
             value_text: order_params['status'],
-            creator: User.current.id
+            creator: User.current.id,
+            location_id:
           )
 
           # Save order status trail if available
@@ -312,9 +316,14 @@ module Lab
         encounter_id = order_params[:encounter_id] || order_params[:encounter]
         patient_id = order_params[:patient_id] || order_params[:patient]
         visit = order_params[:visit]
+        location_id = location_id_from_order_params(order_params)
 
-        return Encounter.find(encounter_id) if order_params[:encounter] || order_params[:encounter_id]
-        raise StandardError, 'encounter_id|uuid or patient_id|uuid required' unless order_params[:patient]
+        if order_params[:encounter] || order_params[:encounter_id]
+          encounter = Encounter.unscoped.find(encounter_id)
+          encounter.update!(location_id:) if location_id.present? && encounter.respond_to?(:location_id) && encounter.location_id.blank?
+          return encounter
+        end
+        raise StandardError, 'encounter_id|uuid or patient_id|uuid required' unless patient_id
 
         encounter = Encounter.new
         encounter.patient = Patient.find(patient_id)
@@ -325,6 +334,7 @@ module Lab
         if Encounter.column_names.include?('program_id') && order_params[:program_id].present?
           encounter.program_id = order_params[:program_id]
         end
+        encounter.location_id = location_id if Encounter.column_names.include?('location_id') && location_id.present?
         encounter.save!
         encounter.reload
       end
@@ -433,6 +443,7 @@ module Lab
         # Use unscoped to find user regardless of location context
         creator = User.unscoped.find_by(username: 'lab_daemon')
         User.current ||= creator
+        values[:location_id] ||= Lab::OrderLocationResolver.location_id_for_order(order)
         Observation.create!(
           order:,
           encounter_id: order.encounter_id,
@@ -454,23 +465,40 @@ module Lab
       def update_reason_for_test(order, concept_id, force_update: false)
         raise InvalidParameterError, "Reason for test can't be blank" if concept_id.blank?
 
-        return if order.reason_for_test&.value_coded == concept_id
+        current_reason_for_test = order_observation(order, Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME)
+        return if current_reason_for_test&.value_coded == concept_id
 
-        if order.reason_for_test&.value_coded && !force_update
+        if current_reason_for_test&.value_coded && !force_update
           raise InvalidParameterError,
                 "Can't change reason for test once set"
         end
 
-        order.reason_for_test&.delete
+        current_reason_for_test&.delete
         date = order.start_date if order.respond_to?(:start_date)
         date ||= order.date_created
         add_reason_for_test(order, date: date, reason_for_test_id: concept_id)
       end
 
       def void_order_status(order, concept)
-        Observation.where(order_id: order.id, concept_id: concept.concept_id).each do |obs|
+        Observation.unscoped.where(order_id: order.id, concept_id: concept.concept_id).each do |obs|
           obs.void('New Status Received from LIMS')
         end
+      end
+
+      def location_id_from_order_params(order_params)
+        order_params[:location_id] ||
+          order_params[:order_location_id] ||
+          Lab::OrderLocationResolver.location_from_name(order_params[:order_location])&.location_id ||
+          Lab::OrderLocationResolver.location_from_name(order_params['order_location'])&.location_id ||
+          Lab::OrderLocationResolver.location_from_name(order_params[:target_lab])&.location_id ||
+          Lab::OrderLocationResolver.location_from_name(order_params['target_lab'])&.location_id
+      end
+
+      def order_observation(order, concept_name)
+        concept = ConceptName.where(name: concept_name).select(:concept_id)
+        Observation.unscoped.where(order_id: order.order_id, concept_id: concept, voided: 0)
+                   .order(:date_created, :obs_id)
+                   .first
       end
 
       def create_initial_order_status_trail(order)
@@ -525,8 +553,8 @@ module Lab
           concept = Lab::Lims::Utils.find_concept_by_name(test_name)
           next unless concept
 
-          # Find the test observation
-          test = order.tests.find_by(value_coded: concept.concept_id)
+          # Find the test observation without the daemon's current-location scope.
+          test = Lab::LabTest.unscoped.find_by(order_id: order.order_id, value_coded: concept.concept_id, voided: 0)
           next unless test
 
           # Save each status trail entry
@@ -561,6 +589,8 @@ module Lab
           voided: 0
         )
 
+        location_id = Lab::OrderLocationResolver.location_id_for_order(order)
+
         # Create status observation
         Observation.create!(
           person_id: order.patient_id,
@@ -571,6 +601,7 @@ module Lab
           obs_datetime: timestamp,
           comments: updated_by.to_json,
           creator: User.current&.user_id || 1,
+          location_id:,
           date_created: Time.now,
           uuid: SecureRandom.uuid
         )
@@ -599,6 +630,8 @@ module Lab
           voided: 0
         )
 
+        location_id = Lab::OrderLocationResolver.location_id_for_test(test)
+
         # Create status observation
         Observation.create!(
           person_id: test.person_id,
@@ -609,6 +642,7 @@ module Lab
           obs_datetime: timestamp,
           comments: updated_by.to_json,
           creator: User.current&.user_id || 1,
+          location_id:,
           date_created: Time.now,
           uuid: SecureRandom.uuid
         )

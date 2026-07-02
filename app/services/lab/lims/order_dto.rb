@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'exceptions'
+require_relative '../order_location_resolver'
 
 module Lab
   module Lims
@@ -12,10 +13,13 @@ module Lab
       ##
       # Unpacks a LIMS order into an object that OrdersService can handle
       def to_order_service_params(patient_id:)
+        location = Lab::OrderLocationResolver.location_from_name(facility_name(self['sending_facility'])) ||
+                   Lab::OrderLocationResolver.location_from_name(self['order_location'])
         ActiveSupport::HashWithIndifferentAccess.new(
           program_id: lab_program.program_id,
           accession_number: self['tracking_number'],
           patient_id:,
+          location_id: location&.location_id,
           specimen: { concept_id: specimen_type_id },
           tests: self['tests_map']&.map { |test| { concept_id: test.concept_id } },
           requesting_clinician:,

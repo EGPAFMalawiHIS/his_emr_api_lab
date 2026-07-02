@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'order_location_resolver'
+
 module Lab
   module ResultsService
     class << self
@@ -20,16 +22,15 @@ module Lab
         serializer = {}
         results_obs = {}
         ActiveRecord::Base.transaction do
-          test = begin
-            Lab::LabTest.find(test_id)
-          rescue StandardError
-            nil
-          end
-          test = Lab::LabTest.find_by_uuid(test_id) if test.blank?
+          test = Lab::LabTest.unscoped.find_by(obs_id: test_id)
+          test ||= Lab::LabTest.unscoped.find_by(uuid: test_id)
+          raise ActiveRecord::RecordNotFound, "Couldn't find Lab::LabTest with id=#{test_id}" unless test
+
           encounter = find_encounter(test, encounter_id: params[:encounter_id],
                                            encounter_uuid: params[:encounter],
                                            date: params[:date]&.to_date,
-                                           provider_id: params[:provider_id])
+                                           provider_id: params[:provider_id],
+                                           location_id: params[:location_id])
 
           results_obs = create_results_obs(encounter, test, params[:date], params[:comments])
           params[:measures].map { |measure| add_measure_to_results(results_obs, measure, params[:date]) }
@@ -105,22 +106,25 @@ module Lab
                          .first&.identifier
       end
 
-      def find_encounter(test, encounter_id: nil, encounter_uuid: nil, date: nil, provider_id: nil)
-        return Encounter.find(encounter_id) if encounter_id
-        return Encounter.find_by_uuid(encounter_uuid) if encounter_uuid
+      def find_encounter(test, encounter_id: nil, encounter_uuid: nil, date: nil, provider_id: nil, location_id: nil)
+        return Encounter.unscoped.find(encounter_id) if encounter_id
+        return Encounter.unscoped.find_by_uuid(encounter_uuid) if encounter_uuid
 
         lab_encounter_type = EncounterType.find_by_name!(Lab::Metadata::ENCOUNTER_TYPE_NAME)
+        source_encounter = Encounter.unscoped.find_by(encounter_id: test.encounter_id)
+        location_id ||= Lab::OrderLocationResolver.location_id_for_test(test)
 
         encounter = Encounter.new
         encounter.patient_id = test.person_id
-        encounter.program_id = test.encounter.program_id if Encounter.column_names.include?('program_id')
-        encounter.visit_id = test.encounter.visit_id if Encounter.column_names.include?('visit_id')
+        encounter.program_id = source_encounter&.program_id if Encounter.column_names.include?('program_id')
+        encounter.visit_id = source_encounter&.visit_id if Encounter.column_names.include?('visit_id')
         # Use bracket notation to set the encounter_type column directly (bypasses association)
         # This handles both Integer and EncounterType object
         encounter_type_value = lab_encounter_type.is_a?(Integer) ? lab_encounter_type : lab_encounter_type.encounter_type_id
         encounter[:encounter_type] = encounter_type_value
         encounter.encounter_datetime = date || Date.today
         encounter.provider_id = provider_id || User.current.user_id if Encounter.column_names.include?('provider_id')
+        encounter.location_id = location_id if Encounter.column_names.include?('location_id') && location_id.present?
         encounter.save!
         encounter.reload
         encounter
@@ -130,20 +134,23 @@ module Lab
       def create_results_obs(encounter, test, date, comments = nil)
         void_existing_results_obs(encounter, test)
         Lab::LabResult.create!(
+          test:,
           person_id: encounter.patient_id,
           encounter_id: encounter.encounter_id,
           concept_id: test_result_concept.concept_id,
           order_id: test.order_id,
           obs_group_id: test.obs_id,
+          location_id: encounter.location_id || Lab::OrderLocationResolver.location_id_for_test(test),
           obs_datetime: date&.to_datetime || DateTime.now,
           comments:
         )
       end
 
       def void_existing_results_obs(encounter, test)
-        result = Lab::LabResult.find_by(person_id: encounter.patient_id,
-                                        concept_id: test_result_concept.concept_id,
-                                        obs_group_id: test.obs_id)
+        result = Lab::LabResult.unscoped.find_by(person_id: encounter.patient_id,
+                                                 concept_id: test_result_concept.concept_id,
+                                                 obs_group_id: test.obs_id,
+                                                 voided: 0)
         return unless result
 
         OrderExtension.find_by(order_id: result.order_id)&.void("Updated/overwritten by #{User.current.username}")
@@ -167,6 +174,7 @@ module Lab
           order_id: results_obs.order_id,
           concept_id: concept_id,
           obs_group_id: results_obs.obs_id,
+          location_id: results_obs.location_id,
           obs_datetime: date&.to_datetime || DateTime.now,
           **make_measure_value(params)
         )
