@@ -87,21 +87,17 @@ module Lab
       concept = ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                            .select(:concept_id)
       LabTest.unscoped.where(concept_id: concept, order_id: order.order_id, voided: 0)
-             .order(:date_created, :obs_id)
     end
 
     def self.voided_tests(order)
       concept = ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME)
                            .select(:concept_id)
       LabTest.unscoped.where(concept_id: concept, order_id: order.order_id, voided: 1)
-             .order(:date_voided, :obs_id)
     end
 
     def self.order_observation(order, concept_name)
       concept = ConceptName.where(name: concept_name).select(:concept_id)
-      Observation.unscoped.where(order_id: order.order_id, concept_id: concept, voided: 0)
-                 .order(:date_created, :obs_id)
-                 .first
+      Observation.unscoped.find_by(order_id: order.order_id, concept_id: concept, voided: 0)
     end
 
     def self.latest_order_status(order)
