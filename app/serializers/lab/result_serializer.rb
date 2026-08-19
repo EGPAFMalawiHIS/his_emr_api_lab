@@ -34,7 +34,22 @@ module Lab
     def self.get_test_catalog_concept_name(concept_id)
       return nil unless concept_id
 
-      ::ConceptAttribute.find_by(concept_id:, attribute_type: ConceptAttributeType.test_catalogue_name)&.value_reference
+      concept_name = ::ConceptAttribute.find_by(concept_id:, attribute_type: ConceptAttributeType.test_catalogue_name)&.value_reference
+      return concept_name if concept_name.present?
+
+      # If the concept does not have a test catalog name, check if it is UA or HCT and return the appropriate name
+      # Otherwise, return the first concept name associated with the concept_id
+      # Handles the case where a concept has multiple names, such as UA and HCT, which are both associated with the same concept_id
+      # NB: Mostly for Old Lab tests that have been migrated to the new system, where the concept_id is the same for both UA and HCT, but the concept_name is different
+      # A Case of AETC - Name was not present in the concept attribute table, but was present in the concept name table, so we need to check both tables to get the correct name
+      concepts = %w[UA HCT]
+      concept_names = ::ConceptName.where(concept_id: concept_id)
+      if concept_names.any? { |cn| concepts.include?(cn.name) }
+        concept_name = concept_names.find { |cn| concepts.include?(cn.name) }&.name
+      else
+        concept_name = concept_names.first&.name
+      end
+      concept_name
     end
 
     def self.read_value(measure)
