@@ -52,14 +52,13 @@ class Lab::NotificationService
       ) do |new_alert|
         # Only set these attributes on creation
         new_alert.text = alert_message.to_json
-        new_alert.date_to_expire = Time.now + not_period.days
+        new_alert.date_to_expire = Time.now + notification_period.days
         new_alert.creator = lab
         new_alert.changed_by = lab
         new_alert.date_created = Time.now
       end
 
-      # Only notify if this is a new record (not a duplicate)
-      notify(alert, User.joins(:roles).uniq) if alert.previously_new_record?
+      notify(alert, users(order_location(alert.order_id)))
     rescue ActiveRecord::RecordNotUnique
       # Handle race condition if unique constraint exists
       Rails.logger.info("Duplicate notification prevented for test_type: #{test_type_id}, order: #{order_id}, specimen: #{specimen_id}")
@@ -70,15 +69,29 @@ class Lab::NotificationService
     end
   end
 
-  def not_period
+  def notification_period
     result = GlobalProperty.where(property: 'notification.period')&.first
     return result.property_value.to_i if result.present?
 
     7 # default to 7 days
   end
 
-  def notify(notification_alert, recipients)
+  def users(location_id = nil)
+    return User.joins(:roles).where(location_id: location_id).uniq if location_id.present? && User.column_names.include?('location_id')
+
+    User.joins(:roles).uniq
+  end
+
+  def order_location(order_id)
+    return nil unless Observation.column_names.include?('location_id')
+
+    Observation.find_by(order_id: order_id)&.location_id
+  end
+
+  def notify(notification_alert, recipients)    
     recipients.each do |recipient|
+      next if recipient.notification_alert_recipients.exists?(alert_id: notification_alert.id)
+
       recipient.notification_alert_recipients.create(
         alert_id: notification_alert.id
       )
