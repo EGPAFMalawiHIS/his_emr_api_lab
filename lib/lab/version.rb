@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Lab
-  VERSION = '2.4.2-beta'.freeze
+  VERSION = '2.4.3'.freeze
 end
