@@ -63,7 +63,7 @@ module Lab
 
       def process_result_completion(results_obs, serializer, result_enter_by)
         process_acknowledgement(results_obs, result_enter_by)
-        precess_notification_message(results_obs, serializer, result_enter_by)
+        process_notification_message(results_obs, serializer, result_enter_by)
       rescue StandardError => e
         Rails.logger.error("Lab::ResultsService: Error in post-result processing: #{e.message}")
         Rails.logger.error(e.backtrace.join("\n"))
@@ -72,7 +72,7 @@ module Lab
 
       private
 
-      def precess_notification_message(result, values, result_enter_by)
+      def process_notification_message(result, values, result_enter_by)
         order = Order.find(result.order_id)
         test_concept_id = result.test&.value_coded
         uniq_checkers = {
