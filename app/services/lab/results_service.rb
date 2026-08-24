@@ -41,7 +41,7 @@ module Lab
         end
 
         # force commit all transactions
-        ActiveRecord::Base.connection.commit_db_transaction
+        # ActiveRecord::Base.connection.commit_db_transaction
 
         # Execute job synchronously
         ProcessLabResultJob.perform_now(results_obs.id, serializer, result_enter_by)
