@@ -88,13 +88,40 @@ class Lab::NotificationService
     Observation.find_by(order_id: order_id)&.location_id
   end
 
-  def notify(notification_alert, recipients)    
-    recipients.each do |recipient|
-      next if recipient.notification_alert_recipients.exists?(alert_id: notification_alert.id)
+  # Was one exists? + one create per recipient (2 round trips x N users,
+  # sequentially) - the slow part users() and order_location() were feeding
+  # into. notification_alert_recipient's primary key is (alert_id, user_id),
+  # so a single batched insert_all does the "notify each user at most once
+  # per alert" dedup at the DB level instead of a round trip per user.
+  #
+  # Plain insert_all, no unique_by/on_duplicate kwargs - verified live
+  # against this app's Rails 8.1/mysql2 combination:
+  #   - relation.rb's insert_all hardcodes InsertAll.execute(..., on_duplicate:
+  #     :skip, ...) internally; on_duplicate isn't a caller-facing keyword at
+  #     all (passing it raises "unknown keyword: :on_duplicate"), and skip-on-
+  #     duplicate is already what plain insert_all does by default.
+  #   - unique_by IS a caller-facing keyword, but only for adapters that need
+  #     to be told which constraint backs the ON CONFLICT target (e.g.
+  #     Postgres). Passing it here raises "Mysql2Adapter does not support
+  #     :unique_by" - MySQL's own INSERT IGNORE applies to any unique/primary
+  #     -key violation on the table, so it needs nothing extra to know that
+  #     (alert_id, user_id) is the key to dedup against.
+  #
+  # insert_all skips AR callbacks, so uuid - the one thing the model's
+  # before_create/before_save would have set - is generated here;
+  # alert_read/cleared/date_changed are left to their column defaults.
+  # Chunked so one notification fan-out to a very large recipient list
+  # doesn't become a single giant statement.
+  BATCH_SIZE = 1000
 
-      recipient.notification_alert_recipients.create(
-        alert_id: notification_alert.id
-      )
+  def notify(notification_alert, recipients)
+    rows = recipients.pluck(:user_id).map do |user_id|
+      { alert_id: notification_alert.id, user_id: user_id, uuid: SecureRandom.uuid }
+    end
+    return if rows.empty?
+
+    rows.each_slice(BATCH_SIZE) do |batch|
+      NotificationAlertRecipient.insert_all(batch)
     end
   end
 
