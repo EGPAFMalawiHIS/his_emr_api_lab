@@ -607,11 +607,13 @@ module Lab
         end
 
         def orders_pending_updates(patient_id = nil, start_date: nil)
-          Rails.logger.info('Looking for orders that need to be updated...')
+          Rails.logger.info("Looking for orders that need to be updated... [patient_id=#{patient_id}] [start_date=#{start_date}]")
           orders = {}
-
+          Rails.logger.info("Fetching orders without specimen...")
           orders_without_specimen(patient_id, start_date: start_date).each { |order| orders[order.order_id] = order }
+          Rails.logger.info("Fetching orders without results...")
           orders_without_results(patient_id, start_date: start_date).each { |order| orders[order.order_id] = order }
+          Rails.logger.info("Fetching orders without reason...")
           orders_without_reason(patient_id, start_date: start_date).each { |order| orders[order.order_id] = order }
 
           orders.values
