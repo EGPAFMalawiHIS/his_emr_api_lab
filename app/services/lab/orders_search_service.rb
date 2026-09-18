@@ -25,7 +25,14 @@ module Lab
       end
 
       def find_orders_without_results(patient_id: nil)
-        results_query = Lab::LabResult.all
+        # order_id IS NOT NULL matters here, not just there: SQL's NOT IN is
+        # poisoned by a single NULL in the subquery — `x NOT IN (1, NULL)` is
+        # never true for any x, because `x <> NULL` is unknown rather than
+        # true/false, and one unknown collapses the whole AND chain. Some
+        # legacy "Lab test result" observations have a NULL order_id, so
+        # without this filter, one such row for a patient silently zeroes out
+        # every order this returns for them, not just the row with the NULL.
+        results_query = Lab::LabResult.all.where.not(order_id: nil)
         results_query = results_query.where(person_id: patient_id) if patient_id
 
         query = Lab::LabOrder.where.not(order_id: results_query.select(:order_id))
