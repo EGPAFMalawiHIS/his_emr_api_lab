@@ -7,15 +7,17 @@ module Lab
     ##
     # Pulls orders from a Lims API object and saves them to the local database.
     class PullWorker
-      attr_reader :lims_api, :start_date
+      attr_reader :lims_api, :start_date, :accession_numbers
 
       include Utils # for logger
 
       LIMS_LOG_PATH = Rails.root.join('log', 'lims')
 
-      def initialize(lims_api, start_date: nil)
+      def initialize(lims_api, start_date: nil, accession_numbers: [], patient_id: nil)
         @lims_api = lims_api
         @start_date = start_date
+        @accession_numbers = accession_numbers
+        @patient_id = patient_id
       end
 
       ##
@@ -23,7 +25,7 @@ module Lab
       def pull_orders(batch_size: 10_000, **)
         logger.info("Retrieving LIMS orders starting from #{last_seq}")
 
-        lims_api.consume_orders(from: last_seq, limit: batch_size, start_date: start_date, **) do |order_dto, context|
+        lims_api.consume_orders(from: last_seq, limit: batch_size, start_date: start_date, accession_numbers: accession_numbers, **) do |order_dto, context|
           logger.debug("Retrieved order ##{order_dto[:tracking_number]}: #{order_dto}")
 
           patient = find_patient_by_nhid(order_dto[:patient][:id], order_dto[:tracking_number])
@@ -395,7 +397,7 @@ module Lab
                 value_text: status_data['status'], # Store status as text
                 obs_datetime: timestamp,
                 comments: updated_by.to_json,
-                creator: User.current&.user_id || 1,
+                creator: User.current&.user_id,
                 location_id:,
                 date_created: Time.now,
                 uuid: SecureRandom.uuid
@@ -463,7 +465,7 @@ module Lab
                 value_text: status_data['status'], # Store status as text
                 obs_datetime: timestamp,
                 comments: updated_by.to_json,
-                creator: User.current&.user_id || 1,
+                creator: User.current&.user_id,
                 location_id:,
                 date_created: Time.now,
                 uuid: SecureRandom.uuid

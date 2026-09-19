@@ -4,15 +4,17 @@ module Lab
   module Lims
     # This class is responsible for handling the acknowledgement of lab orders
     class AcknowledgementWorker
-      attr_reader :lims_api, :start_date
+      attr_reader :lims_api, :start_date, :accession_numbers, :patient_id
 
       include Utils # for logger
 
       SECONDS_TO_WAIT_FOR_ORDERS = 30
 
-      def initialize(lims_api, start_date: nil)
+      def initialize(lims_api, start_date: nil, accession_numbers: [], patient_id: nil)
         @lims_api = lims_api
         @start_date = start_date
+        @accession_numbers = accession_numbers
+        @patient_id = patient_id
       end
 
       def push_acknowledgement(batch_size: 1000, wait: false)
@@ -21,6 +23,8 @@ module Lab
           logger.info('Looking for new acknowledgements to push to LIMS...')
           acknowledgements = Lab::AcknowledgementService.acknowledgements_pending_sync(batch_size,
                                                                                        start_date: start_date,
+                                                                                       accession_numbers: accession_numbers,
+                                                                                       patient_id: patient_id,
                                                                                        last_order_id: last_order_id).all
 
           logger.debug("Found #{acknowledgements.size} acknowledgements...")
