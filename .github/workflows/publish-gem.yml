@@ -1,23 +1,23 @@
-name: Publish gem
+# name: Publish gem
 
-on:
-  push:
-    tags:
-      - v*
-    branches:
-      - main
+# on:
+#   push:
+#     tags:
+#       - v*
+#     branches:
+#       - main
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v2
+#     steps:
+#       - uses: actions/checkout@v2
 
-      - name: Release Gem
-        if: contains(github.ref, 'refs/tags/v')
-        uses: marcelotoledo5000/publish-rubygems-action@master
-        env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-          RUBYGEMS_API_KEY: ${{secrets.RUBYGEMS_PUBLISH_KEY}}
-          RELEASE_COMMAND: rake release
+#       - name: Release Gem
+#         if: contains(github.ref, 'refs/tags/v')
+#         uses: marcelotoledo5000/publish-rubygems-action@master
+#         env:
+#           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+#           RUBYGEMS_API_KEY: ${{secrets.RUBYGEMS_PUBLISH_KEY}}
+#           RELEASE_COMMAND: rake release
