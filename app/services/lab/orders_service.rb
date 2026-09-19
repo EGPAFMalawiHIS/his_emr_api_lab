@@ -600,7 +600,7 @@ module Lab
           value_text: status, # Store status as text
           obs_datetime: timestamp,
           comments: updated_by.to_json,
-          creator: User.current&.user_id || 1,
+          creator: User.current&.user_id,
           location_id:,
           date_created: Time.now,
           uuid: SecureRandom.uuid
@@ -641,7 +641,7 @@ module Lab
           value_text: status, # Store status as text
           obs_datetime: timestamp,
           comments: updated_by.to_json,
-          creator: User.current&.user_id || 1,
+          creator: User.current&.user_id,
           location_id:,
           date_created: Time.now,
           uuid: SecureRandom.uuid

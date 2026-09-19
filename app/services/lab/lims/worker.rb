@@ -9,46 +9,46 @@ module Lab
     ##
     # Pull/Push orders from/to the LIMS queue (Oops meant CouchDB).
     module Worker
-      def self.start(start_date: nil)
+      def self.start(start_date: nil, accession_numbers: [], patient_id: nil)
         User.current = Utils.lab_user
 
         # Eager load classes before forking to avoid autoloading issues in child processes
         Rails.application.eager_load! if defined?(Rails) && Rails.env.development?
 
-        fork { start_push_worker(start_date: start_date) }
-        fork { start_pull_worker(start_date: start_date) }
-        fork { start_acknowledgement_worker(start_date: start_date) }
-        fork { start_realtime_pull_worker(start_date: start_date) } if realtime_updates_enabled?
+        fork { start_push_worker(start_date: start_date, accession_numbers: accession_numbers, patient_id: patient_id) }
+        fork { start_pull_worker(start_date: start_date, accession_numbers: accession_numbers, patient_id: patient_id) }
+        fork { start_acknowledgement_worker(start_date: start_date, accession_numbers: accession_numbers, patient_id: patient_id) }
+        fork { start_realtime_pull_worker(start_date: start_date, accession_numbers: accession_numbers, patient_id: patient_id) } if realtime_updates_enabled?
 
         Process.waitall
       end
 
-      def self.start_push_worker(start_date: nil)
-        start_worker('push_worker') do
-          worker = PushWorker.new(lims_api, start_date: start_date)
+      def self.start_push_worker(start_date: nil, accession_numbers: [], patient_id: nil)
+        start_worker('push_worker', accession_numbers: accession_numbers, patient_id: patient_id) do
+          worker = PushWorker.new(lims_api, start_date: start_date, accession_numbers: accession_numbers, patient_id: patient_id)
 
           worker.push_orders # (wait: true)
         end
       end
 
-      def self.start_acknowledgement_worker(start_date: nil)
-        start_worker('acknowledgement_worker') do
-          worker = AcknowledgementWorker.new(lims_api, start_date: start_date)
+      def self.start_acknowledgement_worker(start_date: nil, accession_numbers: [], patient_id: nil)
+        start_worker('acknowledgement_worker', accession_numbers: accession_numbers, patient_id: patient_id) do
+          worker = AcknowledgementWorker.new(lims_api, start_date: start_date, accession_numbers: accession_numbers, patient_id: patient_id)
           worker.push_acknowledgement
         end
       end
 
-      def self.start_pull_worker(start_date: nil)
-        start_worker('pull_worker') do
-          worker = PullWorker.new(lims_api, start_date: start_date)
+      def self.start_pull_worker(start_date: nil, accession_numbers: [], patient_id: nil)
+        start_worker('pull_worker', accession_numbers: accession_numbers, patient_id: patient_id) do
+          worker = PullWorker.new(lims_api, start_date: start_date, accession_numbers: accession_numbers, patient_id: patient_id)
 
           worker.pull_orders
         end
       end
 
-      def self.start_realtime_pull_worker(start_date: nil)
-        start_worker('realtime_pull_worker') do
-          worker = PullWorker.new(Lims::Api::WsApi.new(Lab::Lims::Config.updates_socket), start_date: start_date)
+      def self.start_realtime_pull_worker(start_date: nil, accession_numbers: [], patient_id: nil)
+        start_worker('realtime_pull_worker', accession_numbers: accession_numbers, patient_id: patient_id) do
+          worker = PullWorker.new(Lims::Api::WsApi.new(Lab::Lims::Config.updates_socket), start_date: start_date, accession_numbers: accession_numbers, patient_id: patient_id)
 
           worker.pull_orders
         end
@@ -57,7 +57,8 @@ module Lab
       LOG_FILES_TO_KEEP = 5
       LOG_FILE_SIZE = 500.megabytes
 
-      def self.start_worker(worker_name)
+      def self.start_worker(worker_name, accession_numbers: [], patient_id: nil)
+        worker_name = create_file_name(worker_name, accession_numbers: accession_numbers, patient_id: patient_id)
         Rails.logger = LoggerMultiplexor.new(file_logger(worker_name), $stdout)
         ActiveRecord::Base.logger = Rails.logger
         Rails.logger.level = :debug
@@ -76,6 +77,15 @@ module Lab
 
       def self.file_logger(worker_name)
         Logger.new(log_path("#{worker_name}.log"), LOG_FILES_TO_KEEP, LOG_FILE_SIZE)
+      end
+
+      def self.create_file_name(worker_name, accession_numbers: [], patient_id: nil)
+        accession_numbers = accession_numbers.nil? ? [] : accession_numbers
+        accession_numbers = accession_numbers.map { |accession| accession.gsub(/[^a-zA-Z0-9]/, '') }.join('_')
+        filename = "#{worker_name}"
+        filename += "_#{accession_numbers}" unless accession_numbers.empty?
+        filename += "_#{patient_id}" if patient_id
+        filename
       end
 
       def self.log_path(filename)

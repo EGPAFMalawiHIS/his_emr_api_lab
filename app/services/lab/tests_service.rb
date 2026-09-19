@@ -141,7 +141,7 @@ module Lab
             'id' => User.current&.user_id&.to_s,
             'phone_number' => nil
           }.to_json,
-          creator: User.current&.user_id || 1,
+          creator: User.current&.user_id,
           location_id:,
           date_created: Time.now,
           uuid: SecureRandom.uuid

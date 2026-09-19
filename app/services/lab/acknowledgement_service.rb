@@ -14,11 +14,13 @@ module Lab
                                         date_received: params[:date_received])
       end
 
-      def acknowledgements_pending_sync(batch_size, start_date: nil, last_order_id: 0)
+      def acknowledgements_pending_sync(batch_size, start_date: nil, last_order_id: 0, accession_numbers: [], patient_id: nil)
         query = Lab::LabAcknowledgement.joins(:order).where(pushed: false)
                                        .where('lims_acknowledgement_statuses.order_id > ?', last_order_id)
         query = query.where('orders.date_created >= ?', start_date) if start_date
-        query.order('lims_acknowledgement_statuses.order_id ASC').limit(batch_size)
+        query = query.where(orders: {accession_number: accession_numbers}) if accession_numbers.any?
+        query = query.where(orders: {patient_id: patient_id}) if patient_id
+        query.order('lims_acknowledgement_statuses.order_id DESC').limit(batch_size)
       end
 
       def push_acknowledgement(acknowledgement, lims_api)
