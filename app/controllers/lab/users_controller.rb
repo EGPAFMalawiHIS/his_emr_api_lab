@@ -8,6 +8,12 @@ module Lab
     # create a LIMS User that will be responsible for sending lab results
     def create
       user_params = params.permit(:username, :password)
+      begin
+        User.current = Lab::Lims::Utils.lab_user
+        Location.current = User.current.location
+      rescue StandardError => e
+        Rails.logger.error("Failed to set current location: #{e.message}")
+      end
       service.create_lims_user(username: user_params['username'], password: user_params['password'])
       render json: { message: 'User successfully created' }, status: 200
     end
