@@ -5,16 +5,18 @@ module Lab
     ##
     # Pushes all local orders to a LIMS Api object.
     class PushWorker
-      attr_reader :lims_api, :start_date
+      attr_reader :lims_api, :start_date, :accession_numbers, :patient_id
 
       include Utils # for logger
 
       SECONDS_TO_WAIT_FOR_ORDERS = 30
       START_DATE = Time.parse('2024-09-03').freeze
 
-      def initialize(lims_api, start_date: nil)
+      def initialize(lims_api, start_date: nil, accession_numbers: [], patient_id: nil)
         @lims_api = lims_api
         @start_date = start_date
+        @accession_numbers = accession_numbers
+        @patient_id = patient_id
       end
 
       def push_orders(batch_size: 1000, wait: false)
@@ -109,7 +111,8 @@ module Lab
                 else
                   query.where('orders.date_created >= ? AND orders.date_created <= ?', START_DATE, Date.today + 1.day)
                 end
-
+        query = query.where(accession_number: accession_numbers) if accession_numbers.any?
+        query = query.where(patient_id: patient_id) if patient_id
         query.order(date_created: :desc)
       end
 
@@ -130,11 +133,14 @@ module Lab
 
       def voided_orders
         Rails.logger.debug('Looking for voided orders that are being tracked by LIMS...')
-        Lab::LabOrder.unscoped
+        orders = Lab::LabOrder.unscoped
                      .where(order_type: OrderType.where(name: Lab::Metadata::ORDER_TYPE_NAME),
                             order_id: Lab::LimsOrderMapping.all.select(:order_id),
                             voided: 1)
-                     .order(date_voided: :desc)
+        orders = orders.where(accession_number: accession_numbers) if accession_numbers.any?
+        orders = orders.where(patient_id: patient_id) if patient_id
+        orders = orders.order(date_voided: :desc)
+        orders
       end
 
       ##

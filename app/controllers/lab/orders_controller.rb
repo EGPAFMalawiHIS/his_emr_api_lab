@@ -95,7 +95,8 @@ module Lab
       end_date = params[:end_date].present? ? params[:end_date].to_date.end_of_day : 24.hours.ago.end_of_day
       concept_id = params[:concept_id]
       include_data = params[:include_data]
-      orders = OrdersService.lab_orders(start_date, end_date, concept_id, include_data: include_data)
+      location_id = params[:location_id]
+      orders = OrdersService.lab_orders(start_date, end_date, concept_id, include_data: include_data, location_id: location_id)
       render json: orders, status: :ok
     end
 

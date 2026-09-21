@@ -240,16 +240,18 @@ module Lab
         Lab::Lims::PullWorker.new(nil).process_order(order_dto)
       end
 
-      def lab_orders(start_date, end_date, concept_id = nil, include_data: false)
-        tests = Lab::LabTest.where('date_created >= ? AND date_created <= ?', start_date, end_date)
+      def lab_orders(start_date, end_date, concept_id = nil, include_data: false, location_id: nil)
+        tests = Lab::LabTest.unscoped.where('date_created >= ? AND date_created <= ?', start_date, end_date)
+        tests = tests.where(voided: false, concept: ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME))
         tests = tests.where(value_coded: concept_id) if concept_id
+        tests = tests.where(location_id: location_id) if location_id
         orders = Lab::LabOrder.where(order_id: tests.pluck(:order_id))
         data = {
           count: orders.count,
           last_order_date: Lab::LabOrder.last&.start_date&.to_date,
           lab_orders: []
         }
-        if include_data
+        if (include_data.present? && include_data == 'true')
           data[:lab_orders] = orders.map do |order|
             Lab::LabOrderSerializer.serialize_order(
               order, requesting_clinician: order.requesting_clinician,
@@ -600,7 +602,7 @@ module Lab
           value_text: status, # Store status as text
           obs_datetime: timestamp,
           comments: updated_by.to_json,
-          creator: User.current&.user_id || 1,
+          creator: User.current&.user_id,
           location_id:,
           date_created: Time.now,
           uuid: SecureRandom.uuid
@@ -641,7 +643,7 @@ module Lab
           value_text: status, # Store status as text
           obs_datetime: timestamp,
           comments: updated_by.to_json,
-          creator: User.current&.user_id || 1,
+          creator: User.current&.user_id,
           location_id:,
           date_created: Time.now,
           uuid: SecureRandom.uuid
