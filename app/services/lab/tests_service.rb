@@ -15,7 +15,7 @@ module Lab
         Lab::UpdatePatientOrdersJob.perform_later(patient_id) if patient_id
 
         tests = filter_tests(tests, test_type_id: filters.delete(:test_type_id),
-                                    patient_id: filters.delete(:patient_id),
+                                    patient_id:,
                                     patient: filters.delete(:patient))
 
         tests = filter_tests_by_results(tests) if %w[1 true].include?(filters[:pending_results]&.downcase)

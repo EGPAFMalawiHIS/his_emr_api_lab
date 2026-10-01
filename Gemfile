@@ -15,3 +15,7 @@ gemspec
 
 # To use a debugger
 gem 'byebug', group: %i[development test]
+
+# Match the host apps (json 2.x). json 3 rejects the quirks_mode option that
+# Rails 7.0's to_json passes, which breaks every JSON payload in the specs.
+gem 'json', '~> 2.18', group: %i[development test]

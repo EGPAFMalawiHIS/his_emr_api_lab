@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'order_location_resolver'
+require_relative 'lims/exceptions'
 
 module Lab
   ##
@@ -376,7 +377,11 @@ module Lab
       end
 
       def nlims_accession_number_exists?(accession_number)
-        config = YAML.load_file('config/application.yml')
+        # No config file means NLIMS is not configured, same as no lims_api entry.
+        config_path = Rails.root.join('config', 'application.yml')
+        return false unless File.exist?(config_path)
+
+        config = YAML.load_file(config_path)
         return false unless config['lims_api']
 
         # fetch from the rest api and check if it exists

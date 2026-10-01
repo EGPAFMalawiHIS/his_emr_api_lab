@@ -38,7 +38,28 @@ rescue ActiveRecord::PendingMigrationError => e
   puts e.to_s.strip
   exit 1
 end
+
+# The real schema requires every person and user to have an existing user as
+# creator. Seed the OpenMRS admin (user 1, created by itself), as production
+# databases have, so the factories always have a creator to point at.
+def seed_admin_user
+  connection = ActiveRecord::Base.connection
+  connection.execute('SET FOREIGN_KEY_CHECKS = 0')
+  connection.execute(<<~SQL)
+    INSERT IGNORE INTO person (person_id, gender, creator, date_created, voided, uuid)
+    VALUES (1, 'M', 1, NOW(), 0, UUID())
+  SQL
+  connection.execute(<<~SQL)
+    INSERT IGNORE INTO users (user_id, person_id, system_id, username, creator, date_created, retired, uuid)
+    VALUES (1, 1, 'admin', 'admin', 1, NOW(), 0, UUID())
+  SQL
+ensure
+  connection&.execute('SET FOREIGN_KEY_CHECKS = 1')
+end
+
 RSpec.configure do |config|
+  config.before(:suite) { seed_admin_user }
+
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
   # config.fixture_path = "#{::Rails.root}/spec/fixtures"
 

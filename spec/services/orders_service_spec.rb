@@ -16,7 +16,9 @@ module Lab
        Lab::Metadata::TEST_TYPE_CONCEPT_NAME,
        Lab::Metadata::REQUESTING_CLINICIAN_CONCEPT_NAME,
        Lab::Metadata::TARGET_LAB_CONCEPT_NAME,
-       Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME].each do |name|
+       Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME,
+       Lab::Metadata::COMMENT_TO_FULFILLER_CONCEPT_NAME,
+       Lab::Metadata::TEST_METHOD_CONCEPT_NAME].each do |name|
         create(:concept_name, name:)
       end
     end
@@ -54,7 +56,8 @@ module Lab
       it 'requires encounter_id, or patient_id and program_id' do
         params_subset = params.delete_if { |key, _| %w[encounter_id patient_id program_id].include?(key) }
 
-        expect { subject.order_test(params_subset) }.to raise_error(::InvalidParameterError)
+        expect { subject.order_test(params_subset) }
+          .to raise_error(StandardError, 'encounter_id|uuid or patient_id|uuid required')
       end
 
       it 'requires tests to be specified' do
@@ -125,7 +128,8 @@ module Lab
                                     target_lab: 'Rockport',
                                     requesting_clinician: 'Razor',
                                     specimen: { concept_id: create(:concept_name).concept_id },
-                                    tests: [{ concept_id: create(:concept_name).concept_id }])
+                                    tests: [{ concept_id: create(:concept_name).concept_id }],
+                                    reason_for_test_id: create(:concept_name).concept_id)
 
         create(:concept_name, name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME)
         ResultsService.create_results(

@@ -10,7 +10,7 @@ module Lab
 
     # Add a specimen to an existing order
     def create
-      test_params = params.slice(:order_id, :date, tests: [:concept_id])
+      test_params = params.permit(:order_id, :date, tests: %i[concept_id concept])
       order_id, test_concepts = test_params.require(%i[order_id tests])
       date = test_params[:date] || Date.today
 

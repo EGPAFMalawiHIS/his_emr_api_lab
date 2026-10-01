@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
 Rails.application.configure do
+  # Enqueue jobs without running them. The default :async adapter runs them in
+  # background threads on their own DB connections, outside each example's
+  # transaction, which hangs specs and leaks data between them.
+  config.active_job.queue_adapter = :test
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # The test environment is used exclusively to run your application's
