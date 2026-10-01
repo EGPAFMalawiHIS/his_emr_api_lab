@@ -13,6 +13,7 @@ module Lab
 
       LIMS_LOG_PATH = Rails.root.join('log', 'lims')
       UNMAPPED_ORDER_REASON = 'Order not mapped to LIMS: pull worker does not create orders'
+      DECEASED_PATIENT_REASON = "Order dated after patient's death"
 
       def initialize(lims_api, start_date: nil, accession_numbers: [], patient_id: nil)
         @lims_api = lims_api
@@ -180,18 +181,28 @@ module Lab
       # the same accession number already exists, so creating one here would
       # always produce a duplicate. Orders without a LIMS mapping (e.g. legacy
       # orders, or new orders the push worker has not sent yet) are skipped and
-      # recorded once in lab_lims_failed_imports for review.
+      # recorded once in lab_lims_failed_imports for review. So are orders
+      # dated after the patient's death.
       #
       # Returns the updated order, or nil if the order was skipped.
       def save_order(patient, order_dto)
         raise MissingAccessionNumber if order_dto[:tracking_number].blank?
 
         logger.info("Importing LIMS order ##{order_dto[:tracking_number]}")
+
+        death_date = death_date_before_order(patient, order_dto)
+        if death_date
+          order_date = lims_order_date(order_dto)
+          logger.warn("Not importing order ##{order_dto[:tracking_number]}: dated #{order_date}, after patient's death on #{death_date}")
+          record_skipped_order(order_dto, DECEASED_PATIENT_REASON, { order_date:, death_date: })
+          return nil
+        end
+
         mapping = find_order_mapping_by_lims_id(order_dto[:_id])
 
         unless mapping
           logger.warn("Not creating order ##{order_dto[:tracking_number]} from LIMS: no LIMS mapping for local order")
-          record_unmapped_order(order_dto)
+          record_skipped_order(order_dto, UNMAPPED_ORDER_REASON)
           return nil
         end
 
@@ -203,16 +214,36 @@ module Lab
         end
       end
 
-      # The REST pull re-selects unmapped orders on every run, so each one is
+      ##
+      # Returns the patient's death date if the order is dated after it, else nil.
+      #
+      # Orders dated on or before the death date are still imported, so results
+      # for samples drawn before death keep arriving.
+      def death_date_before_order(patient, order_dto)
+        person = Person.unscoped.find_by(person_id: patient.patient_id)
+        return nil unless person && ActiveModel::Type::Boolean.new.cast(person.dead) && person.death_date
+
+        death_date = person.death_date.to_date
+        death_date if lims_order_date(order_dto) > death_date
+      end
+
+      def lims_order_date(order_dto)
+        raise LimsException, 'Order missing created date' if order_dto[:date_created].blank?
+
+        Utils.parse_date(order_dto[:date_created]).to_date
+      end
+
+      # The REST pull re-selects skipped orders on every run, so each one is
       # recorded only once instead of adding a row per run.
-      def record_unmapped_order(order_dto)
+      def record_skipped_order(order_dto, reason, diff = nil)
         LimsFailedImport.find_or_create_by!(lims_id: order_dto[:_id],
                                             tracking_number: order_dto[:tracking_number],
-                                            reason: UNMAPPED_ORDER_REASON) do |failed_import|
+                                            reason:) do |failed_import|
           failed_import.patient_nhid = order_dto.dig(:patient, :id)
+          failed_import.diff = diff&.to_json
         end
       rescue StandardError => e
-        logger.error("Failed to record unmapped order ##{order_dto[:tracking_number]}: #{e.message}")
+        logger.error("Failed to record skipped order ##{order_dto[:tracking_number]}: #{e.message}")
       end
 
       def update_order(patient, order_id, order_dto)

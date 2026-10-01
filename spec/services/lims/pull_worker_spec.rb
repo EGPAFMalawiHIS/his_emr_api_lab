@@ -17,6 +17,37 @@ RSpec.describe Lab::Lims::PullWorker do
   end
 
   describe :save_order do
+    before do
+      allow(worker).to receive(:death_date_before_order).and_return(nil)
+    end
+
+    context 'when the order is dated after the patient died' do
+      before do
+        order_dto[:date_created] = '2026-09-16'
+        allow(worker).to receive(:death_date_before_order).and_return(Date.new(2024, 5, 1))
+        allow(worker).to receive(:find_order_mapping_by_lims_id)
+        allow(worker).to receive(:update_order)
+        allow(Lab::LimsFailedImport).to receive(:find_or_create_by!)
+      end
+
+      it 'does not update the order' do
+        expect(worker.send(:save_order, patient, order_dto)).to be_nil
+
+        expect(worker).not_to have_received(:update_order)
+        expect(worker).not_to have_received(:find_order_mapping_by_lims_id)
+      end
+
+      it 'records the order once for review' do
+        worker.send(:save_order, patient, order_dto)
+
+        expect(Lab::LimsFailedImport).to have_received(:find_or_create_by!).with(
+          lims_id: 'XMPC194G30019',
+          tracking_number: 'XMPC194G30019',
+          reason: Lab::Lims::PullWorker::DECEASED_PATIENT_REASON
+        )
+      end
+    end
+
     context 'when the LIMS order has no local mapping' do
       before do
         allow(worker).to receive(:find_order_mapping_by_lims_id).with('XMPC194G30019').and_return(nil)
@@ -64,6 +95,42 @@ RSpec.describe Lab::Lims::PullWorker do
         expect { worker.send(:save_order, patient, order_dto) }
           .to raise_error(Lab::Lims::MissingAccessionNumber)
       end
+    end
+  end
+
+  describe :death_date_before_order do
+    let(:death_date) { Date.new(2024, 5, 1) }
+
+    def check(dead:, death_date:, order_date:)
+      allow(Person).to receive_message_chain(:unscoped, :find_by).with(person_id: 1)
+                                                                  .and_return(double(dead:, death_date:))
+      order_dto[:date_created] = order_date
+
+      worker.send(:death_date_before_order, patient, order_dto)
+    end
+
+    it 'returns the death date when the order is dated after death' do
+      expect(check(dead: true, death_date:, order_date: '2024-05-02')).to eq(death_date)
+    end
+
+    it 'allows orders dated on the day of death' do
+      expect(check(dead: true, death_date:, order_date: '2024-05-01')).to be_nil
+    end
+
+    it 'allows orders dated before death so their results still arrive' do
+      expect(check(dead: true, death_date:, order_date: '2024-04-30')).to be_nil
+    end
+
+    it 'allows orders for patients who are alive' do
+      expect(check(dead: false, death_date: nil, order_date: '2024-05-02')).to be_nil
+    end
+
+    it 'treats a dead flag stored as 0 as alive' do
+      expect(check(dead: 0, death_date:, order_date: '2024-05-02')).to be_nil
+    end
+
+    it 'allows orders when the death date is not recorded' do
+      expect(check(dead: true, death_date: nil, order_date: '2024-05-02')).to be_nil
     end
   end
 
