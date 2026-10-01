@@ -372,7 +372,7 @@ module Lab
       end
 
       def accession_number_exists?(accession_number)
-        Lab::LabOrder.where(accession_number:).exists?
+        Lab::LabOrder.unscoped.where(accession_number:, voided: 0).exists?
       end
 
       def nlims_accession_number_exists?(accession_number)

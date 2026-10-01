@@ -12,6 +12,7 @@ module Lab
       include Utils # for logger
 
       LIMS_LOG_PATH = Rails.root.join('log', 'lims')
+      UNMAPPED_ORDER_REASON = 'Order not mapped to LIMS: pull worker does not create orders'
 
       def initialize(lims_api, start_date: nil, accession_numbers: [], patient_id: nil)
         @lims_api = lims_api
@@ -171,41 +172,47 @@ module Lab
         name1.casecmp?(name2)
       end
 
+      ##
+      # Applies a LIMS order to the local order it is mapped to.
+      #
+      # Orders are only ever created in the EMR, never by the pull worker.
+      # find_patient_by_nhid only lets an order through when a local order with
+      # the same accession number already exists, so creating one here would
+      # always produce a duplicate. Orders without a LIMS mapping (e.g. legacy
+      # orders, or new orders the push worker has not sent yet) are skipped and
+      # recorded once in lab_lims_failed_imports for review.
+      #
+      # Returns the updated order, or nil if the order was skipped.
       def save_order(patient, order_dto)
         raise MissingAccessionNumber if order_dto[:tracking_number].blank?
 
         logger.info("Importing LIMS order ##{order_dto[:tracking_number]}")
         mapping = find_order_mapping_by_lims_id(order_dto[:_id])
 
+        unless mapping
+          logger.warn("Not creating order ##{order_dto[:tracking_number]} from LIMS: no LIMS mapping for local order")
+          record_unmapped_order(order_dto)
+          return nil
+        end
+
         ActiveRecord::Base.transaction do
-          if mapping
-            order = update_order(patient, mapping.order_id, order_dto)
-            mapping.update(pulled_at: Time.now)
-          else
-            order = create_order(patient, order_dto)
-            mapping = LimsOrderMapping.create(lims_id: order_dto[:_id],
-                                              order_id: order['id'],
-                                              pulled_at: Time.now,
-                                              revision: order_dto['_rev'])
-          end
+          order = update_order(patient, mapping.order_id, order_dto)
+          mapping.update(pulled_at: Time.now)
 
           order
         end
       end
 
-      def create_order(patient, order_dto)
-        logger.debug("Creating order ##{order_dto['_id']}")
-        params = order_dto.to_order_service_params(patient_id: patient.patient_id)
-        params[:location_id] ||= location_id_for_order_dto(order_dto)
-        order = OrdersService.order_test(params)
-
-        # Extract and save status trails from NLIMS
-        save_status_trails_from_nlims(order, order_dto)
-
-        # Update results if present
-        update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
-
-        order
+      # The REST pull re-selects unmapped orders on every run, so each one is
+      # recorded only once instead of adding a row per run.
+      def record_unmapped_order(order_dto)
+        LimsFailedImport.find_or_create_by!(lims_id: order_dto[:_id],
+                                            tracking_number: order_dto[:tracking_number],
+                                            reason: UNMAPPED_ORDER_REASON) do |failed_import|
+          failed_import.patient_nhid = order_dto.dig(:patient, :id)
+        end
+      rescue StandardError => e
+        logger.error("Failed to record unmapped order ##{order_dto[:tracking_number]}: #{e.message}")
       end
 
       def update_order(patient, order_id, order_dto)
@@ -264,12 +271,6 @@ module Lab
         raise "Unknown test name, #{test_name}!" unless test_concept
 
         LabTest.unscoped.find_by(order_id:, value_coded: test_concept.concept_id, voided: 0)
-      end
-
-      def location_id_for_order_dto(order_dto)
-        local_order = Lab::LabOrder.unscoped.find_by(accession_number: order_dto[:tracking_number])
-
-        Lab::OrderLocationResolver.location_id_for_order(local_order, facility_name: order_dto[:sending_facility])
       end
 
       def find_measure(_order, indicator_name, value)
