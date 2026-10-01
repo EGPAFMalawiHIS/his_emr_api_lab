@@ -14,7 +14,10 @@ RSpec.describe Lab::Lims::PushWorker do
     @location = create(:location, parent: create(:location))
     GlobalProperty.find_by(property: 'current_health_center_id')&.delete
     create(:global_property, property: 'current_health_center_id', property_value: @location.location_id)
+    # Orders are created at the current location, which LIMS gets as the sending facility.
+    Location.current = @location
     create(:concept_name, name: 'Unknown')
+    create(:concept_name, name: Lab::Metadata::TEST_METHOD_CONCEPT_NAME)
   end
 
   describe :push_order do

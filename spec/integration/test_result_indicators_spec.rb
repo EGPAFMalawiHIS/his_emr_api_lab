@@ -18,7 +18,7 @@ RSpec.describe 'Test Result Indicators' do
                 description: 'Concept ID for the desired test'
 
       let(:test) { create(:concept_name) }
-      let(:indicators) { create_list(:concept_name, 5) }
+      let(:indicators) { create_list(:concept_name, 5).map { |indicator| add_catalogue_attributes(indicator) } }
 
       let(:test_type_id) { test.concept_id }  # See parameter above
       let(:Authorization) { 'Ndijumpheko!' }
@@ -28,7 +28,7 @@ RSpec.describe 'Test Result Indicators' do
         result_indicator_concept = create(:concept_name, name: Lab::Metadata::TEST_RESULT_INDICATOR_CONCEPT_NAME)
         create_concept_set(test_type_concept, [test])
         create_concept_set(result_indicator_concept, indicators)
-        indicators.each { |indicator| create_concept_set(indicator, [test]) }
+        create_concept_set(test, indicators)
       end
 
       response 200, 'Ok' do

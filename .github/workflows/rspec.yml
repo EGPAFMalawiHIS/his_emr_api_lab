@@ -1,37 +1,60 @@
-# # This workflow uses actions that are not certified by GitHub.
-# # They are provided by a third-party and are governed by
-# # separate terms of service, privacy policy, and support
-# # documentation.
-# # This workflow will download a prebuilt Ruby version, install dependencies and run tests with Rake
-# # For more information see: https://github.com/marketplace/actions/setup-ruby-jruby-and-truffleruby
+name: RSpec
 
-# name: Ruby
+on:
+  push:
+    branches: ['**']
+  pull_request:
 
-# on:
-#   push:
-#     branches: [main, development]
-#   pull_request:
-#     branches: [main, development]
+jobs:
+  test:
+    runs-on: ubuntu-latest
 
-# jobs:
-#   test:
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
-#     runs-on: ubuntu-latest
-#     strategy:
-#       matrix:
-#         ruby-version: ['3.2']
+    env:
+      RAILS_ENV: test
+      # Read by spec/dummy/config/database.yml
+      LAB_DB_HOST: 127.0.0.1
+      LAB_DB_PORT: 3306
+      LAB_DB_USERNAME: root
+      LAB_DB_PASSWORD: root
+      # Live push/pull spec against NLIMS. It is skipped when these are not
+      # available (e.g. pull requests from forks).
+      NLIMS_URL: ${{ secrets.NLIMS_URL }}
+      NLIMS_USERNAME: ${{ secrets.NLIMS_USERNAME }}
+      NLIMS_PASSWORD: ${{ secrets.NLIMS_PASSWORD }}
 
-#     steps:
-#     - uses: actions/checkout@v4
-#     - name: Set up Ruby
-#     # To automatically get bug fixes and new Ruby versions for ruby/setup-ruby,
-#     # change this to (see https://github.com/ruby/setup-ruby#versioning):
-#     # uses: ruby/setup-ruby@v1
-#       uses: ruby/setup-ruby@v1
-#       with:
-#         ruby-version: ${{ matrix.ruby-version }}
-#         bundler-cache: true # runs 'bundle install' and caches installed gems automatically
-#     - name: Prepare test database
-#       run: bin/rails db:create db:migrate RAILS_ENV=test
-#     - name: Run tests
-#       run: bundle exec rspec
+    steps:
+      - uses: actions/checkout@v4
+
+      # mysql2 builds against libmysqlclient; the schema is loaded with the mysql CLI.
+      - name: Install MySQL client libraries
+        run: sudo apt-get update && sudo apt-get install -y libmysqlclient-dev mysql-client
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      # db/structure.sql (the host apps' schema) contains stored functions,
+      # which MySQL only accepts with binary logging on if this is set.
+      - name: Allow stored functions
+        run: mysql -h 127.0.0.1 -u root -proot -e "SET GLOBAL log_bin_trust_function_creators = 1"
+
+      - name: Prepare test database
+        run: bundle exec rake app:db:create app:db:schema:load
+
+      - name: Run specs
+        run: bundle exec rspec

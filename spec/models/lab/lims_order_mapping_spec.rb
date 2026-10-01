@@ -17,7 +17,8 @@ module Lab
       it { should validate_uniqueness_of(:order_id) }
       it { should validate_presence_of(:order_id) }
 
-      it { should validate_uniqueness_of(:lims_id) }
+      # The host schema's collation is case-insensitive, so let the database decide.
+      it { should validate_uniqueness_of(:lims_id).ignoring_case_sensitivity }
       it { should validate_presence_of(:lims_id) }
     end
   end

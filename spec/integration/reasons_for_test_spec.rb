@@ -34,7 +34,8 @@ describe 'reasons_for_test' do
           response = JSON.parse(response.body)
 
           expect(response.size).to eq(1)
-          expect(response[0]).to eq({ 'concept_id' => @reason.concept_id, 'name' => @reason.name })
+          expect(response[0]).to eq({ 'concept_id' => @reason.concept_id, 'name' => @reason.name,
+                                      'uuid' => @reason.uuid })
         end
       end
     end
