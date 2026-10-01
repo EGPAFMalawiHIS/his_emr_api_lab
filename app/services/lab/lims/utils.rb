@@ -2,6 +2,8 @@
 
 require 'cgi/util'
 
+require_relative 'exceptions'
+
 module Lab
   module Lims
     ##
@@ -54,6 +56,16 @@ module Lab
         User.create!(username: 'lab_daemon', person:, creator: god_user.user_id)
       end
 
+      # Earliest date accepted from LIMS. Anything older is a corrupted
+      # legacy date (e.g. year 0026 or 18xx), not a real lab order.
+      EARLIEST_VALID_DATE = Date.new(2000, 1, 1)
+
+      ##
+      # Parses a LIMS date, accepting only real calendar dates with a
+      # four-digit year between EARLIEST_VALID_DATE and tomorrow (to allow for
+      # timezone differences). Invalid dates are never guessed at or rewritten:
+      # the fallback date is used if one is given, otherwise InvalidDate is
+      # raised.
       def self.parse_date(str_date, fallback_date = nil)
         str_date = str_date&.to_s
 
@@ -61,21 +73,35 @@ module Lab
 
         return parse_date(fallback_date) if str_date.blank?
 
-        str_date = str_date.gsub(/^00/, '20').gsub(/^180/, '20')
-
-        case str_date
-        when /\d{4}-\d{2}-\d{2}/
-          str_date
-        when /\d{2}-\d{2}-\d{2}/
-          Date.strptime(str_date, '%d-%m-%Y').strftime('%Y-%m-%d')
-        when /(\d{4}\d{2}\d{2})\d+/
-          Date.strptime(str_date, '%Y%m%d').strftime('%Y-%m-%d')
-        when %r{\d{2}/\d{2}/\d{4}}
-          str_date.to_date.to_s
-        else
-          Rails.logger.warn("Invalid date: #{str_date}")
-          parse_date(fallback_date)
+        date = begin
+          case str_date
+          when /\d{4}-\d{2}-\d{2}/
+            str_date
+          when /\d{2}-\d{2}-\d{4}/
+            Date.strptime(str_date, '%d-%m-%Y').strftime('%Y-%m-%d')
+          when /(\d{4}\d{2}\d{2})\d+/
+            Date.strptime(str_date, '%Y%m%d').strftime('%Y-%m-%d')
+          when %r{\d{2}/\d{2}/\d{4}}
+            str_date.to_date.to_s
+          end
+        rescue Date::Error, ArgumentError
+          nil
         end
+
+        return date if valid_date?(date)
+
+        Rails.logger.warn("Invalid date: #{str_date}")
+        raise InvalidDate, "Invalid date: #{str_date}" if fallback_date.blank?
+
+        parse_date(fallback_date)
+      end
+
+      def self.valid_date?(date)
+        return false if date.blank?
+
+        date.to_date.between?(EARLIEST_VALID_DATE, Date.current + 1.day)
+      rescue Date::Error, ArgumentError
+        false
       end
 
       def self.find_concept_by_name(name)
