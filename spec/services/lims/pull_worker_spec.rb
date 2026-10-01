@@ -67,6 +67,58 @@ RSpec.describe Lab::Lims::PullWorker do
     end
   end
 
+  describe :update_order do
+    let(:unknown_specimen_id) { 1067 }
+    let(:lims_specimen_id) { 11_914 }
+    let(:local_order) { instance_double(Lab::LabOrder, concept_id: local_specimen_id) }
+    let(:sent_params) { [] }
+
+    before do
+      order_dto[:test_results] = {}
+      allow(order_dto).to receive(:to_order_service_params).and_return(
+        ActiveSupport::HashWithIndifferentAccess.new(specimen: { concept_id: lims_specimen_id }, location_id: 1)
+      )
+      allow(Lab::LabOrder).to receive_message_chain(:unscoped, :find).with(42).and_return(local_order)
+      allow(worker).to receive(:unknown_specimen_concept_id).and_return(unknown_specimen_id)
+      allow(worker).to receive(:order_has_results?).with(42).and_return(has_results)
+      allow(worker).to receive(:save_status_trails_from_nlims)
+      allow(Lab::OrdersService).to receive(:update_order) { |_id, params| sent_params << params }
+    end
+
+    def sent_specimen_id
+      worker.send(:update_order, patient, 42, order_dto)
+
+      sent_params.last.dig(:specimen, :concept_id)
+    end
+
+    context 'when the sample has not been drawn and there are no results' do
+      let(:local_specimen_id) { unknown_specimen_id }
+      let(:has_results) { false }
+
+      it 'sets the specimen from LIMS' do
+        expect(sent_specimen_id).to eq(lims_specimen_id)
+      end
+    end
+
+    context 'when the sample has already been drawn' do
+      let(:local_specimen_id) { 500 }
+      let(:has_results) { false }
+
+      it 'keeps the local specimen' do
+        expect(sent_specimen_id).to eq(500)
+      end
+    end
+
+    context 'when the order already has results' do
+      let(:local_specimen_id) { unknown_specimen_id }
+      let(:has_results) { true }
+
+      it 'keeps the local specimen' do
+        expect(sent_specimen_id).to eq(unknown_specimen_id)
+      end
+    end
+  end
+
   describe :process_order do
     before do
       allow(worker).to receive(:find_patient_by_nhid).and_return(patient)

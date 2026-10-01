@@ -219,6 +219,7 @@ module Lab
         logger.debug("Updating order ##{order_dto['_id']}")
         params = order_dto.to_order_service_params(patient_id: patient.patient_id)
         params[:location_id] ||= Lab::OrderLocationResolver.location_id_for_order_id(order_id, facility_name: order_dto[:sending_facility])
+        keep_local_specimen(order_id, params) unless specimen_update_allowed?(order_id)
         order = OrdersService.update_order(order_id, params.merge(force_update: 'true'))
 
         # Extract and save status trails from NLIMS
@@ -228,6 +229,38 @@ module Lab
         update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
 
         order
+      end
+
+      ##
+      # LIMS may only set the specimen of an order whose sample has not been
+      # drawn yet (specimen 'Unknown') and that has no results. Any other order
+      # keeps its local specimen, so a sync can never change or discontinue an
+      # order that has already been drawn or resulted.
+      def specimen_update_allowed?(order_id)
+        order = Lab::LabOrder.unscoped.find(order_id)
+
+        order.concept_id == unknown_specimen_concept_id && !order_has_results?(order_id)
+      end
+
+      def keep_local_specimen(order_id, params)
+        local_specimen_id = Lab::LabOrder.unscoped.find(order_id).concept_id
+        lims_specimen_id = params.dig(:specimen, :concept_id)
+
+        if lims_specimen_id.present? && lims_specimen_id.to_i != local_specimen_id
+          logger.info("Keeping local specimen ##{local_specimen_id} on order ##{order_id}, ignoring LIMS specimen ##{lims_specimen_id}")
+        end
+
+        params[:specimen] = { concept_id: local_specimen_id }
+      end
+
+      def unknown_specimen_concept_id
+        @unknown_specimen_concept_id ||= ConceptName.find_by(name: Lab::Metadata::UNKNOWN_SPECIMEN)&.concept_id
+      end
+
+      def order_has_results?(order_id)
+        result_concept = ConceptName.where(name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME).select(:concept_id)
+
+        Observation.unscoped.where(order_id:, concept_id: result_concept, voided: 0).exists?
       end
 
       def update_results(order, lims_results)
