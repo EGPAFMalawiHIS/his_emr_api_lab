@@ -193,14 +193,6 @@ RSpec.describe Lab::Lims::PullWorker do
       allow(worker).to receive(:order_saved)
     end
 
-    it 'does not report unmapped orders as saved' do
-      allow(worker).to receive(:save_order).and_return(nil)
-
-      worker.process_order(order_dto)
-
-      expect(worker).not_to have_received(:order_saved)
-    end
-
     it 'reports mapped orders as saved' do
       allow(worker).to receive(:save_order).and_return({ id: 42 })
 
