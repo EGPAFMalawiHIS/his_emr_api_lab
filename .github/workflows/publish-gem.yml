@@ -15,6 +15,9 @@ jobs:
     name: Build and Publish Gem
     needs: rspec # Only publish when the specs pass
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # RubyGems trusted publishing (OIDC)
 
     steps:
       - name: Checkout Source Code
@@ -34,7 +37,14 @@ jobs:
             exit 1
           fi
 
+      # Exchanges the GitHub OIDC token for a short-lived RubyGems API key.
+      # Requires the trusted publisher set up on rubygems.org for this
+      # repository and workflow file (publish-gem.yml).
+      - name: Configure RubyGems credentials
+        uses: rubygems/configure-rubygems-credentials@v1.0.0
+
+      - name: Build gem
+        run: gem build his_emr_api_lab.gemspec
+
       - name: Publish to RubyGems
-        uses: dawidd6/action-publish-gem@v1
-        with:
-          api_key: ${{ secrets.DEPLOY_GEM }}
+        run: gem push his_emr_api_lab-*.gem
