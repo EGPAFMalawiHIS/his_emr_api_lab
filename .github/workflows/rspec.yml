@@ -4,6 +4,8 @@ on:
   push:
     branches: ['**']
   pull_request:
+  # Lets publish-gem.yml run the specs before releasing.
+  workflow_call:
 
 jobs:
   test:
