@@ -16,4 +16,5 @@ class Order < VoidableRecord
 
   has_many :observations
   has_one :drug_order
+  has_one :lims_acknowledgement_status, foreign_key: :order_id
 end

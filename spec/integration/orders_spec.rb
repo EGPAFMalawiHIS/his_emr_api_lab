@@ -64,8 +64,9 @@ describe 'orders' do
     @test_type = create(:concept_name, name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME).concept
     @reason_for_test = create(:concept_name, name: Lab::Metadata::REASON_FOR_TEST_CONCEPT_NAME).concept
     @requesting_clinician = create(:concept_name, name: Lab::Metadata::REQUESTING_CLINICIAN_CONCEPT_NAME).concept
-    @comment_to_fulfiller = create(:concept_name, name: Lab::Metadata::COMMENT_TO_FULFILLER_CONCEPT_NAME).concep
+    @comment_to_fulfiller = create(:concept_name, name: Lab::Metadata::COMMENT_TO_FULFILLER_CONCEPT_NAME).concept
     @target_lab = create(:concept_name, name: Lab::Metadata::TARGET_LAB_CONCEPT_NAME).concept
+    create(:concept_name, name: Lab::Metadata::TEST_METHOD_CONCEPT_NAME)
   end
 
   path '/api/v1/lab/orders' do

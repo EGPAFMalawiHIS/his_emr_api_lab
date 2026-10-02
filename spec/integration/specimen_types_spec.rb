@@ -7,8 +7,8 @@ describe 'Specimen types' do
     before :each do
       test_type = create :concept_name, name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME
       specimen_type = create :concept_name, name: Lab::Metadata::SPECIMEN_TYPE_CONCEPT_NAME
-      viral_load = create :concept_name, name: 'Viral Load'
-      fbc = create :concept_name, name: 'FBC'
+      viral_load = add_catalogue_attributes(create(:concept_name, name: 'Viral Load'))
+      fbc = add_catalogue_attributes(create(:concept_name, name: 'FBC'))
 
       create :concept_set, concept_set: test_type.concept_id,
                            concept_id: viral_load.concept_id

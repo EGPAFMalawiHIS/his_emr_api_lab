@@ -1,23 +1,50 @@
-# name: Publish gem
+name: Publish gem
 
-# on:
-#   push:
-#     tags:
-#       - v*
-#     branches:
-#       - main
+on:
+  push:
+    tags:
+      - 'v*' # e.g. v2.4.8
 
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
+jobs:
+  rspec:
+    name: RSpec
+    uses: ./.github/workflows/rspec.yml
+    secrets: inherit # NLIMS_URL, NLIMS_USERNAME, NLIMS_PASSWORD for the live NLIMS spec
 
-#     steps:
-#       - uses: actions/checkout@v2
+  deploy:
+    name: Build and Publish Gem
+    needs: rspec # Only publish when the specs pass
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # RubyGems trusted publishing (OIDC)
 
-#       - name: Release Gem
-#         if: contains(github.ref, 'refs/tags/v')
-#         uses: marcelotoledo5000/publish-rubygems-action@master
-#         env:
-#           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-#           RUBYGEMS_API_KEY: ${{secrets.RUBYGEMS_PUBLISH_KEY}}
-#           RELEASE_COMMAND: rake release
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: Check tag matches gem version
+        run: |
+          gem_version=$(ruby -r ./lib/lab/version -e 'print Lab::VERSION')
+          if [ "v${gem_version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match Lab::VERSION ${gem_version} in lib/lab/version.rb"
+            exit 1
+          fi
+
+      # Exchanges the GitHub OIDC token for a short-lived RubyGems API key.
+      # Requires the trusted publisher set up on rubygems.org for this
+      # repository and workflow file (publish-gem.yml).
+      - name: Configure RubyGems credentials
+        uses: rubygems/configure-rubygems-credentials@v1.0.0
+
+      - name: Build gem
+        run: gem build his_emr_api_lab.gemspec
+
+      - name: Publish to RubyGems
+        run: gem push his_emr_api_lab-*.gem
