@@ -66,6 +66,10 @@ module Lab
         .where.not(concept_id: ConceptName.where(name: 'Tests ordered').select(:concept_id))
     end
 
+    # Only checked when start_date is set or changed, so existing future-dated
+    # orders can still be voided or updated during clean-up.
+    validate :start_date_cannot_be_in_the_future, if: :will_save_change_to_start_date?
+
     scope :drawn, -> { where.not(concept_id: ConceptName.where(name: 'Unknown').select(:concept_id)) }
     scope :not_drawn, -> { where(concept_id: ConceptName.where(name: 'Unknown').select(:concept_id)) }
 
@@ -77,6 +81,14 @@ module Lab
               :target_lab,
               :comment_to_fulfiller,
               :tests)
+    end
+
+    # Allows up to tomorrow to cover timezone differences, matching
+    # Lab::Lims::Utils.parse_date.
+    def start_date_cannot_be_in_the_future
+      return if start_date.blank? || start_date.to_date <= Date.current + 1.day
+
+      errors.add(:start_date, 'cannot be in the future')
     end
   end
 end

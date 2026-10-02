@@ -9,6 +9,7 @@ module Lab
       class UnknownSpecimenType < LimsException; end
       class UnknownTestType < LimsException; end
       class ValidationUnavailable < LimsException; end
+      class InvalidDate < LimsException; end
     end
   end
 end
@@ -21,5 +22,6 @@ module Lab
     class UnknownSpecimenType < LimsException; end
     class UnknownTestType < LimsException; end
     class ValidationUnavailable < LimsException; end
+    class InvalidDate < LimsException; end
   end
 end

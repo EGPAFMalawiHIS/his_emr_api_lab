@@ -12,6 +12,8 @@ module Lab
       include Utils # for logger
 
       LIMS_LOG_PATH = Rails.root.join('log', 'lims')
+      UNMAPPED_ORDER_REASON = 'Order not mapped to LIMS: pull worker does not create orders'
+      DECEASED_PATIENT_REASON = "Order dated after patient's death"
 
       def initialize(lims_api, start_date: nil, accession_numbers: [], patient_id: nil)
         @lims_api = lims_api
@@ -171,47 +173,84 @@ module Lab
         name1.casecmp?(name2)
       end
 
+      ##
+      # Applies a LIMS order to the local order it is mapped to.
+      #
+      # Orders are only ever created in the EMR, never by the pull worker.
+      # find_patient_by_nhid only lets an order through when a local order with
+      # the same accession number already exists, so creating one here would
+      # always produce a duplicate. Orders without a LIMS mapping (e.g. legacy
+      # orders, or new orders the push worker has not sent yet) are skipped and
+      # recorded once in lab_lims_failed_imports for review. So are orders
+      # dated after the patient's death.
+      #
+      # Returns the updated order, or nil if the order was skipped.
       def save_order(patient, order_dto)
         raise MissingAccessionNumber if order_dto[:tracking_number].blank?
 
         logger.info("Importing LIMS order ##{order_dto[:tracking_number]}")
+
+        death_date = death_date_before_order(patient, order_dto)
+        if death_date
+          order_date = lims_order_date(order_dto)
+          logger.warn("Not importing order ##{order_dto[:tracking_number]}: dated #{order_date}, after patient's death on #{death_date}")
+          record_skipped_order(order_dto, DECEASED_PATIENT_REASON, { order_date:, death_date: })
+          return nil
+        end
+
         mapping = find_order_mapping_by_lims_id(order_dto[:_id])
 
+        unless mapping
+          logger.warn("Not creating order ##{order_dto[:tracking_number]} from LIMS: no LIMS mapping for local order")
+          record_skipped_order(order_dto, UNMAPPED_ORDER_REASON)
+          return nil
+        end
+
         ActiveRecord::Base.transaction do
-          if mapping
-            order = update_order(patient, mapping.order_id, order_dto)
-            mapping.update(pulled_at: Time.now)
-          else
-            order = create_order(patient, order_dto)
-            mapping = LimsOrderMapping.create(lims_id: order_dto[:_id],
-                                              order_id: order['id'],
-                                              pulled_at: Time.now,
-                                              revision: order_dto['_rev'])
-          end
+          order = update_order(patient, mapping.order_id, order_dto)
+          mapping.update(pulled_at: Time.now)
 
           order
         end
       end
 
-      def create_order(patient, order_dto)
-        logger.debug("Creating order ##{order_dto['_id']}")
-        params = order_dto.to_order_service_params(patient_id: patient.patient_id)
-        params[:location_id] ||= location_id_for_order_dto(order_dto)
-        order = OrdersService.order_test(params)
+      ##
+      # Returns the patient's death date if the order is dated after it, else nil.
+      #
+      # Orders dated on or before the death date are still imported, so results
+      # for samples drawn before death keep arriving.
+      def death_date_before_order(patient, order_dto)
+        person = Person.unscoped.find_by(person_id: patient.patient_id)
+        return nil unless person && ActiveModel::Type::Boolean.new.cast(person.dead) && person.death_date
 
-        # Extract and save status trails from NLIMS
-        save_status_trails_from_nlims(order, order_dto)
+        death_date = person.death_date.to_date
+        death_date if lims_order_date(order_dto) > death_date
+      end
 
-        # Update results if present
-        update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
+      def lims_order_date(order_dto)
+        raise LimsException, 'Order missing created date' if order_dto[:date_created].blank?
 
-        order
+        Utils.parse_date(order_dto[:date_created]).to_date
+      end
+
+      # The REST pull re-selects skipped orders on every run, so each one is
+      # recorded only once instead of adding a row per run.
+      def record_skipped_order(order_dto, reason, diff = nil)
+        LimsFailedImport.find_or_create_by!(lims_id: order_dto[:_id],
+                                            tracking_number: order_dto[:tracking_number],
+                                            reason:) do |failed_import|
+          failed_import.patient_nhid = order_dto.dig(:patient, :id)
+          failed_import.diff = diff&.to_json
+        end
+      rescue StandardError => e
+        logger.error("Failed to record skipped order ##{order_dto[:tracking_number]}: #{e.message}")
       end
 
       def update_order(patient, order_id, order_dto)
         logger.debug("Updating order ##{order_dto['_id']}")
         params = order_dto.to_order_service_params(patient_id: patient.patient_id)
         params[:location_id] ||= Lab::OrderLocationResolver.location_id_for_order_id(order_id, facility_name: order_dto[:sending_facility])
+        keep_local_specimen(order_id, params) unless specimen_update_allowed?(order_id)
         order = OrdersService.update_order(order_id, params.merge(force_update: 'true'))
 
         # Extract and save status trails from NLIMS
@@ -221,6 +260,38 @@ module Lab
         update_results(order, order_dto['test_results']) unless order_dto['test_results'].empty?
 
         order
+      end
+
+      ##
+      # LIMS may only set the specimen of an order whose sample has not been
+      # drawn yet (specimen 'Unknown') and that has no results. Any other order
+      # keeps its local specimen, so a sync can never change or discontinue an
+      # order that has already been drawn or resulted.
+      def specimen_update_allowed?(order_id)
+        order = Lab::LabOrder.unscoped.find(order_id)
+
+        order.concept_id == unknown_specimen_concept_id && !order_has_results?(order_id)
+      end
+
+      def keep_local_specimen(order_id, params)
+        local_specimen_id = Lab::LabOrder.unscoped.find(order_id).concept_id
+        lims_specimen_id = params.dig(:specimen, :concept_id)
+
+        if lims_specimen_id.present? && lims_specimen_id.to_i != local_specimen_id
+          logger.info("Keeping local specimen ##{local_specimen_id} on order ##{order_id}, ignoring LIMS specimen ##{lims_specimen_id}")
+        end
+
+        params[:specimen] = { concept_id: local_specimen_id }
+      end
+
+      def unknown_specimen_concept_id
+        @unknown_specimen_concept_id ||= ConceptName.find_by(name: Lab::Metadata::UNKNOWN_SPECIMEN)&.concept_id
+      end
+
+      def order_has_results?(order_id)
+        result_concept = ConceptName.where(name: Lab::Metadata::TEST_RESULT_CONCEPT_NAME).select(:concept_id)
+
+        Observation.unscoped.where(order_id:, concept_id: result_concept, voided: 0).exists?
       end
 
       def update_results(order, lims_results)
@@ -264,12 +335,6 @@ module Lab
         raise "Unknown test name, #{test_name}!" unless test_concept
 
         LabTest.unscoped.find_by(order_id:, value_coded: test_concept.concept_id, voided: 0)
-      end
-
-      def location_id_for_order_dto(order_dto)
-        local_order = Lab::LabOrder.unscoped.find_by(accession_number: order_dto[:tracking_number])
-
-        Lab::OrderLocationResolver.location_id_for_order(local_order, facility_name: order_dto[:sending_facility])
       end
 
       def find_measure(_order, indicator_name, value)
