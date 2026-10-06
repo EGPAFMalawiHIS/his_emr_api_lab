@@ -249,7 +249,7 @@ module Lab
         orders = Lab::LabOrder.where(order_id: tests.pluck(:order_id))
         data = {
           count: orders.count,
-          last_order_date: Lab::LabOrder.last&.start_date&.to_date,
+          last_order_date: last_order_date(location_id),
           lab_orders: []
         }
         if (include_data.present? && include_data == 'true')
@@ -265,6 +265,19 @@ module Lab
       end
 
       private
+
+      # Without a location this is the latest lab order overall (unchanged behaviour). With a location
+      # it is the latest lab order whose tests were drawn there, so a central EMR serving many sites
+      # reports each site's own last order instead of the latest order across all sites.
+      def last_order_date(location_id)
+        return Lab::LabOrder.last&.start_date&.to_date if location_id.blank?
+
+        order_ids = Lab::LabTest.unscoped
+                                .where(voided: false, location_id:,
+                                       concept: ConceptName.where(name: Lab::Metadata::TEST_TYPE_CONCEPT_NAME))
+                                .select(:order_id)
+        Lab::LabOrder.where(order_id: order_ids).maximum(:start_date)&.to_date
+      end
 
       def create_rejection_notification(order_params)
         order = find_order order_params['tracking_number']

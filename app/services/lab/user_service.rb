@@ -17,6 +17,8 @@ module Lab
       def authenticate_user(username:, password:, user_agent:, request_ip:)
         # Use unscoped for authentication - should not be location-dependent
         user = User.unscoped.find_by_username username
+        return nil if user.nil?
+
         encrypted_pass = Password.new(user.password)
         if encrypted_pass == password
           generate_token(user, user_agent, request_ip)
@@ -24,6 +26,9 @@ module Lab
           # throw authentication error
           nil
         end
+      rescue BCrypt::Errors::InvalidHash
+        # Regular EMR users have SHA passwords; only users created through the LIMS user endpoint can log in here
+        nil
       end
 
       private
