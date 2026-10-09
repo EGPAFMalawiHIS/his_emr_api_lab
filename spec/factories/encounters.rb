@@ -10,7 +10,7 @@ FactoryBot.define do
     date_created { Time.now }
     creator { User.last&.user_id || create(:user).user_id }
     provider_id { 1 }
-    location_id { 700 }
+    location_id { (Location.current || Location.first || create(:location)).location_id }
 
     factory :encounter_dispensing do
       type { EncounterType.find_by_name 'Dispensing' }

@@ -1,25 +1,31 @@
-# SQLite version 3.x
-#   gem install sqlite3
-#
-#   Ensure the SQLite 3 gem is defined in your Gemfile
-#   gem 'sqlite3'
-#
+# MySQL, matching the EMR. Set LAB_DB_* environment variables to point the
+# test suite at your local MySQL server.
 default: &default
-  adapter: sqlite3
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  timeout: 5000
+  adapter: mysql2
+  encoding: utf8
+  collation: utf8_unicode_ci
+  host: <%= ENV.fetch('LAB_DB_HOST', '127.0.0.1') %>
+  port: <%= ENV.fetch('LAB_DB_PORT', 3306) %>
+  username: <%= ENV.fetch('LAB_DB_USERNAME', 'root') %>
+  password: <%= ENV.fetch('LAB_DB_PASSWORD', '') %>
+  pool: <%= ENV.fetch('RAILS_MAX_THREADS') { 5 } %>
+  checkout_timeout: 5000
+  # Same as the host apps; MySQL 8's default ONLY_FULL_GROUP_BY rejects some
+  # of the lab queries.
+  variables:
+    sql_mode: STRICT_TRANS_TABLES
 
 development:
   <<: *default
-  database: db/development.sqlite3
+  database: <%= ENV.fetch('LAB_DB_DEV_NAME', 'his_emr_api_lab_dev') %>
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
 # Do not set this db to the same as development or production.
 test:
   <<: *default
-  database: db/test.sqlite3
+  database: <%= ENV.fetch('LAB_DB_TEST_NAME', 'his_emr_api_lab_test') %>
 
 production:
   <<: *default
-  database: db/production.sqlite3
+  database: <%= ENV.fetch('LAB_DB_NAME', 'his_emr_api_lab') %>

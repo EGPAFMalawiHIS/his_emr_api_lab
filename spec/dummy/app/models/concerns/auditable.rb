@@ -30,9 +30,12 @@ module Auditable
   end
 
   def update_create_trail
-    return unless auditable?
+    # Some tables (e.g. location) have creator/date_created but no change trail.
+    return unless respond_to?(:creator) && respond_to?(:date_created)
 
-    self.creator ||= User.current&.user_id
+    # The schema defaults creator to 0, which is not a user, so treat it as
+    # unset (as the host apps do).
+    self.creator = User.current&.user_id if creator.nil? || creator.zero?
     Rails.logger.warn 'Auditable::update_create_trail called outside login' unless creator
 
     self.date_created = Time.now

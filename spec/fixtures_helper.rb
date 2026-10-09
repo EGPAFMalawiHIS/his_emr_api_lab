@@ -11,6 +11,29 @@ def create_concept_set(set, elements)
   end
 end
 
+##
+# Gives a concept the 'TEST CATALOGUE NAME' and 'NLIMS CODE' attributes that
+# the lab services read test, specimen and measure names and codes from.
+def add_catalogue_attributes(concept_name, nlims_code: "NLIMS_SPEC_#{concept_name.concept_id}")
+  { 'TEST CATALOGUE NAME' => concept_name.name, 'NLIMS CODE' => nlims_code }.each do |type_name, value|
+    ConceptAttribute.create!(concept_id: concept_name.concept_id,
+                             attribute_type_id: concept_attribute_type(type_name).concept_attribute_type_id,
+                             value_reference: value)
+  end
+
+  concept_name
+end
+
+def concept_attribute_type(name)
+  ConceptAttributeType.find_by(name:) || ConceptAttributeType.create!(
+    # The column is not auto-increment in the host schema.
+    concept_attribute_type_id: (ConceptAttributeType.unscoped.maximum(:concept_attribute_type_id) || 0) + 1,
+    name:,
+    datatype: 'org.openmrs.customdatatype.datatype.FreeTextDatatype',
+    min_occurs: 0
+  )
+end
+
 def create_order(patient, seq: 0, add_result: false)
   encounter = create(:encounter, patient:)
 

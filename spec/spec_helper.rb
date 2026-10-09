@@ -47,6 +47,17 @@ RSpec.configure do |config|
   config.shared_context_metadata_behavior = :apply_to_host_groups
 
   config.before(:each) do
+    # User.current and Location.current are thread-global and would otherwise
+    # still point at the previous example's records, which were rolled back
+    # with its transaction.
+    User.current = nil
+    Location.current = nil
+    # The lab models cache concept IDs at class level; the concepts behind
+    # them are recreated (and rolled back) in every example.
+    Lab::LabOrder.instance_variable_set(:@order_status_concept_id, nil)
+    %i[@test_status_concept_id @test_result_concept_id].each do |ivar|
+      Lab::LabTest.instance_variable_set(ivar, nil)
+    end
     User.current = create(:user)
     GlobalProperty.create(
       property: 'current_health_center_id',

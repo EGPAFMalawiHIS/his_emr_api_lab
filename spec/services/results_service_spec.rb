@@ -25,7 +25,7 @@ describe Lab::ResultsService do
 
   let(:params) do
     {
-      provider_id: create(:user).user_id,
+      provider_id: create(:user).person_id, # encounter.provider_id is a person
       date: Date.today.to_s,
       measures: [
         indicator: {
