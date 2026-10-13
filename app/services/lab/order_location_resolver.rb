@@ -79,6 +79,8 @@ module Lab
     end
 
     def creator_location_for_order(order)
+      return nil unless User.column_names.include?('location_id')
+      
       creator_id = record_creator_id(order)
       return nil if creator_id.blank?
 
