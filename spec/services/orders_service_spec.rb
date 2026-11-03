@@ -163,6 +163,54 @@ module Lab
       end
     end
 
+    describe :update_order_status do
+      before :each do
+        create(:concept_name, name: Lab::Metadata::LAB_ORDER_STATUS_CONCEPT_NAME)
+        encounter = create(:encounter)
+        @order = subject.order_test(encounter_id: encounter.encounter_id,
+                                    target_lab: 'Rockport',
+                                    requesting_clinician: 'Razor',
+                                    specimen: { concept_id: create(:concept_name).concept_id },
+                                    tests: [{ concept_id: create(:concept_name).concept_id }],
+                                    reason_for_test_id: create(:concept_name).concept_id)
+      end
+
+      def status_obs
+        concept = ConceptName.where(name: Lab::Metadata::LAB_ORDER_STATUS_CONCEPT_NAME).select(:concept_id)
+        Observation.unscoped.where(order_id: @order[:id], concept_id: concept)
+      end
+
+      def push_status(status, time)
+        subject.update_order_status('tracking_number' => @order[:accession_number],
+                                    'status' => status, 'status_time' => time)
+      end
+
+      it 'keeps earlier statuses in the trail and reports the newest as current' do
+        push_status('specimen-collected', 2.hours.ago)
+        push_status('test-started', 1.hour.ago)
+
+        order = Lab::LabOrder.find(@order[:id])
+        expect(LabOrderSerializer.serialize_order_status_trail(order).map { |s| s[:status] })
+          .to eq(%w[Drawn specimen-collected test-started]) # Drawn is added when the order is placed
+        expect(LabOrderSerializer.latest_order_status(order)[:status]).to eq('test-started')
+        expect(status_obs.where(voided: 1)).to be_empty
+      end
+
+      it 'does not add a status LIMS sends again' do
+        time = 1.hour.ago.change(usec: 0)
+        2.times { push_status('test-started', time) }
+
+        expect(status_obs.where(voided: 0, value_text: 'test-started').count).to eq(1)
+      end
+
+      it 'uses when a status happened, not when it was saved, to pick the current one' do
+        push_status('test-started', 1.hour.ago)
+        push_status('specimen-collected', 2.hours.ago) # e.g. an older status pulled from NLIMS later
+
+        expect(LabOrderSerializer.latest_order_status(Lab::LabOrder.find(@order[:id]))[:status]).to eq('test-started')
+      end
+    end
+
     describe :void_order do
       before :each do
         encounter = create(:encounter)

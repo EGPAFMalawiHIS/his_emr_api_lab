@@ -49,10 +49,13 @@ module Lab
             class_name: '::Lab::LimsOrderMapping',
             foreign_key: :order_id
 
-    # Status trails are stored as observations with concept 'Lab Order Status'
+    # Status trails are stored as observations with concept 'Lab Order Status'.
+    # Ordered by when the status happened, not when it was saved: the pull
+    # worker can save an earlier NLIMS status after a later one was pushed.
     has_many :status_trail_observations,
              lambda {
-               unscoped.where(voided: 0, concept_id: Lab::LabOrder.order_status_concept_id).order(date_created: :asc)
+               unscoped.where(voided: 0, concept_id: Lab::LabOrder.order_status_concept_id)
+                       .order(obs_datetime: :asc, obs_id: :asc)
              },
              class_name: 'Observation',
              foreign_key: :order_id

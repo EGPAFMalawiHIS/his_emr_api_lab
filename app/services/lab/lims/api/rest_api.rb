@@ -11,6 +11,11 @@ module Lab
         class InvalidParameters < LimsApiError; end
 
         START_DATE = Time.parse('2024-09-03').freeze
+        
+        # How long to wait before asking NLIMS again about an order that still
+        # has no results. Orders that never get results (rejected or abandoned
+        # samples) would otherwise be fetched from NLIMS on every pull.
+        RESULTS_RECHECK_INTERVAL = 3.minutes
 
         def initialize(config)
           @config = config
@@ -632,10 +637,18 @@ module Lab
           # Lab::OrdersSearchService.find_orders_without_results(patient_id: patient_id)
           #                         .where.not(accession_number: Lab::LimsOrderMapping.select(:lims_id).where("pulled_at IS NULL"))
           orders = Lab::OrdersSearchService.find_orders_without_results(patient_id:)
-                                           .where(order_id: Lab::LimsOrderMapping.select(:order_id))
+                                           .where(order_id: mappings_due_for_results_check(accession_numbers).select(:order_id))
           orders = orders.where('orders.date_created >= ?', start_date) if start_date
           orders = orders.where(accession_number: accession_numbers) if accession_numbers.any?
           orders
+        end
+
+        # Skips orders pulled within RESULTS_RECHECK_INTERVAL, unless specific
+        # accession numbers were asked for (a manual re-sync).
+        def mappings_due_for_results_check(accession_numbers)
+          return Lab::LimsOrderMapping.all if accession_numbers.any?
+
+          Lab::LimsOrderMapping.where('pulled_at IS NULL OR pulled_at < ?', RESULTS_RECHECK_INTERVAL.ago)
         end
 
         def orders_without_reason(patient_id = nil, start_date: nil, accession_numbers: [])

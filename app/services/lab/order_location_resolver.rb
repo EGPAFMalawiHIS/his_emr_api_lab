@@ -97,8 +97,11 @@ module Lab
       scope.order(Arel.sql("CASE WHEN concept_id IN (#{quoted_ids}) THEN 0 ELSE 1 END, date_created ASC, obs_id ASC"))
     end
 
+    # Cached like the concept IDs in Lab::LabTest; empty results are not cached
+    # so a missing concept is picked up once it is added.
     def order_location_concept_ids
-      ConceptName.where(name: ORDER_OBSERVATION_CONCEPT_NAMES).pluck(:concept_id)
+      @order_location_concept_ids ||= ConceptName.where(name: ORDER_OBSERVATION_CONCEPT_NAMES)
+                                                 .pluck(:concept_id).presence
     end
 
     def encounter_location_id_for_record(record)
