@@ -15,7 +15,7 @@ module Lab
         # How long to wait before asking NLIMS again about an order that still
         # has no results. Orders that never get results (rejected or abandoned
         # samples) would otherwise be fetched from NLIMS on every pull.
-        RESULTS_RECHECK_INTERVAL = 3.minutes
+        RESULTS_RECHECK_INTERVAL = 30.minutes
 
         def initialize(config)
           @config = config
