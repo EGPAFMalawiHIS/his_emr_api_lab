@@ -165,24 +165,12 @@ module Lab
       def update_order_status(order_params)
         # find the order
         order = find_order(order_params['tracking_number'])
-        concept = ConceptName.find_by_name Lab::Metadata::LAB_ORDER_STATUS_CONCEPT_NAME
-        location_id = Lab::OrderLocationResolver.location_id_for_order(order)
-        ActiveRecord::Base.transaction do
-          void_order_status(order, concept)
-          Observation.create!(
-            person_id: order.patient_id,
-            encounter_id: order.encounter_id,
-            concept_id: concept.concept_id,
-            order_id: order.id,
-            obs_datetime: order_params['status_time'] || Time.now,
-            value_text: order_params['status'],
-            creator: User.current.id,
-            location_id:
-          )
 
-          # Save order status trail if available
-          save_order_status_trail(order, order_params) if order_params['status']
-        end
+        # Statuses form the order's trail and the newest one is the current
+        # status, so earlier ones are kept. Voiding them here made the pull
+        # worker re-create the whole trail on its next run, and the two kept
+        # adding copies of the same statuses.
+        save_order_status_trail(order, order_params) if order_params['status']
         create_rejection_notification(order_params) if order_params['status'] == 'test-rejected'
 
         # Publish notification that order status has changed
@@ -497,12 +485,6 @@ module Lab
         date = order.start_date if order.respond_to?(:start_date)
         date ||= order.date_created
         add_reason_for_test(order, date: date, reason_for_test_id: concept_id)
-      end
-
-      def void_order_status(order, concept)
-        Observation.unscoped.where(order_id: order.id, concept_id: concept.concept_id).each do |obs|
-          obs.void('New Status Received from LIMS')
-        end
       end
 
       def location_id_from_order_params(order_params)

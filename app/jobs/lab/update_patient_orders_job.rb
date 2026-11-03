@@ -6,7 +6,17 @@ module Lab
   class UpdatePatientOrdersJob < ApplicationJob
     queue_as :default
 
+    # Opening a patient's lab orders or tests queues this job, so a busy
+    # patient page would otherwise sync with NLIMS on every request.
+    MIN_INTERVAL_BETWEEN_RUNS = 5.minutes
+
+    # Only orders from this window are checked; older orders are left to the
+    # sync worker (bin/lab/sync_worker.rb uses the same window).
+    SYNC_WINDOW = 6.months
+
     def perform(patient_id)
+      return if ran_recently?(patient_id)
+
       Rails.logger.info('Initialising LIMS REST API...')
 
       User.current = Lab::Lims::Utils.lab_user
@@ -21,7 +31,7 @@ module Lab
           break false
         end
 
-        worker = Lab::Lims::PullWorker.new(Lab::Lims::ApiFactory.create_api)
+        worker = Lab::Lims::PullWorker.new(Lab::Lims::ApiFactory.create_api, start_date: SYNC_WINDOW.ago)
         worker.pull_orders(patient_id:)
 
         true
@@ -31,6 +41,20 @@ module Lab
     end
 
     private
+
+    # Uses a file's mtime rather than Rails.cache so all Puma workers see it.
+    # The file is touched before the sync starts, so a burst of requests for
+    # the same patient results in a single sync.
+    def ran_recently?(patient_id)
+      stamp = Rails.root.join('tmp', "update-patient-orders-#{patient_id}.last_run")
+      if File.exist?(stamp) && File.mtime(stamp) > MIN_INTERVAL_BETWEEN_RUNS.ago
+        Rails.logger.info("Skipping LIMS update for patient #{patient_id}: last run at #{File.mtime(stamp)} and next run not due until #{File.mtime(stamp) + MIN_INTERVAL_BETWEEN_RUNS}")
+        return true
+      end
+
+      FileUtils.touch(stamp)
+      false
+    end
 
     def set_location_from_patient_encounter(patient_id)
       Rails.logger.info("Setting location context for patient #{patient_id}")
