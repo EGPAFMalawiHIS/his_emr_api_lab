@@ -100,62 +100,39 @@ module Lab
       Observation.unscoped.find_by(order_id: order.order_id, concept_id: concept, voided: 0)
     end
 
+    # The trail methods load the whole association (a handful of rows per
+    # order/test) and the "latest" methods take the last loaded row. Calling
+    # `.last` on an unloaded association instead issues
+    # `ORDER BY obs_datetime DESC, obs_id DESC LIMIT 1`, and with LIMIT 1 MySQL
+    # may walk an obs_datetime index (obs_datetime_idx / idx_obs_adherence_lookup)
+    # backwards across the whole obs table rather than use obs_order. Loading
+    # also caches the rows on the record, so the trail and the latest status
+    # share a single query.
     def self.latest_order_status(order)
-      # Query obs table for latest order status
-      latest_obs = order.status_trail_observations.last
-      return nil unless latest_obs
-
-      updated_by = parse_comments_json(latest_obs.comments)
-
-      {
-        status_id: 0, # status_id not used with text values
-        status: latest_obs.value_text,
-        timestamp: latest_obs.obs_datetime,
-        updated_by: updated_by
-      }
+      serialize_status_obs(order.status_trail_observations.to_a.last)
     end
 
     def self.serialize_order_status_trail(order)
-      # Query obs table for order status trail
-      order.status_trail_observations.map do |obs|
-        updated_by = parse_comments_json(obs.comments)
-
-        {
-          status_id: 0, # status_id not used with text values
-          status: obs.value_text,
-          timestamp: obs.obs_datetime,
-          updated_by: updated_by
-        }
-      end
+      order.status_trail_observations.to_a.map { |obs| serialize_status_obs(obs) }
     end
 
     def self.latest_test_status(test)
-      # Query obs table for latest test status
-      latest_obs = test.status_trail_observations.last
-      return nil unless latest_obs
-
-      updated_by = parse_comments_json(latest_obs.comments)
-
-      {
-        status_id: 0, # status_id not used with text values
-        status: latest_obs.value_text,
-        timestamp: latest_obs.obs_datetime,
-        updated_by: updated_by
-      }
+      serialize_status_obs(test.status_trail_observations.to_a.last)
     end
 
     def self.serialize_test_status_trail(test)
-      # Query obs table for test status trail
-      test.status_trail_observations.map do |obs|
-        updated_by = parse_comments_json(obs.comments)
+      test.status_trail_observations.to_a.map { |obs| serialize_status_obs(obs) }
+    end
 
-        {
-          status_id: 0, # status_id not used with text values
-          status: obs.value_text,
-          timestamp: obs.obs_datetime,
-          updated_by: updated_by
-        }
-      end
+    def self.serialize_status_obs(obs)
+      return nil unless obs
+
+      {
+        status_id: 0, # status_id not used with text values
+        status: obs.value_text,
+        timestamp: obs.obs_datetime,
+        updated_by: parse_comments_json(obs.comments)
+      }
     end
 
     # Helper to parse updated_by from obs comments field
